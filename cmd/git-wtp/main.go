@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/satococoa/git-wtp/internal/config"
 	"github.com/satococoa/git-wtp/internal/git"
@@ -132,10 +133,34 @@ func listCommand(ctx context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	fmt.Printf("%-30s %-20s %s\n", "PATH", "BRANCH", "HEAD")
-	fmt.Printf("%-30s %-20s %s\n", "----", "------", "----")
+	// Calculate column widths dynamically
+	maxPathLen := 4  // "PATH"
+	maxBranchLen := 6 // "BRANCH"
+	
 	for _, wt := range worktrees {
-		fmt.Printf("%-30s %-20s %s\n", wt.Path, wt.Branch, wt.HEAD[:8])
+		if len(wt.Path) > maxPathLen {
+			maxPathLen = len(wt.Path)
+		}
+		if len(wt.Branch) > maxBranchLen {
+			maxBranchLen = len(wt.Branch)
+		}
+	}
+	
+	// Add some padding
+	maxPathLen += 2
+	maxBranchLen += 2
+
+	// Print header
+	fmt.Printf("%-*s %-*s %s\n", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD")
+	fmt.Printf("%-*s %-*s %s\n", maxPathLen, strings.Repeat("-", 4), maxBranchLen, strings.Repeat("-", 6), "----")
+	
+	// Print worktrees
+	for _, wt := range worktrees {
+		headShort := wt.HEAD
+		if len(headShort) > 8 {
+			headShort = headShort[:8]
+		}
+		fmt.Printf("%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, wt.Branch, headShort)
 	}
 
 	return nil
