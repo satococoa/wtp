@@ -49,8 +49,7 @@ We chose YAML for configuration because:
 Post-create hooks support:
 
 - File copying (for .env files, etc.)
-- Command execution with conditions
-- Error handling options (ignore_error)
+- Command execution
 
 This covers 90% of use cases without over-engineering.
 
@@ -60,7 +59,8 @@ This covers 90% of use cases without over-engineering.
 
 - Cross-platform path separators
 - Relative vs absolute paths
-- Branch names with slashes → directory names
+- Branch names with slashes preserved as directory structure (e.g., feature/auth
+  → feature/auth/)
 
 ### 2. Git Command Integration
 
