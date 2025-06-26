@@ -138,7 +138,7 @@ The original Product Requirements Document specified:
 
 - Simple worktree management commands
 - Automatic environment setup
-- Configuration via .gitworktree.yml
+- Configuration via .git-worktree-plus.yml
 - Cross-platform support
 - Shell integration
 

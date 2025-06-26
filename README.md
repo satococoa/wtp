@@ -8,29 +8,29 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 ### Core Commands
 
 - [ ] `git wtp init` - Initialize configuration file
-- [ ] `git wtp add` - Create worktree with automatic branch resolution
-  - [ ] Create from existing local branch
-  - [ ] Create from remote branch with automatic tracking
+- [x] `git wtp add` - Create worktree with automatic branch resolution
+  - [x] Create from existing local branch
+  - [x] Create from remote branch with automatic tracking
   - [ ] Create with new branch (`-b` option)
-- [ ] `git wtp remove` - Remove worktree
-  - [ ] Remove worktree only
+- [x] `git wtp remove` - Remove worktree
+  - [x] Remove worktree only
   - [ ] Remove with branch (`--with-branch` option)
-  - [ ] Force removal (`--force` option)
-- [ ] `git wtp list` - List all worktrees with status
+  - [x] Force removal (`--force` option)
+- [x] `git wtp list` - List all worktrees with status
 - [ ] `git wtp cd` - Change directory to worktree (requires shell integration)
 
 ### Advanced Features
 
-- [ ] **Post-create hooks**
-  - [ ] Copy files from main worktree
-  - [ ] Execute commands
+- [x] **Post-create hooks**
+  - [x] Copy files from main worktree
+  - [x] Execute commands
 - [ ] **Shell completion**
   - [ ] Bash completion
   - [ ] Zsh completion
   - [ ] Fish completion
-- [ ] **Cross-platform support**
-  - [ ] Linux
-  - [ ] macOS
+- [x] **Cross-platform support**
+  - [x] Linux
+  - [x] macOS
 
 ## Installation
 
@@ -59,28 +59,21 @@ sudo make install
 ## Quick Start
 
 ```bash
-# Initialize git-wtp in your repository
-git wtp init
+# Create worktree from existing local branch
+git-wtp add feature/auth
 
-# Create worktree from existing branch
-git wtp add feature/auth
+# Create worktree from remote branch (automatically tracks)
+git-wtp add feat1  # Creates from origin/feat1 if exists locally
 
-# Create worktree from remote branch
-git wtp add feat1  # Creates from origin/feat1 if exists
-
-# Create worktree with new branch
-git wtp add -b feature/new-feature
-git wtp add -b feature/new-feature develop  # branch from develop
+# Create worktree with specific branch name
+git-wtp add my-worktree feature/auth
 
 # List all worktrees
-git wtp list
+git-wtp list
 
 # Remove worktree
-git wtp remove feature/auth
-git wtp remove feature/auth --with-branch  # Also delete branch
-
-# Change to worktree directory (requires shell integration)
-git wtp cd feature/auth
+git-wtp remove feature/auth
+git-wtp remove --force feature/auth  # Force removal even if dirty
 ```
 
 ## Configuration
@@ -88,29 +81,33 @@ git wtp cd feature/auth
 Git-wtp uses `.git-worktree-plus.yml` for project-specific configuration:
 
 ```yaml
-version: 1
-
+version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
   base_dir: "../worktrees"
 
 hooks:
-  # Commands to run after creating a worktree
   post_create:
-    # Copy files from main worktree
-    copy_files:
-      - source: ".env.example"
-        dest: ".env"
-      - source: ".env.local"
-        # dest defaults to source if omitted
-
-    # Execute commands
-    commands:
-      - name: "Install dependencies"
-        run: "npm install"
-
-      - name: "Setup database"
-        run: "make db:setup"
+    # Copy files from repository root to new worktree
+    - type: copy
+      from: ".env.example"
+      to: ".env"
+    
+    - type: copy
+      from: "config/database.yml.example"
+      to: "config/database.yml"
+    
+    # Execute commands in the new worktree
+    - type: command
+      command: "npm"
+      args: ["install"]
+      env:
+        NODE_ENV: "development"
+    
+    - type: command
+      command: "make"
+      args: ["db:setup"]
+      work_dir: "."
 ```
 
 ## Shell Integration
@@ -141,6 +138,8 @@ git-wtp shell-init fish | source
 
 ## Worktree Structure
 
+With the default configuration (`base_dir: "../worktrees"`):
+
 ```
 <project-root>/
 ├── .git/
@@ -150,22 +149,27 @@ git-wtp shell-init fish | source
 ../worktrees/
 ├── main/
 ├── feature/
-│   ├── auth/          # feature/auth branch
-│   └── payment/       # feature/payment branch
+│   ├── auth/          # git-wtp add feature/auth
+│   └── payment/       # git-wtp add feature/payment
 └── hotfix/
-    └── bug-123/       # hotfix/bug-123 branch
+    └── bug-123/       # git-wtp add hotfix/bug-123
 ```
+
+Branch names with slashes are preserved as directory structure, automatically organizing worktrees by type/category.
 
 ## Error Handling
 
 Git-wtp provides clear error messages:
 
 ```bash
-# Worktree already exists
-Error: Worktree 'feature/auth' already exists at ../worktrees/feature/auth
+# Branch not found
+Error: branch 'nonexistent' not found in local or remote branches
 
-# Branch already exists (when using -b)
-Error: Branch 'main' already exists. Use 'git wtp add main' instead
+# Multiple remotes have same branch
+Error: branch 'feature' exists in multiple remotes: origin, upstream. Please specify remote explicitly
+
+# Worktree already exists
+Error: failed to create worktree: exit status 128
 
 # Uncommitted changes
 Error: Cannot remove worktree with uncommitted changes. Use --force to override
@@ -198,17 +202,19 @@ make build
 
 ## Roadmap
 
-### v0.1.0 (MVP)
+### v0.1.0 (MVP) ✅ COMPLETED
 
-- [ ] Basic commands (add, remove, list)
-- [ ] Local branch support
-- [ ] Remote branch tracking
+- [x] Basic commands (add, remove, list)
+- [x] Local branch support
+- [x] Remote branch tracking
+- [x] Configuration file support
+- [x] Post-create hooks
 
 ### v0.2.0
 
-- [ ] Configuration file support
-- [ ] Post-create hooks
 - [ ] Shell completion
+- [ ] Init command for configuration
+- [ ] Branch creation (`-b` flag)
 
 ### v0.3.0
 
