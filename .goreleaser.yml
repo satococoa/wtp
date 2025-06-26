@@ -1,0 +1,152 @@
+version: 1
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: git-wtp
+    binary: git-wtp
+    main: ./cmd/git-wtp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - "386"
+      - amd64
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: "386"
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: git-wtp
+    format: tar.gz
+    name_template: >-
+      git-wtp_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CONTRIBUTING.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+
+brews:
+  - name: git-wtp
+    repository:
+      owner: satococoa
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    url_template: "https://github.com/satococoa/git-wtp/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    download_strategy: CurlDownloadStrategy
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+    homepage: "https://github.com/satococoa/git-wtp"
+    description: "Git Worktree Plus - Enhanced worktree management with automated setup and hooks"
+    license: "MIT"
+    skip_upload: auto
+    dependencies:
+      - name: git
+    install: |
+      bin.install "git-wtp"
+    test: |
+      system "#{bin}/git-wtp", "--help"
+
+release:
+  github:
+    owner: satococoa
+    name: git-wtp
+  draft: false
+  prerelease: auto
+  name_template: "{{.ProjectName}} {{.Version}}"
+  header: |
+    ## Git Worktree Plus {{.Version}}
+
+    Welcome to this new release!
+
+  footer: |
+    ## Installation
+
+    ### Homebrew
+    ```bash
+    brew install satococoa/tap/git-wtp
+    ```
+
+    ### Manual Installation
+    Download the appropriate binary for your platform from the assets below.
+
+    **Full Changelog**: https://github.com/satococoa/git-wtp/compare/{{.PreviousTag}}...{{.Tag}}
+
+nfpms:
+  - id: git-wtp
+    package_name: git-wtp
+    file_name_template: >-
+      git-wtp_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    vendor: satococoa
+    homepage: https://github.com/satococoa/git-wtp
+    maintainer: satococoa <satococoa@example.com>
+    description: |-
+      Git Worktree Plus - Enhanced worktree management with automated setup and hooks.
+      A powerful Git worktree management tool that extends git's worktree functionality
+      with automated setup, branch tracking, and project-specific hooks.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    dependencies:
+      - git
+    bindir: /usr/bin

@@ -8,6 +8,13 @@
 # Test binary, built with `go build`
 git-wtp
 
+# Coverage files
+coverage.out
+coverage.html
+
+# Build artifacts
+dist/
+
 # Go workspace file
 go.work
 

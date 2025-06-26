@@ -34,26 +34,45 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 
 ## Installation
 
-### Using Go
-
-```bash
-go install github.com/satococoa/git-wtp@latest
-```
-
 ### Using Homebrew (macOS/Linux)
 
 ```bash
-# Coming soon
 brew install satococoa/tap/git-wtp
 ```
 
-### From source
+### Using Go
+
+```bash
+go install github.com/satococoa/git-wtp/cmd/git-wtp@latest
+```
+
+### Download Binary
+
+Download the latest binary from [GitHub Releases](https://github.com/satococoa/git-wtp/releases):
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/satococoa/git-wtp/releases/latest/download/git-wtp_Darwin_arm64.tar.gz | tar xz
+sudo mv git-wtp /usr/local/bin/
+
+# macOS (Intel)
+curl -L https://github.com/satococoa/git-wtp/releases/latest/download/git-wtp_Darwin_x86_64.tar.gz | tar xz
+sudo mv git-wtp /usr/local/bin/
+
+# Linux (x86_64)
+curl -L https://github.com/satococoa/git-wtp/releases/latest/download/git-wtp_Linux_x86_64.tar.gz | tar xz
+sudo mv git-wtp /usr/local/bin/
+
+# Windows (download .zip from releases page)
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/satococoa/git-wtp.git
 cd git-wtp
-make build
-sudo make install
+go build -o git-wtp ./cmd/git-wtp
+sudo mv git-wtp /usr/local/bin/  # or add to PATH
 ```
 
 ## Quick Start

@@ -13,10 +13,18 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// Version information (set by GoReleaser)
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	app := &cli.Command{
-		Name:  "git-wtp",
-		Usage: "Git Worktree Plus - Enhanced worktree management",
+		Name:    "git-wtp",
+		Usage:   "Git Worktree Plus - Enhanced worktree management",
+		Version: version,
 		Description: "A powerful Git worktree management tool that extends git's worktree " +
 			"functionality with automated setup, branch tracking, and project-specific hooks.",
 		Commands: []*cli.Command{
