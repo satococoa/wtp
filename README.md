@@ -14,8 +14,8 @@ functionality with automated setup, branch tracking, and project-specific hooks.
   - [x] **Transparent wrapper**: All git worktree options supported
   - [x] Post-create hooks execution
 - [x] `git wtp remove` - Remove worktree
-  - [x] Remove worktree only
-  - [ ] Remove with branch (`--with-branch` option)
+  - [x] Remove worktree only (git worktree compatible)
+  - [ ] Remove with branch (`--with-branch` option for convenience)
   - [x] Force removal (`--force` option)
 - [x] `git wtp list` - List all worktrees with status
 - [ ] `git wtp cd` - Change directory to worktree (requires shell integration)
@@ -25,10 +25,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 - [x] **Post-create hooks**
   - [x] Copy files from main worktree
   - [x] Execute commands
-- [ ] **Shell completion**
-  - [ ] Bash completion
-  - [ ] Zsh completion
-  - [ ] Fish completion
+- [ ] **Shell completion** (git worktree-based extension approach)
+  - [ ] Bash completion extending git worktree
+  - [ ] Zsh completion extending git worktree
+  - [ ] Fish completion extending git worktree
 - [x] **Cross-platform support**
   - [x] Linux
   - [x] macOS
@@ -264,13 +264,14 @@ make build
 
 ### v0.2.0
 
-- [ ] Shell completion
+- [ ] Shell completion (git worktree-based extension approach)
 - [x] Init command for configuration
 - [x] Branch creation (`-b` flag)
 - [x] Hybrid approach (automatic + explicit path support)
 
 ### v0.3.0
 
+- [ ] Remove with branch (`--with-branch` option)
 - [ ] Shell integration (cd command)
 - [ ] Multiple remote handling
 - [ ] Better error messages
