@@ -127,7 +127,7 @@ func (r *Repository) GetRemoteBranches() (map[string][]string, error) {
 		if line == "" || strings.Contains(line, "->") {
 			continue
 		}
-		
+
 		parts := strings.SplitN(line, "/", 2)
 		if len(parts) == 2 {
 			remote := parts[0]
@@ -148,7 +148,7 @@ func (r *Repository) ResolveBranch(branchName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get local branches: %w", err)
 	}
-	
+
 	if slices.Contains(localBranches, branchName) {
 		return branchName, nil
 	}
@@ -174,7 +174,7 @@ func (r *Repository) ResolveBranch(branchName string) (string, error) {
 	}
 
 	if len(matchingRemotes) > 1 {
-		return "", fmt.Errorf("branch '%s' exists in multiple remotes: %s. Please specify remote explicitly", 
+		return "", fmt.Errorf("branch '%s' exists in multiple remotes: %s. Please specify remote explicitly",
 			branchName, strings.Join(matchingRemotes, ", "))
 	}
 
@@ -229,7 +229,7 @@ func isGitRepository(path string) bool {
 func parseWorktreeList(output string) ([]Worktree, error) {
 	var worktrees []Worktree
 	lines := strings.Split(output, "\n")
-	
+
 	var current *Worktree
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -253,10 +253,10 @@ func parseWorktreeList(output string) ([]Worktree, error) {
 			}
 		}
 	}
-	
+
 	if current != nil {
 		worktrees = append(worktrees, *current)
 	}
-	
+
 	return worktrees, nil
 }

@@ -37,7 +37,7 @@ func TestWorktreeName(t *testing.T) {
 			expected: "main",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.worktree.Name()
@@ -87,7 +87,7 @@ func TestWorktreeString(t *testing.T) {
 			expected: "/home/user/worktrees/empty []",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.worktree.String()

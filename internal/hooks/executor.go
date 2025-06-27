@@ -86,7 +86,7 @@ func (e *Executor) executeCopyHook(hook config.Hook, worktreePath string) error 
 // executeCommandHook executes a command hook
 func (e *Executor) executeCommandHook(hook config.Hook, worktreePath string) error {
 	cmd := exec.Command(hook.Command, hook.Args...)
-	
+
 	// Set working directory
 	workDir := hook.WorkDir
 	if workDir == "" {

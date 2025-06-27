@@ -27,26 +27,26 @@ type Hooks struct {
 
 // Hook represents a single hook configuration
 type Hook struct {
-	Type     string            `yaml:"type"` // "copy" or "command"
-	From     string            `yaml:"from,omitempty"`
-	To       string            `yaml:"to,omitempty"`
-	Command  string            `yaml:"command,omitempty"`
-	Args     []string          `yaml:"args,omitempty"`
-	Env      map[string]string `yaml:"env,omitempty"`
-	WorkDir  string            `yaml:"work_dir,omitempty"`
+	Type    string            `yaml:"type"` // "copy" or "command"
+	From    string            `yaml:"from,omitempty"`
+	To      string            `yaml:"to,omitempty"`
+	Command string            `yaml:"command,omitempty"`
+	Args    []string          `yaml:"args,omitempty"`
+	Env     map[string]string `yaml:"env,omitempty"`
+	WorkDir string            `yaml:"work_dir,omitempty"`
 }
 
 const (
-	ConfigFileName    = ".git-worktree-plus.yml"
-	CurrentVersion    = "1.0"
-	HookTypeCopy      = "copy"
-	HookTypeCommand   = "command"
+	ConfigFileName  = ".git-worktree-plus.yml"
+	CurrentVersion  = "1.0"
+	HookTypeCopy    = "copy"
+	HookTypeCommand = "command"
 )
 
 // LoadConfig loads configuration from .git-worktree-plus.yml in the repository root
 func LoadConfig(repoRoot string) (*Config, error) {
 	configPath := filepath.Join(repoRoot, ConfigFileName)
-	
+
 	// If config file doesn't exist, return default config
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return &Config{
@@ -83,7 +83,7 @@ func SaveConfig(repoRoot string, config *Config) error {
 	}
 
 	configPath := filepath.Join(repoRoot, ConfigFileName)
-	
+
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)

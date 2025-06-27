@@ -29,24 +29,24 @@ func main() {
 			"functionality with automated setup, branch tracking, and project-specific hooks.",
 		Commands: []*cli.Command{
 			{
-				Name:  "add",
-				Usage: "Create a new worktree",
+				Name:      "add",
+				Usage:     "Create a new worktree",
 				UsageText: "git-wtp add <name> [branch]",
-				Action: addCommand,
+				Action:    addCommand,
 			},
 			{
-				Name:  "list",
-				Usage: "List all worktrees",
+				Name:   "list",
+				Usage:  "List all worktrees",
 				Action: listCommand,
 			},
 			{
-				Name:  "remove",
-				Usage: "Remove a worktree",
+				Name:      "remove",
+				Usage:     "Remove a worktree",
 				UsageText: "git-wtp remove <name>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
-						Name:  "force",
-						Usage: "Force removal even if worktree is dirty",
+						Name:    "force",
+						Usage:   "Force removal even if worktree is dirty",
 						Aliases: []string{"f"},
 					},
 				},
@@ -142,9 +142,9 @@ func listCommand(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// Calculate column widths dynamically
-	maxPathLen := 4  // "PATH"
+	maxPathLen := 4   // "PATH"
 	maxBranchLen := 6 // "BRANCH"
-	
+
 	for _, wt := range worktrees {
 		if len(wt.Path) > maxPathLen {
 			maxPathLen = len(wt.Path)
@@ -153,7 +153,7 @@ func listCommand(ctx context.Context, cmd *cli.Command) error {
 			maxBranchLen = len(wt.Branch)
 		}
 	}
-	
+
 	// Add some padding
 	maxPathLen += 2
 	maxBranchLen += 2
@@ -161,7 +161,7 @@ func listCommand(ctx context.Context, cmd *cli.Command) error {
 	// Print header
 	fmt.Printf("%-*s %-*s %s\n", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD")
 	fmt.Printf("%-*s %-*s %s\n", maxPathLen, strings.Repeat("-", 4), maxBranchLen, strings.Repeat("-", 6), "----")
-	
+
 	// Print worktrees
 	for _, wt := range worktrees {
 		headShort := wt.HEAD

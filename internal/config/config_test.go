@@ -8,16 +8,16 @@ import (
 
 func TestLoadConfig_NonExistentFile(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	config, err := LoadConfig(tempDir)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	
+
 	if config.Version != CurrentVersion {
 		t.Errorf("Expected version %s, got %s", CurrentVersion, config.Version)
 	}
-	
+
 	if config.Defaults.BaseDir != "../worktrees" {
 		t.Errorf("Expected default base_dir '../worktrees', got %s", config.Defaults.BaseDir)
 	}
@@ -26,7 +26,7 @@ func TestLoadConfig_NonExistentFile(t *testing.T) {
 func TestLoadConfig_ValidFile(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, ConfigFileName)
-	
+
 	configContent := `version: "1.0"
 defaults:
   base_dir: "../my-worktrees"
@@ -39,33 +39,33 @@ hooks:
       command: "echo"
       args: ["test"]
 `
-	
+
 	err := os.WriteFile(configPath, []byte(configContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
-	
+
 	config, err := LoadConfig(tempDir)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	
+
 	if config.Version != "1.0" {
 		t.Errorf("Expected version '1.0', got %s", config.Version)
 	}
-	
+
 	if config.Defaults.BaseDir != "../my-worktrees" {
 		t.Errorf("Expected base_dir '../my-worktrees', got %s", config.Defaults.BaseDir)
 	}
-	
+
 	if len(config.Hooks.PostCreate) != 2 {
 		t.Errorf("Expected 2 hooks, got %d", len(config.Hooks.PostCreate))
 	}
-	
+
 	if config.Hooks.PostCreate[0].Type != HookTypeCopy {
 		t.Errorf("Expected first hook type 'copy', got %s", config.Hooks.PostCreate[0].Type)
 	}
-	
+
 	if config.Hooks.PostCreate[1].Type != HookTypeCommand {
 		t.Errorf("Expected second hook type 'command', got %s", config.Hooks.PostCreate[1].Type)
 	}
@@ -74,7 +74,7 @@ hooks:
 func TestLoadConfig_InvalidYAML(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, ConfigFileName)
-	
+
 	invalidContent := `version: "1.0"
 hooks:
   post_create:
@@ -84,12 +84,12 @@ hooks:
       to: ".env"
     invalid_structure
 `
-	
+
 	err := os.WriteFile(configPath, []byte(invalidContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
 	}
-	
+
 	_, err = LoadConfig(tempDir)
 	if err == nil {
 		t.Error("Expected error for invalid YAML, got nil")
@@ -98,7 +98,7 @@ hooks:
 
 func TestSaveConfig(t *testing.T) {
 	tempDir := t.TempDir()
-	
+
 	config := &Config{
 		Version: "1.0",
 		Defaults: Defaults{
@@ -114,28 +114,28 @@ func TestSaveConfig(t *testing.T) {
 			},
 		},
 	}
-	
+
 	err := SaveConfig(tempDir, config)
 	if err != nil {
 		t.Fatalf("Failed to save config: %v", err)
 	}
-	
+
 	// Verify file was created
 	configPath := filepath.Join(tempDir, ConfigFileName)
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		t.Error("Config file was not created")
 	}
-	
+
 	// Load it back and verify
 	loadedConfig, err := LoadConfig(tempDir)
 	if err != nil {
 		t.Fatalf("Failed to load saved config: %v", err)
 	}
-	
+
 	if loadedConfig.Version != config.Version {
 		t.Errorf("Expected version %s, got %s", config.Version, loadedConfig.Version)
 	}
-	
+
 	if loadedConfig.Defaults.BaseDir != config.Defaults.BaseDir {
 		t.Errorf("Expected base_dir %s, got %s", config.Defaults.BaseDir, loadedConfig.Defaults.BaseDir)
 	}
@@ -213,7 +213,7 @@ func TestConfigValidate(t *testing.T) {
 			expectError: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.config.Validate()
@@ -223,7 +223,7 @@ func TestConfigValidate(t *testing.T) {
 			if !tt.expectError && err != nil {
 				t.Errorf("Expected no error but got: %v", err)
 			}
-			
+
 			// Check defaults are set
 			if !tt.expectError {
 				if tt.config.Version == "" {
@@ -313,7 +313,7 @@ func TestHookValidate(t *testing.T) {
 			expectError: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.hook.Validate()
@@ -369,7 +369,7 @@ func TestResolveWorktreePath(t *testing.T) {
 			expected:     "/home/user/worktrees/main",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.config.ResolveWorktreePath(tt.repoRoot, tt.worktreeName)
@@ -414,7 +414,7 @@ func TestHasHooks(t *testing.T) {
 			expected: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.config.HasHooks()
