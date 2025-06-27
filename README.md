@@ -7,7 +7,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 
 ### Core Commands
 
-- [ ] `git wtp init` - Initialize configuration file
+- [x] `git wtp init` - Initialize configuration file
 - [x] `git wtp add` - Create worktree with automatic branch resolution
   - [x] Create from existing local branch
   - [x] Create from remote branch with automatic tracking

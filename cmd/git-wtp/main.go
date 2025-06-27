@@ -62,6 +62,11 @@ func main() {
 				},
 				Action: removeCommand,
 			},
+			{
+				Name:   "init",
+				Usage:  "Initialize configuration file",
+				Action: initCommand,
+			},
 		},
 	}
 
@@ -222,5 +227,51 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	fmt.Printf("Removed worktree '%s' at %s\n", worktreeName, workTreePath)
+	return nil
+}
+
+func initCommand(_ context.Context, _ *cli.Command) error {
+	// Get current working directory (should be a git repository)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Initialize repository
+	repo, err := git.NewRepository(cwd)
+	if err != nil {
+		return fmt.Errorf("not in a git repository: %w", err)
+	}
+
+	// Check if config file already exists
+	configPath := fmt.Sprintf("%s/%s", repo.Path(), config.ConfigFileName)
+	if _, err := os.Stat(configPath); err == nil {
+		return fmt.Errorf("configuration file already exists: %s", configPath)
+	}
+
+	// Create default configuration
+	defaultConfig := &config.Config{
+		Version: config.CurrentVersion,
+		Defaults: config.Defaults{
+			BaseDir: "../worktrees",
+		},
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: ".env.example",
+					To:   ".env",
+				},
+			},
+		},
+	}
+
+	// Save configuration
+	if err := config.SaveConfig(repo.Path(), defaultConfig); err != nil {
+		return fmt.Errorf("failed to create configuration file: %w", err)
+	}
+
+	fmt.Printf("Configuration file created: %s\n", configPath)
+	fmt.Println("Edit this file to customize your worktree setup.")
 	return nil
 }
