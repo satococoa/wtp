@@ -25,10 +25,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 - [x] **Post-create hooks**
   - [x] Copy files from main worktree
   - [x] Execute commands
-- [ ] **Shell completion** (git worktree-based extension approach)
-  - [ ] Bash completion extending git worktree
-  - [ ] Zsh completion extending git worktree
-  - [ ] Fish completion extending git worktree
+- [ ] **Shell completion** (reusing git's completion utilities)
+  - [ ] Bash completion using git's completion functions
+  - [ ] Zsh completion using git's completion functions
+  - [ ] Fish completion with custom logic
 - [x] **Cross-platform support**
   - [x] Linux
   - [x] macOS
@@ -264,7 +264,7 @@ make build
 
 ### v0.2.0
 
-- [ ] Shell completion (git worktree-based extension approach)
+- [ ] Shell completion (reusing git's completion utilities)
 - [x] Init command for configuration
 - [x] Branch creation (`-b` flag)
 - [x] Hybrid approach (automatic + explicit path support)
