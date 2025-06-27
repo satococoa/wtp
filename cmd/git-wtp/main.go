@@ -41,8 +41,12 @@ func main() {
 			{
 				Name:      "add",
 				Usage:     "Create a new worktree",
-				UsageText: "git-wtp add [git-worktree-options...] <branch-name> [<commit-ish>]",
+				UsageText: "git-wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "path",
+						Usage: "Specify explicit path for worktree (instead of auto-generation)",
+					},
 					&cli.BoolFlag{
 						Name:    "force",
 						Usage:   "Checkout <commit-ish> even if already checked out in other worktree",
@@ -135,19 +139,24 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Get branch name from first argument
-	branchName := cmd.Args().Get(0)
-	workTreePath := cfg.ResolveWorktreePath(repo.Path(), branchName)
+	// Resolve worktree path and branch name
+	firstArg := cmd.Args().Get(0)
+	workTreePath, branchName := resolveWorktreePath(cfg, repo.Path(), firstArg, cmd)
 
 	// Build git worktree add command
-	args := buildGitWorktreeArgs(cmd, workTreePath)
+	args := buildGitWorktreeArgs(cmd, workTreePath, branchName)
 
 	// Execute git worktree add
 	if err := repo.ExecuteGitCommand(args...); err != nil {
 		return fmt.Errorf("failed to create worktree: %w", err)
 	}
 
-	fmt.Printf("Created worktree '%s' at %s\n", branchName, workTreePath)
+	// Display appropriate success message
+	if branchName != "" {
+		fmt.Printf("Created worktree '%s' at %s\n", branchName, workTreePath)
+	} else {
+		fmt.Printf("Created worktree at %s\n", workTreePath)
+	}
 
 	// Execute post-create hooks
 	if cfg.HasHooks() {
@@ -161,10 +170,32 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func buildGitWorktreeArgs(cmd *cli.Command, workTreePath string) []string {
+// resolveWorktreePath determines the worktree path and branch name based on flags and arguments
+func resolveWorktreePath(
+	cfg *config.Config, repoPath, firstArg string, cmd *cli.Command,
+) (workTreePath, branchName string) {
+	// Check if explicit path is specified via --path flag
+	if explicitPath := cmd.String("path"); explicitPath != "" {
+		// Explicit path specified - use it as-is, branch name from first argument
+		return explicitPath, firstArg
+	}
+
+	// No explicit path - generate path automatically from branch name
+	branchName = firstArg
+
+	// If -b flag is provided, use that as the branch name for path generation
+	if newBranch := cmd.String("branch"); newBranch != "" {
+		branchName = newBranch
+	}
+
+	workTreePath = cfg.ResolveWorktreePath(repoPath, branchName)
+	return workTreePath, branchName
+}
+
+func buildGitWorktreeArgs(cmd *cli.Command, workTreePath, branchName string) []string {
 	args := []string{"worktree", "add"}
 
-	// Add flags
+	// Add flags (excluding our custom --path flag)
 	if cmd.Bool("force") {
 		args = append(args, "--force")
 	}
@@ -193,8 +224,23 @@ func buildGitWorktreeArgs(cmd *cli.Command, workTreePath string) []string {
 	// Add worktree path
 	args = append(args, workTreePath)
 
-	// Add remaining arguments (branch and commit-ish)
-	args = append(args, cmd.Args().Slice()...)
+	// Handle arguments based on whether explicit path was specified
+	if cmd.String("path") != "" {
+		// Explicit path case: first arg is branch name, add remaining args
+		args = append(args, branchName)
+		if cmd.Args().Len() > 1 {
+			args = append(args, cmd.Args().Slice()[1:]...)
+		}
+	} else {
+		// Auto-generated path case: add branch name if not using -b flag
+		if cmd.String("branch") == "" {
+			args = append(args, branchName)
+		}
+		// Add any additional arguments (commit-ish, etc.)
+		if cmd.Args().Len() > 1 {
+			args = append(args, cmd.Args().Slice()[1:]...)
+		}
+	}
 
 	return args
 }

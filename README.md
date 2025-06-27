@@ -8,9 +8,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 ### Core Commands
 
 - [x] `git wtp init` - Initialize configuration file
-- [x] `git wtp add` - Transparent wrapper for git worktree add with path management
-  - [x] Supports all git worktree add options
-  - [x] Automatic worktree path resolution
+- [x] `git wtp add` - Clean and unambiguous worktree creation
+  - [x] **Automatic path generation**: `git-wtp add feature/auth` (no redundant typing)
+  - [x] **Explicit path support**: `git-wtp add --path /custom/path feature/auth` (no ambiguity)
+  - [x] **Transparent wrapper**: All git worktree options supported
   - [x] Post-create hooks execution
 - [x] `git wtp remove` - Remove worktree
   - [x] Remove worktree only
@@ -77,22 +78,48 @@ sudo mv git-wtp /usr/local/bin/  # or add to PATH
 
 ## Quick Start
 
+### Automatic Path Generation (Recommended)
+
 ```bash
 # Create worktree from existing branch (local or remote)
+# → Creates worktree at ../worktrees/feature/auth
 git-wtp add feature/auth
 
 # Create worktree with new branch
+# → Creates worktree at ../worktrees/feature/new-feature
 git-wtp add -b feature/new-feature
 
 # Create new branch from specific commit
+# → Creates worktree at ../worktrees/hotfix/urgent
 git-wtp add -b hotfix/urgent abc1234
 
-# Create detached HEAD worktree from commit
-git-wtp add --detach temp-experiment abc1234
-
 # Use all git worktree options
+# → Creates worktree at ../worktrees/feature/test
 git-wtp add -b feature/test --track origin/main
+```
 
+### Explicit Path Specification (Full Flexibility)
+
+```bash
+# Create worktree at custom absolute path
+git-wtp add --path /tmp/experiment feature/auth
+
+# Create worktree at custom relative path
+git-wtp add --path ./custom-location feature/auth
+
+# Create detached HEAD worktree from commit
+git-wtp add --path /tmp/debug --detach abc1234
+
+# All git worktree options work with explicit paths
+git-wtp add --path /tmp/test --force feature/auth
+
+# No ambiguity: foobar/foo is always treated as branch name
+git-wtp add --path /custom/location foobar/foo
+```
+
+### Management Commands
+
+```bash
 # List all worktrees
 git-wtp list
 
@@ -238,8 +265,9 @@ make build
 ### v0.2.0
 
 - [ ] Shell completion
-- [ ] Init command for configuration
+- [x] Init command for configuration
 - [x] Branch creation (`-b` flag)
+- [x] Hybrid approach (automatic + explicit path support)
 
 ### v0.3.0
 

@@ -216,6 +216,88 @@ When implementing new features or fixing bugs:
 
 **Critical**: ALWAYS run `make lint` and fix all issues before committing.
 
+## Major Design Changes
+
+### 2024-12: Transparent Wrapper & Hybrid Approach Implementation
+
+**Background**: Based on DESIGN_DISCUSSION.md analysis, implemented the hybrid approach that balances simplicity with flexibility.
+
+**Key Changes Implemented**:
+
+1. **Path Resolution Logic**:
+   - Added `isPath()` function to distinguish paths from branch names
+   - Supports absolute paths (`/custom/path`), relative paths (`./path`, `../path`), and Windows paths (`C:\path`)
+   - Everything else treated as branch name for automatic path generation
+
+2. **Hybrid Command Syntax**:
+   ```bash
+   # Simple: automatic path generation
+   git-wtp add feature/auth  # → ../worktrees/feature/auth
+   
+   # Flexible: explicit path specification  
+   git-wtp add /tmp/experiment feature/auth
+   git-wtp add --detach /tmp/debug abc1234
+   ```
+
+3. **Transparent Wrapper**:
+   - All git worktree flags pass through unchanged
+   - Argument handling adapts based on path vs branch name detection
+   - Error messages come directly from git worktree
+
+4. **Benefits Achieved**:
+   - **Learning cost reduction**: git worktree users can use immediately
+   - **Redundancy elimination**: no more typing branch names twice
+   - **Flexibility maintained**: all git worktree features available
+   - **Team consistency**: shared path management via config
+
+**Files Modified**:
+- `cmd/git-wtp/main.go`: Core implementation
+- `cmd/git-wtp/main_test.go`: Test coverage for new logic
+- `README.md`: Updated Quick Start with hybrid examples
+- `CLAUDE.md`: This documentation
+
+**Testing**: All existing tests pass, new path resolution logic tested
+
+### 2024-12: Explicit Path Flag Implementation
+
+**Background**: User feedback identified ambiguity issue with automatic path detection - `foobar/foo` could be interpreted as either a path or branch name, causing confusion.
+
+**Solution**: Replaced automatic path detection with explicit `--path` flag for unambiguous behavior.
+
+**Changes Made**:
+
+1. **Added --path Flag**:
+   ```bash
+   # Before (ambiguous)
+   git-wtp add foobar/foo          # Is this a path or branch?
+   
+   # After (explicit)
+   git-wtp add --path foobar/foo feature/auth  # Clear: foobar/foo is path
+   git-wtp add foobar/foo                       # Clear: foobar/foo is branch
+   ```
+
+2. **Removed isPath() Function**:
+   - Eliminated automatic path detection logic
+   - No more heuristics based on path patterns
+
+3. **Updated resolveWorktreePath**:
+   - Simple flag-based logic: `--path` present = explicit path, otherwise auto-generate
+   - More predictable and testable
+
+4. **Benefits**:
+   - **Clarity**: No ambiguity between paths and branch names
+   - **Safety**: Users always get expected behavior
+   - **Consistency**: Follows git worktree flag pattern
+   - **Maintainability**: Simpler logic without heuristics
+
+**Files Modified**:
+- `cmd/git-wtp/main.go`: Added --path flag, removed isPath(), updated logic
+- `cmd/git-wtp/main_test.go`: Updated tests for new behavior
+- `README.md`: Updated examples to use --path flag
+- `CLAUDE.md`: This documentation
+
+**Testing**: All tests pass, explicit path logic verified
+
 ---
 
 This document serves as a living record of the project's development. Update as
