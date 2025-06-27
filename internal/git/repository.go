@@ -192,6 +192,27 @@ func (r *Repository) CreateBranchFromRemote(localBranch, remoteBranch string) er
 	return nil
 }
 
+// CreateBranch creates a new branch from current HEAD, fails if branch already exists
+func (r *Repository) CreateBranch(branchName string) error {
+	cmd := exec.Command("git", "branch", branchName)
+	cmd.Dir = r.path
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to create branch: %w", err)
+	}
+	return nil
+}
+
+// CreateWorktreeWithNewBranch creates a worktree with a new branch
+func (r *Repository) CreateWorktreeWithNewBranch(path, branchName string) error {
+	// Create new branch first (this will fail if branch already exists)
+	if err := r.CreateBranch(branchName); err != nil {
+		return fmt.Errorf("failed to create new branch: %w", err)
+	}
+
+	// Create worktree with the new branch
+	return r.CreateWorktree(path, branchName)
+}
+
 // CreateWorktreeFromBranch creates a worktree from a branch, handling local/remote automatically
 func (r *Repository) CreateWorktreeFromBranch(path, branchName string) error {
 	// If branchName is empty, just create worktree at current HEAD

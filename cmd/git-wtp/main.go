@@ -41,11 +41,11 @@ func main() {
 			{
 				Name:      "add",
 				Usage:     "Create a new worktree",
-				UsageText: "git-wtp add <name> [branch] or git-wtp add <name> -b <branch>",
+				UsageText: "git-wtp add <name> [branch] or git-wtp add <name> -b <new-branch>",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:    "branch",
-						Usage:   "Branch to checkout in the new worktree",
+						Usage:   "Create new branch for the worktree (fails if branch exists)",
 						Aliases: []string{"b"},
 					},
 				},
@@ -111,19 +111,23 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	// Resolve worktree path using configuration
 	workTreePath := cfg.ResolveWorktreePath(repo.Path(), worktreeName)
 
-	// Check if branch is specified via flag
+	// Check if branch is specified via flag (-b means create new branch)
 	if flagBranch := cmd.String("branch"); flagBranch != "" {
+		// -b flag specified: create new branch and worktree
+		if err := repo.CreateWorktreeWithNewBranch(workTreePath, flagBranch); err != nil {
+			return fmt.Errorf("failed to create worktree with new branch: %w", err)
+		}
 		branchName = flagBranch
-	}
+	} else {
+		// No -b flag: use existing branch or create from branch name
+		if branchName == "" {
+			branchName = worktreeName
+		}
 
-	// If no branch specified, use worktree name as branch name
-	if branchName == "" {
-		branchName = worktreeName
-	}
-
-	// Create worktree with automatic remote tracking
-	if err := repo.CreateWorktreeFromBranch(workTreePath, branchName); err != nil {
-		return fmt.Errorf("failed to create worktree: %w", err)
+		// Create worktree with automatic remote tracking
+		if err := repo.CreateWorktreeFromBranch(workTreePath, branchName); err != nil {
+			return fmt.Errorf("failed to create worktree: %w", err)
+		}
 	}
 
 	fmt.Printf("Created worktree '%s' at %s", worktreeName, workTreePath)

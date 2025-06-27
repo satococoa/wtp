@@ -11,7 +11,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 - [x] `git wtp add` - Create worktree with automatic branch resolution
   - [x] Create from existing local branch
   - [x] Create from remote branch with automatic tracking
-  - [x] Create with new branch (`-b` option)
+  - [x] Create with new branch (`-b` option) - fails if branch exists
 - [x] `git wtp remove` - Remove worktree
   - [x] Remove worktree only
   - [ ] Remove with branch (`--with-branch` option)
@@ -84,11 +84,11 @@ git-wtp add feature/auth
 # Create worktree from remote branch (automatically tracks)
 git-wtp add feat1  # Creates from origin/feat1 if exists locally
 
-# Create worktree with specific branch name
+# Create worktree with specific branch name (uses existing branch)
 git-wtp add my-worktree feature/auth
 
-# Create worktree with branch flag
-git-wtp add my-worktree -b feature/auth
+# Create worktree with new branch (fails if branch already exists)
+git-wtp add my-worktree -b feature/new-feature
 
 # List all worktrees
 git-wtp list
