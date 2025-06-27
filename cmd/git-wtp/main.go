@@ -41,8 +41,15 @@ func main() {
 			{
 				Name:      "add",
 				Usage:     "Create a new worktree",
-				UsageText: "git-wtp add <name> [branch]",
-				Action:    addCommand,
+				UsageText: "git-wtp add <name> [branch] or git-wtp add <name> -b <branch>",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "branch",
+						Usage:   "Branch to checkout in the new worktree",
+						Aliases: []string{"b"},
+					},
+				},
+				Action: addCommand,
 			},
 			{
 				Name:   "list",
@@ -103,6 +110,11 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 
 	// Resolve worktree path using configuration
 	workTreePath := cfg.ResolveWorktreePath(repo.Path(), worktreeName)
+
+	// Check if branch is specified via flag
+	if flagBranch := cmd.String("branch"); flagBranch != "" {
+		branchName = flagBranch
+	}
 
 	// If no branch specified, use worktree name as branch name
 	if branchName == "" {

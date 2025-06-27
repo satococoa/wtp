@@ -103,6 +103,17 @@ internal/
 4. **Day 7**: Shell completion and integration
 5. **Day 8+**: Testing, documentation, release
 
+## Post-Implementation Checklist
+
+When implementing new features, always remember to:
+
+1. **Update Documentation**: After adding new features or flags, update both README.md and any relevant documentation
+2. **Update Feature Checklists**: Mark completed features as done in README.md roadmap
+3. **Add Usage Examples**: Include practical examples in the Quick Start section
+4. **Update Help Text**: Ensure command help text reflects new options
+5. **Run Tests**: Always run `make lint` and `make test` before committing
+6. **Update CLAUDE.md**: Document any new design decisions or architectural changes
+
 ## Testing Strategy
 
 - Unit tests for branch resolution logic
