@@ -41,11 +41,11 @@ func main() {
 			{
 				Name:      "add",
 				Usage:     "Create a new worktree",
-				UsageText: "git-wtp add <name> [branch] or git-wtp add <name> -b <new-branch>",
+				UsageText: "git-wtp add <branch-name> [-b]",
 				Flags: []cli.Flag{
-					&cli.StringFlag{
+					&cli.BoolFlag{
 						Name:    "branch",
-						Usage:   "Create new branch for the worktree (fails if branch exists)",
+						Usage:   "Create new branch (fails if branch exists)",
 						Aliases: []string{"b"},
 					},
 				},
@@ -59,7 +59,7 @@ func main() {
 			{
 				Name:      "remove",
 				Usage:     "Remove a worktree",
-				UsageText: "git-wtp remove <name>",
+				UsageText: "git-wtp remove <branch-name>",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "force",
@@ -83,11 +83,10 @@ func main() {
 }
 
 func addCommand(_ context.Context, cmd *cli.Command) error {
-	worktreeName := cmd.Args().Get(0)
-	branchName := cmd.Args().Get(1)
+	branchName := cmd.Args().Get(0)
 
-	if worktreeName == "" {
-		return fmt.Errorf("worktree name is required")
+	if branchName == "" {
+		return fmt.Errorf("branch name is required")
 	}
 
 	// Get current working directory (should be a git repository)
@@ -109,32 +108,24 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Resolve worktree path using configuration
-	workTreePath := cfg.ResolveWorktreePath(repo.Path(), worktreeName)
+	// Use branch name as worktree name
+	workTreePath := cfg.ResolveWorktreePath(repo.Path(), branchName)
 
-	// Check if branch is specified via flag (-b means create new branch)
-	if flagBranch := cmd.String("branch"); flagBranch != "" {
+	// Check if -b flag is specified (create new branch)
+	if cmd.Bool("branch") {
 		// -b flag specified: create new branch and worktree
-		if err := repo.CreateWorktreeWithNewBranch(workTreePath, flagBranch); err != nil {
+		if err := repo.CreateWorktreeWithNewBranch(workTreePath, branchName); err != nil {
 			return fmt.Errorf("failed to create worktree with new branch: %w", err)
 		}
-		branchName = flagBranch
 	} else {
-		// No -b flag: use existing branch or create from branch name
-		if branchName == "" {
-			branchName = worktreeName
-		}
-
+		// No -b flag: use existing branch
 		// Create worktree with automatic remote tracking
 		if err := repo.CreateWorktreeFromBranch(workTreePath, branchName); err != nil {
 			return fmt.Errorf("failed to create worktree: %w", err)
 		}
 	}
 
-	fmt.Printf("Created worktree '%s' at %s", worktreeName, workTreePath)
-	if branchName != "" {
-		fmt.Printf(" on branch %s", branchName)
-	}
-	fmt.Println()
+	fmt.Printf("Created worktree '%s' at %s on branch %s\n", branchName, workTreePath, branchName)
 
 	// Execute post-create hooks
 	if cfg.HasHooks() {
@@ -209,11 +200,11 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 }
 
 func removeCommand(_ context.Context, cmd *cli.Command) error {
-	worktreeName := cmd.Args().Get(0)
+	branchName := cmd.Args().Get(0)
 	force := cmd.Bool("force")
 
-	if worktreeName == "" {
-		return fmt.Errorf("worktree name is required")
+	if branchName == "" {
+		return fmt.Errorf("branch name is required")
 	}
 
 	// Get current working directory (should be a git repository)
@@ -235,14 +226,15 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Resolve worktree path using configuration
-	workTreePath := cfg.ResolveWorktreePath(repo.Path(), worktreeName)
+	// Use branch name as worktree name
+	workTreePath := cfg.ResolveWorktreePath(repo.Path(), branchName)
 
 	// Remove worktree
 	if err := repo.RemoveWorktree(workTreePath, force); err != nil {
 		return fmt.Errorf("failed to remove worktree: %w", err)
 	}
 
-	fmt.Printf("Removed worktree '%s' at %s\n", worktreeName, workTreePath)
+	fmt.Printf("Removed worktree '%s' at %s\n", branchName, workTreePath)
 	return nil
 }
 

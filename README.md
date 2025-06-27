@@ -78,17 +78,11 @@ sudo mv git-wtp /usr/local/bin/  # or add to PATH
 ## Quick Start
 
 ```bash
-# Create worktree from existing local branch
+# Create worktree from existing branch (local or remote)
 git-wtp add feature/auth
 
-# Create worktree from remote branch (automatically tracks)
-git-wtp add feat1  # Creates from origin/feat1 if exists locally
-
-# Create worktree with specific branch name (uses existing branch)
-git-wtp add my-worktree feature/auth
-
 # Create worktree with new branch (fails if branch already exists)
-git-wtp add my-worktree -b feature/new-feature
+git-wtp add feature/new-feature -b
 
 # List all worktrees
 git-wtp list
