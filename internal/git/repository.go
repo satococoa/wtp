@@ -128,8 +128,9 @@ func (r *Repository) GetRemoteBranches() (map[string][]string, error) {
 			continue
 		}
 
-		parts := strings.SplitN(line, "/", 2)
-		if len(parts) == 2 {
+		const remoteBranchParts = 2
+		parts := strings.SplitN(line, "/", remoteBranchParts)
+		if len(parts) == remoteBranchParts {
 			remote := parts[0]
 			branch := parts[1]
 			remoteBranches[remote] = append(remoteBranches[remote], branch)

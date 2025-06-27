@@ -172,6 +172,39 @@ func LoadConfig() (*Config, error) {
 }
 ```
 
+## Development Tools
+
+### Go 1.24 Tool Directive
+
+This project uses Go 1.24's new tool directive for development tools:
+
+```
+tool (
+    github.com/golangci/golangci-lint/cmd/golangci-lint
+    golang.org/x/tools/cmd/goimports
+)
+```
+
+**Important**: Always use `make` commands instead of calling tools directly:
+
+- ✅ `make lint` (calls `go tool golangci-lint run`)
+- ✅ `make fmt` (calls `go tool goimports -w .`)
+- ❌ `golangci-lint run` (may use different version)
+- ❌ `goimports -w .` (may use different version)
+
+This ensures all team members use the same tool versions defined in go.mod.
+
+### Required Commands
+
+When implementing new features or fixing bugs:
+
+1. **Development**: `make dev` (runs lint, test, build)
+2. **Testing**: `make test`
+3. **Linting**: `make lint` 
+4. **Formatting**: `make fmt`
+
+**Critical**: ALWAYS run `make lint` and fix all issues before committing.
+
 ---
 
 This document serves as a living record of the project's development. Update as

@@ -159,14 +159,14 @@ func TestGetLocalBranches(t *testing.T) {
 	// Create a test branch
 	cmd := exec.Command("git", "checkout", "-b", "feature/test")
 	cmd.Dir = repoDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to create test branch: %v", err)
+	if runErr := cmd.Run(); runErr != nil {
+		t.Fatalf("Failed to create test branch: %v", runErr)
 	}
 
 	cmd = exec.Command("git", "checkout", "main")
 	cmd.Dir = repoDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to checkout main: %v", err)
+	if runErr := cmd.Run(); runErr != nil {
+		t.Fatalf("Failed to checkout main: %v", runErr)
 	}
 
 	branches, err := repo.GetLocalBranches()
@@ -287,14 +287,14 @@ func TestCreateWorktreeFromBranch(t *testing.T) {
 	// Create a test branch
 	cmd := exec.Command("git", "checkout", "-b", "feature/test")
 	cmd.Dir = repoDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to create test branch: %v", err)
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		t.Fatalf("Failed to create test branch: %v", cmdErr)
 	}
 
 	cmd = exec.Command("git", "checkout", "main")
 	cmd.Dir = repoDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to checkout main: %v", err)
+	if cmdErr := cmd.Run(); cmdErr != nil {
+		t.Fatalf("Failed to checkout main: %v", cmdErr)
 	}
 
 	// Test creating worktree from existing local branch
@@ -305,7 +305,7 @@ func TestCreateWorktreeFromBranch(t *testing.T) {
 	}
 
 	// Verify worktree was created
-	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
 		t.Error("Worktree directory was not created")
 	}
 
@@ -331,7 +331,7 @@ func TestCreateWorktree_EmptyBranch(t *testing.T) {
 	}
 
 	// Verify worktree was created
-	if _, err := os.Stat(worktreePath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
 		t.Error("Worktree directory was not created")
 	}
 

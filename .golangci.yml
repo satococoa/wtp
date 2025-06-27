@@ -3,6 +3,18 @@ run:
   modules-download-mode: readonly
 
 linters-settings:
+  depguard:
+    rules:
+      main:
+        files:
+          - "$all"
+          - "!$test"
+        list-mode: lax
+        allow:
+          - $gostd
+          - github.com/satococoa/git-wtp
+          - github.com/urfave/cli/v3
+          - go.yaml.in/yaml/v3
   govet:
     enable-all: true
     disable:
@@ -31,12 +43,11 @@ linters-settings:
 linters:
   enable:
     - bodyclose
-    - deadcode
+    - copyloopvar     # replaces exportloopref for Go 1.22+
     - depguard
     - dogsled
     - dupl
     - errcheck
-    - exportloopref
     - exhaustive
     - gochecknoinits
     - goconst
@@ -44,7 +55,7 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - gomnd
+    - mnd             # replaces gomnd
     - goprintffuncname
     - gosec
     - gosimple
@@ -57,20 +68,18 @@ linters:
     - nolintlint
     - revive
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
-    - unused
-    - varcheck
+    - unused          # replaces deadcode, structcheck, varcheck
     - whitespace
 
 issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
+        - mnd
         - goconst
         - gosec
     - linters:

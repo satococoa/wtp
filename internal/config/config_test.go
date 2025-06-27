@@ -122,7 +122,7 @@ func TestSaveConfig(t *testing.T) {
 
 	// Verify file was created
 	configPath := filepath.Join(tempDir, ConfigFileName)
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(configPath); os.IsNotExist(statErr) {
 		t.Error("Config file was not created")
 	}
 

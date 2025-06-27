@@ -43,7 +43,7 @@ test-coverage: test
 # Run linter
 lint:
 	@echo "Running linter..."
-	golangci-lint run
+	go tool golangci-lint run
 
 # Clean build artifacts
 clean:
@@ -82,7 +82,7 @@ deps:
 fmt:
 	@echo "Formatting code..."
 	go fmt ./...
-	goimports -w .
+	go tool goimports -w .
 
 # Verify dependencies
 verify:

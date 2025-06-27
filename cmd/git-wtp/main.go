@@ -7,10 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/satococoa/git-wtp/internal/config"
 	"github.com/satococoa/git-wtp/internal/git"
 	"github.com/satococoa/git-wtp/internal/hooks"
-	"github.com/urfave/cli/v3"
 )
 
 // Version information (set by GoReleaser)
@@ -20,11 +21,20 @@ var (
 	date    = "unknown"
 )
 
+// Display constants
+const (
+	pathHeaderDashes   = 4
+	branchHeaderDashes = 6
+	headDisplayLength  = 8
+)
+
 func main() {
+	versionInfo := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
+
 	app := &cli.Command{
 		Name:    "git-wtp",
 		Usage:   "Git Worktree Plus - Enhanced worktree management",
-		Version: version,
+		Version: versionInfo,
 		Description: "A powerful Git worktree management tool that extends git's worktree " +
 			"functionality with automated setup, branch tracking, and project-specific hooks.",
 		Commands: []*cli.Command{
@@ -60,7 +70,7 @@ func main() {
 	}
 }
 
-func addCommand(ctx context.Context, cmd *cli.Command) error {
+func addCommand(_ context.Context, cmd *cli.Command) error {
 	worktreeName := cmd.Args().Get(0)
 	branchName := cmd.Args().Get(1)
 
@@ -117,7 +127,7 @@ func addCommand(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func listCommand(ctx context.Context, cmd *cli.Command) error {
+func listCommand(_ context.Context, _ *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -160,13 +170,16 @@ func listCommand(ctx context.Context, cmd *cli.Command) error {
 
 	// Print header
 	fmt.Printf("%-*s %-*s %s\n", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD")
-	fmt.Printf("%-*s %-*s %s\n", maxPathLen, strings.Repeat("-", 4), maxBranchLen, strings.Repeat("-", 6), "----")
+	fmt.Printf("%-*s %-*s %s\n",
+		maxPathLen, strings.Repeat("-", pathHeaderDashes),
+		maxBranchLen, strings.Repeat("-", branchHeaderDashes),
+		"----")
 
 	// Print worktrees
 	for _, wt := range worktrees {
 		headShort := wt.HEAD
-		if len(headShort) > 8 {
-			headShort = headShort[:8]
+		if len(headShort) > headDisplayLength {
+			headShort = headShort[:headDisplayLength]
 		}
 		fmt.Printf("%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, wt.Branch, headShort)
 	}
@@ -174,7 +187,7 @@ func listCommand(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func removeCommand(ctx context.Context, cmd *cli.Command) error {
+func removeCommand(_ context.Context, cmd *cli.Command) error {
 	worktreeName := cmd.Args().Get(0)
 	force := cmd.Bool("force")
 

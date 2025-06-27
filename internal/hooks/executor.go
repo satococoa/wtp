@@ -10,6 +10,10 @@ import (
 	"github.com/satococoa/git-wtp/internal/config"
 )
 
+const (
+	directoryPermissions = 0o755
+)
+
 // Executor handles hook execution
 type Executor struct {
 	config   *config.Config
@@ -31,7 +35,7 @@ func (e *Executor) ExecutePostCreateHooks(worktreePath string) error {
 	}
 
 	for i, hook := range e.config.Hooks.PostCreate {
-		if err := e.executeHook(hook, worktreePath); err != nil {
+		if err := e.executeHook(&hook, worktreePath); err != nil {
 			return fmt.Errorf("failed to execute hook %d: %w", i+1, err)
 		}
 	}
@@ -40,7 +44,7 @@ func (e *Executor) ExecutePostCreateHooks(worktreePath string) error {
 }
 
 // executeHook executes a single hook
-func (e *Executor) executeHook(hook config.Hook, worktreePath string) error {
+func (e *Executor) executeHook(hook *config.Hook, worktreePath string) error {
 	switch hook.Type {
 	case config.HookTypeCopy:
 		return e.executeCopyHook(hook, worktreePath)
@@ -52,7 +56,7 @@ func (e *Executor) executeHook(hook config.Hook, worktreePath string) error {
 }
 
 // executeCopyHook executes a copy hook
-func (e *Executor) executeCopyHook(hook config.Hook, worktreePath string) error {
+func (e *Executor) executeCopyHook(hook *config.Hook, worktreePath string) error {
 	// Resolve source path (relative to repo root)
 	srcPath := hook.From
 	if !filepath.IsAbs(srcPath) {
@@ -73,7 +77,7 @@ func (e *Executor) executeCopyHook(hook config.Hook, worktreePath string) error 
 
 	// Create destination directory if needed
 	dstDir := filepath.Dir(dstPath)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
+	if err := os.MkdirAll(dstDir, directoryPermissions); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
@@ -84,7 +88,8 @@ func (e *Executor) executeCopyHook(hook config.Hook, worktreePath string) error 
 }
 
 // executeCommandHook executes a command hook
-func (e *Executor) executeCommandHook(hook config.Hook, worktreePath string) error {
+func (e *Executor) executeCommandHook(hook *config.Hook, worktreePath string) error {
+	// #nosec G204 - Commands come from project configuration file controlled by developer
 	cmd := exec.Command(hook.Command, hook.Args...)
 
 	// Set working directory
@@ -103,8 +108,9 @@ func (e *Executor) executeCommandHook(hook config.Hook, worktreePath string) err
 	}
 
 	// Add worktree-specific environment variables
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_WTP_WORKTREE_PATH=%s", worktreePath))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_WTP_REPO_ROOT=%s", e.repoRoot))
+	cmd.Env = append(cmd.Env,
+		fmt.Sprintf("GIT_WTP_WORKTREE_PATH=%s", worktreePath),
+		fmt.Sprintf("GIT_WTP_REPO_ROOT=%s", e.repoRoot))
 
 	// Execute command
 	output, err := cmd.CombinedOutput()
@@ -129,8 +135,8 @@ func (e *Executor) copyFile(src, dst string) error {
 	}
 	defer destFile.Close()
 
-	if _, err := io.Copy(destFile, sourceFile); err != nil {
-		return fmt.Errorf("failed to copy file: %w", err)
+	if _, copyErr := io.Copy(destFile, sourceFile); copyErr != nil {
+		return fmt.Errorf("failed to copy file: %w", copyErr)
 	}
 
 	// Copy file permissions
@@ -153,8 +159,8 @@ func (e *Executor) copyDir(src, dst string) error {
 		return fmt.Errorf("failed to stat source directory: %w", err)
 	}
 
-	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
-		return fmt.Errorf("failed to create destination directory: %w", err)
+	if mkdirErr := os.MkdirAll(dst, srcInfo.Mode()); mkdirErr != nil {
+		return fmt.Errorf("failed to create destination directory: %w", mkdirErr)
 	}
 
 	entries, err := os.ReadDir(src)
