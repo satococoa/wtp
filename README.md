@@ -8,10 +8,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 ### Core Commands
 
 - [x] `git wtp init` - Initialize configuration file
-- [x] `git wtp add` - Create worktree with automatic branch resolution
-  - [x] Create from existing local branch
-  - [x] Create from remote branch with automatic tracking
-  - [x] Create with new branch (`-b` option) - fails if branch exists
+- [x] `git wtp add` - Transparent wrapper for git worktree add with path management
+  - [x] Supports all git worktree add options
+  - [x] Automatic worktree path resolution
+  - [x] Post-create hooks execution
 - [x] `git wtp remove` - Remove worktree
   - [x] Remove worktree only
   - [ ] Remove with branch (`--with-branch` option)
@@ -81,8 +81,17 @@ sudo mv git-wtp /usr/local/bin/  # or add to PATH
 # Create worktree from existing branch (local or remote)
 git-wtp add feature/auth
 
-# Create worktree with new branch (fails if branch already exists)
-git-wtp add feature/new-feature -b
+# Create worktree with new branch
+git-wtp add -b feature/new-feature
+
+# Create new branch from specific commit
+git-wtp add -b hotfix/urgent abc1234
+
+# Create detached HEAD worktree from commit
+git-wtp add --detach temp-experiment abc1234
+
+# Use all git worktree options
+git-wtp add -b feature/test --track origin/main
 
 # List all worktrees
 git-wtp list

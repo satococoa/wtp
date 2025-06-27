@@ -41,12 +41,42 @@ func main() {
 			{
 				Name:      "add",
 				Usage:     "Create a new worktree",
-				UsageText: "git-wtp add <branch-name> [-b]",
+				UsageText: "git-wtp add [git-worktree-options...] <branch-name> [<commit-ish>]",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
+						Name:    "force",
+						Usage:   "Checkout <commit-ish> even if already checked out in other worktree",
+						Aliases: []string{"f"},
+					},
+					&cli.BoolFlag{
+						Name:  "detach",
+						Usage: "Make the new worktree's HEAD detached",
+					},
+					&cli.BoolFlag{
+						Name:  "checkout",
+						Usage: "Populate the new worktree (default)",
+					},
+					&cli.BoolFlag{
+						Name:  "lock",
+						Usage: "Keep the new worktree locked",
+					},
+					&cli.StringFlag{
+						Name:  "reason",
+						Usage: "Reason for locking",
+					},
+					&cli.BoolFlag{
+						Name:  "orphan",
+						Usage: "Create orphan branch in new worktree",
+					},
+					&cli.StringFlag{
 						Name:    "branch",
-						Usage:   "Create new branch (fails if branch exists)",
+						Usage:   "Create new branch",
 						Aliases: []string{"b"},
+					},
+					&cli.StringFlag{
+						Name:    "track",
+						Usage:   "Set upstream branch",
+						Aliases: []string{"t"},
 					},
 				},
 				Action: addCommand,
@@ -83,9 +113,7 @@ func main() {
 }
 
 func addCommand(_ context.Context, cmd *cli.Command) error {
-	branchName := cmd.Args().Get(0)
-
-	if branchName == "" {
+	if cmd.Args().Len() == 0 {
 		return fmt.Errorf("branch name is required")
 	}
 
@@ -107,25 +135,19 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	// Resolve worktree path using configuration
-	// Use branch name as worktree name
+	// Get branch name from first argument
+	branchName := cmd.Args().Get(0)
 	workTreePath := cfg.ResolveWorktreePath(repo.Path(), branchName)
 
-	// Check if -b flag is specified (create new branch)
-	if cmd.Bool("branch") {
-		// -b flag specified: create new branch and worktree
-		if err := repo.CreateWorktreeWithNewBranch(workTreePath, branchName); err != nil {
-			return fmt.Errorf("failed to create worktree with new branch: %w", err)
-		}
-	} else {
-		// No -b flag: use existing branch
-		// Create worktree with automatic remote tracking
-		if err := repo.CreateWorktreeFromBranch(workTreePath, branchName); err != nil {
-			return fmt.Errorf("failed to create worktree: %w", err)
-		}
+	// Build git worktree add command
+	args := buildGitWorktreeArgs(cmd, workTreePath)
+
+	// Execute git worktree add
+	if err := repo.ExecuteGitCommand(args...); err != nil {
+		return fmt.Errorf("failed to create worktree: %w", err)
 	}
 
-	fmt.Printf("Created worktree '%s' at %s on branch %s\n", branchName, workTreePath, branchName)
+	fmt.Printf("Created worktree '%s' at %s\n", branchName, workTreePath)
 
 	// Execute post-create hooks
 	if cfg.HasHooks() {
@@ -137,6 +159,44 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	return nil
+}
+
+func buildGitWorktreeArgs(cmd *cli.Command, workTreePath string) []string {
+	args := []string{"worktree", "add"}
+
+	// Add flags
+	if cmd.Bool("force") {
+		args = append(args, "--force")
+	}
+	if cmd.Bool("detach") {
+		args = append(args, "--detach")
+	}
+	if cmd.Bool("checkout") {
+		args = append(args, "--checkout")
+	}
+	if cmd.Bool("lock") {
+		args = append(args, "--lock")
+	}
+	if reason := cmd.String("reason"); reason != "" {
+		args = append(args, "--reason", reason)
+	}
+	if cmd.Bool("orphan") {
+		args = append(args, "--orphan")
+	}
+	if branch := cmd.String("branch"); branch != "" {
+		args = append(args, "-b", branch)
+	}
+	if track := cmd.String("track"); track != "" {
+		args = append(args, "--track", track)
+	}
+
+	// Add worktree path
+	args = append(args, workTreePath)
+
+	// Add remaining arguments (branch and commit-ish)
+	args = append(args, cmd.Args().Slice()...)
+
+	return args
 }
 
 func listCommand(_ context.Context, _ *cli.Command) error {

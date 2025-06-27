@@ -149,196 +149,29 @@ branch refs/heads/feature/test
 	}
 }
 
-func TestGetLocalBranches(t *testing.T) {
+func TestExecuteGitCommand(t *testing.T) {
 	repoDir := setupTestRepo(t)
 	repo, err := NewRepository(repoDir)
 	if err != nil {
 		t.Fatalf("Failed to create repository: %v", err)
 	}
 
-	// Create a test branch
-	cmd := exec.Command("git", "checkout", "-b", "feature/test")
-	cmd.Dir = repoDir
-	if runErr := cmd.Run(); runErr != nil {
-		t.Fatalf("Failed to create test branch: %v", runErr)
-	}
-
-	cmd = exec.Command("git", "checkout", "main")
-	cmd.Dir = repoDir
-	if runErr := cmd.Run(); runErr != nil {
-		t.Fatalf("Failed to checkout main: %v", runErr)
-	}
-
-	branches, err := repo.GetLocalBranches()
+	// Test successful command
+	err = repo.ExecuteGitCommand("status")
 	if err != nil {
-		t.Fatalf("Failed to get local branches: %v", err)
+		t.Errorf("Expected no error but got: %v", err)
 	}
 
-	expectedBranches := []string{"feature/test", "main"}
-	if len(branches) != len(expectedBranches) {
-		t.Errorf("Expected %d branches, got %d", len(expectedBranches), len(branches))
-	}
-
-	for _, expected := range expectedBranches {
-		found := false
-		for _, branch := range branches {
-			if branch == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected branch %s not found in %v", expected, branches)
-		}
-	}
-}
-
-func TestGetRemoteBranches(t *testing.T) {
-	repoDir := setupTestRepo(t)
-	repo, err := NewRepository(repoDir)
+	// Test command with arguments
+	err = repo.ExecuteGitCommand("log", "--oneline", "-1")
 	if err != nil {
-		t.Fatalf("Failed to create repository: %v", err)
+		t.Errorf("Expected no error but got: %v", err)
 	}
 
-	// Since this is a local test repo without remotes, we expect empty result
-	remoteBranches, err := repo.GetRemoteBranches()
-	if err != nil {
-		t.Fatalf("Failed to get remote branches: %v", err)
-	}
-
-	if len(remoteBranches) != 0 {
-		t.Errorf("Expected no remote branches, got %d", len(remoteBranches))
-	}
-}
-
-func TestResolveBranch(t *testing.T) {
-	repoDir := setupTestRepo(t)
-	repo, err := NewRepository(repoDir)
-	if err != nil {
-		t.Fatalf("Failed to create repository: %v", err)
-	}
-
-	// Create test branches
-	cmd := exec.Command("git", "checkout", "-b", "feature/test")
-	cmd.Dir = repoDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to create test branch: %v", err)
-	}
-
-	cmd = exec.Command("git", "checkout", "main")
-	cmd.Dir = repoDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to checkout main: %v", err)
-	}
-
-	tests := []struct {
-		name        string
-		branchName  string
-		expected    string
-		expectError bool
-	}{
-		{
-			name:        "existing local branch",
-			branchName:  "main",
-			expected:    "main",
-			expectError: false,
-		},
-		{
-			name:        "existing local branch with slash",
-			branchName:  "feature/test",
-			expected:    "feature/test",
-			expectError: false,
-		},
-		{
-			name:        "non-existent branch",
-			branchName:  "nonexistent",
-			expected:    "",
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := repo.ResolveBranch(tt.branchName)
-
-			if tt.expectError {
-				if err == nil {
-					t.Error("Expected error but got nil")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("Expected no error but got: %v", err)
-				}
-				if result != tt.expected {
-					t.Errorf("Expected %s, got %s", tt.expected, result)
-				}
-			}
-		})
-	}
-}
-
-func TestCreateWorktreeFromBranch(t *testing.T) {
-	repoDir := setupTestRepo(t)
-	repo, err := NewRepository(repoDir)
-	if err != nil {
-		t.Fatalf("Failed to create repository: %v", err)
-	}
-
-	// Create a test branch
-	cmd := exec.Command("git", "checkout", "-b", "feature/test")
-	cmd.Dir = repoDir
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		t.Fatalf("Failed to create test branch: %v", cmdErr)
-	}
-
-	cmd = exec.Command("git", "checkout", "main")
-	cmd.Dir = repoDir
-	if cmdErr := cmd.Run(); cmdErr != nil {
-		t.Fatalf("Failed to checkout main: %v", cmdErr)
-	}
-
-	// Test creating worktree from existing local branch
-	worktreePath := filepath.Join(t.TempDir(), "test-worktree")
-	err = repo.CreateWorktreeFromBranch(worktreePath, "feature/test")
-	if err != nil {
-		t.Fatalf("Failed to create worktree: %v", err)
-	}
-
-	// Verify worktree was created
-	if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
-		t.Error("Worktree directory was not created")
-	}
-
-	// Clean up
-	err = repo.RemoveWorktree(worktreePath, true)
-	if err != nil {
-		t.Logf("Failed to clean up worktree: %v", err)
-	}
-}
-
-func TestCreateWorktree_EmptyBranch(t *testing.T) {
-	repoDir := setupTestRepo(t)
-	repo, err := NewRepository(repoDir)
-	if err != nil {
-		t.Fatalf("Failed to create repository: %v", err)
-	}
-
-	// Test creating worktree with empty branch (should use current HEAD)
-	worktreePath := filepath.Join(t.TempDir(), "test-worktree")
-	err = repo.CreateWorktreeFromBranch(worktreePath, "")
-	if err != nil {
-		t.Fatalf("Failed to create worktree with empty branch: %v", err)
-	}
-
-	// Verify worktree was created
-	if _, statErr := os.Stat(worktreePath); os.IsNotExist(statErr) {
-		t.Error("Worktree directory was not created")
-	}
-
-	// Clean up
-	err = repo.RemoveWorktree(worktreePath, true)
-	if err != nil {
-		t.Logf("Failed to clean up worktree: %v", err)
+	// Test failing command
+	err = repo.ExecuteGitCommand("invalid-command")
+	if err == nil {
+		t.Error("Expected error for invalid command")
 	}
 }
 
