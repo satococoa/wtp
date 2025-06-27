@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/urfave/cli/v3"
@@ -43,20 +44,20 @@ func TestResolveWorktreePath(t *testing.T) {
 		{
 			name:       "auto-generated path - branch name simple",
 			firstArg:   "feature",
-			wantPath:   "/path/to/worktrees/feature",
+			wantPath:   filepath.Join(repoPath, "..", "worktrees", "feature"),
 			wantBranch: "feature",
 		},
 		{
 			name:       "auto-generated path - branch name with slash",
 			firstArg:   "feature/auth",
-			wantPath:   "/path/to/worktrees/feature/auth",
+			wantPath:   filepath.Join(repoPath, "..", "worktrees", "feature", "auth"),
 			wantBranch: "feature/auth",
 		},
 		{
 			name:       "auto-generated path with -b flag",
 			firstArg:   "feature",
 			branchFlag: "new-feature",
-			wantPath:   "/path/to/worktrees/new-feature",
+			wantPath:   filepath.Join(repoPath, "..", "worktrees", "new-feature"),
 			wantBranch: "new-feature",
 		},
 		{
