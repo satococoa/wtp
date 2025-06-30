@@ -9,8 +9,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 
 - [x] `wtp init` - Initialize configuration file
 - [x] `wtp add` - Clean and unambiguous worktree creation
-  - [x] **Automatic path generation**: `wtp add feature/auth` (no redundant typing)
-  - [x] **Explicit path support**: `wtp add --path /custom/path feature/auth` (no ambiguity)
+  - [x] **Automatic path generation**: `wtp add feature/auth` (no redundant
+        typing)
+  - [x] **Explicit path support**: `wtp add --path /custom/path feature/auth`
+        (no ambiguity)
   - [x] **Transparent wrapper**: All git worktree options supported
   - [x] Post-create hooks execution
 - [x] `wtp remove` - Remove worktree
@@ -49,7 +51,8 @@ go install github.com/satococoa/wtp/cmd/wtp@latest
 
 ### Download Binary
 
-Download the latest binary from [GitHub Releases](https://github.com/satococoa/wtp/releases):
+Download the latest binary from
+[GitHub Releases](https://github.com/satococoa/wtp/releases):
 
 ```bash
 # macOS (Apple Silicon)
@@ -148,18 +151,18 @@ hooks:
     - type: copy
       from: ".env.example"
       to: ".env"
-    
+
     - type: copy
       from: "config/database.yml.example"
       to: "config/database.yml"
-    
+
     # Execute commands in the new worktree
     - type: command
       command: "npm"
       args: ["install"]
       env:
         NODE_ENV: "development"
-    
+
     - type: command
       command: "make"
       args: ["db:setup"]
@@ -187,19 +190,6 @@ source <(wtp completion zsh)
 wtp completion fish | source
 ```
 
-### Using wtp as a git alias (Optional)
-
-If you prefer to use `git wtp` instead of `wtp`:
-
-```bash
-# Create a git alias
-git config --global alias.wtp '!wtp'
-
-# Now you can use
-git wtp add feature/new
-git wtp remove feature/old
-```
-
 ## Worktree Structure
 
 With the default configuration (`base_dir: "../worktrees"`):
@@ -219,7 +209,8 @@ With the default configuration (`base_dir: "../worktrees"`):
     └── bug-123/       # wtp add hotfix/bug-123
 ```
 
-Branch names with slashes are preserved as directory structure, automatically organizing worktrees by type/category.
+Branch names with slashes are preserved as directory structure, automatically
+organizing worktrees by type/category.
 
 ## Error Handling
 

@@ -62,13 +62,7 @@ This covers 90% of use cases without over-engineering.
 - Branch names with slashes preserved as directory structure (e.g., feature/auth
   → feature/auth/)
 
-### 2. Git Command Integration
-
-- Parsing git output reliably
-- Handling different git versions
-- Error message consistency
-
-### 3. Shell Integration
+### 2. Shell Integration
 
 The `cd` command requires shell functions since child processes can't change
 parent's directory.
@@ -77,7 +71,7 @@ parent's directory.
 
 ```
 cmd/
-├── git-wtp/
+├── wtp/
 │   └── main.go          # Entry point
 ├── add.go               # Add command
 ├── remove.go            # Remove command
@@ -95,31 +89,24 @@ internal/
     └── executor.go      # Hook execution
 ```
 
-## Development Timeline
-
-1. **Day 1-2**: Core structure, add/list commands
-2. **Day 3-4**: Branch resolution, remote tracking
-3. **Day 5-6**: Configuration and hooks
-4. **Day 7**: Shell completion and integration
-5. **Day 8+**: Testing, documentation, release
-
 ## Post-Implementation Checklist
 
 When implementing new features, always remember to:
 
-1. **Update Documentation**: After adding new features or flags, update both README.md and any relevant documentation
-2. **Update Feature Checklists**: Mark completed features as done in README.md roadmap
+1. **Update Documentation**: After adding new features or flags, update both
+   README.md and any relevant documentation
+2. **Update Feature Checklists**: Mark completed features as done in README.md
+   roadmap
 3. **Add Usage Examples**: Include practical examples in the Quick Start section
 4. **Update Help Text**: Ensure command help text reflects new options
-5. **Run Linter First**: ALWAYS run `make lint` and fix ALL issues before committing
+5. **Run Linter First**: ALWAYS run `make lint` and fix ALL issues before
+   committing
 6. **Run Tests**: Always run `make test` to ensure nothing is broken
-7. **Update CLAUDE.md**: Document any new design decisions or architectural changes
-
-**CRITICAL**: Never commit code with lint errors. The linter helps maintain code quality and consistency.
+7. **Update CLAUDE.md**: Document any new design decisions or architectural
+   changes
 
 ## Testing Strategy
 
-- Unit tests for branch resolution logic
 - Integration tests with real git repos
 - Cross-platform CI/CD testing
 - Manual testing of shell completions
@@ -211,6 +198,7 @@ This ensures all team members use the same tool versions defined in go.mod.
 ### Command Name Change (2024-12)
 
 **From git-wtp to wtp**: The command was renamed from `git-wtp` to `wtp` for:
+
 - Easier typing and better ergonomics
 - Following patterns like `ghq`, `gh`, `tig` (successful Git tools)
 - Simpler shell completion without git subcommand complexity
@@ -218,7 +206,9 @@ This ensures all team members use the same tool versions defined in go.mod.
 
 ### Configuration File Name Change (2024-12)
 
-**From .git-worktree-plus.yml to .wtp.yml**: The configuration file was renamed for:
+**From .git-worktree-plus.yml to .wtp.yml**: The configuration file was renamed
+for:
+
 - Consistency with the new command name
 - Shorter and easier to type
 - Following common patterns (.gitignore, .editorconfig, etc.)
@@ -232,33 +222,34 @@ When implementing new features or fixing bugs:
 3. **Development**: `make dev` - Full check (runs lint, test, build)
 4. **Formatting**: `make fmt` - Auto-format code with goimports
 
-**Critical**: ALWAYS run `make lint` and fix ALL issues before committing. Common lint errors include:
+Common lint errors include:
+
 - Unused variables/parameters (use `_` for intentionally unused)
 - Magic numbers (define constants instead)
 - Cyclomatic complexity (refactor complex functions)
-- Parameter type combinations (e.g., `func(a, b string)` instead of `func(a string, b string)`)
+- Parameter type combinations (e.g., `func(a, b string)` instead of
+  `func(a string, b string)`)
 
 ## Major Design Changes
 
 ### 2024-12: Transparent Wrapper & Hybrid Approach Implementation
 
-**Background**: Based on DESIGN_DISCUSSION.md analysis, implemented the hybrid approach that balances simplicity with flexibility.
-
 **Key Changes Implemented**:
 
 1. **Path Resolution Logic**:
    - Added `isPath()` function to distinguish paths from branch names
-   - Supports absolute paths (`/custom/path`), relative paths (`./path`, `../path`), and Windows paths (`C:\path`)
+   - Supports absolute paths (`/custom/path`), relative paths (`./path`,
+     `../path`), and Windows paths (`C:\path`)
    - Everything else treated as branch name for automatic path generation
 
 2. **Hybrid Command Syntax**:
    ```bash
    # Simple: automatic path generation
-   git-wtp add feature/auth  # → ../worktrees/feature/auth
-   
-   # Flexible: explicit path specification  
-   git-wtp add /tmp/experiment feature/auth
-   git-wtp add --detach /tmp/debug abc1234
+   wtp add feature/auth  # → ../worktrees/feature/auth
+
+   # Flexible: explicit path specification
+   wtp add /tmp/experiment feature/auth
+   wtp add --detach /tmp/debug abc1234
    ```
 
 3. **Transparent Wrapper**:
@@ -273,8 +264,9 @@ When implementing new features or fixing bugs:
    - **Team consistency**: shared path management via config
 
 **Files Modified**:
-- `cmd/git-wtp/main.go`: Core implementation
-- `cmd/git-wtp/main_test.go`: Test coverage for new logic
+
+- `cmd/wtp/main.go`: Core implementation
+- `cmd/wtp/main_test.go`: Test coverage for new logic
 - `README.md`: Updated Quick Start with hybrid examples
 - `CLAUDE.md`: This documentation
 
@@ -282,20 +274,23 @@ When implementing new features or fixing bugs:
 
 ### 2024-12: Explicit Path Flag Implementation
 
-**Background**: User feedback identified ambiguity issue with automatic path detection - `foobar/foo` could be interpreted as either a path or branch name, causing confusion.
+**Background**: User feedback identified ambiguity issue with automatic path
+detection - `foobar/foo` could be interpreted as either a path or branch name,
+causing confusion.
 
-**Solution**: Replaced automatic path detection with explicit `--path` flag for unambiguous behavior.
+**Solution**: Replaced automatic path detection with explicit `--path` flag for
+unambiguous behavior.
 
 **Changes Made**:
 
 1. **Added --path Flag**:
    ```bash
    # Before (ambiguous)
-   git-wtp add foobar/foo          # Is this a path or branch?
-   
+   wtp add foobar/foo          # Is this a path or branch?
+
    # After (explicit)
-   git-wtp add --path foobar/foo feature/auth  # Clear: foobar/foo is path
-   git-wtp add foobar/foo                       # Clear: foobar/foo is branch
+   wtp add --path foobar/foo feature/auth  # Clear: foobar/foo is path
+   wtp add foobar/foo                       # Clear: foobar/foo is branch
    ```
 
 2. **Removed isPath() Function**:
@@ -303,7 +298,8 @@ When implementing new features or fixing bugs:
    - No more heuristics based on path patterns
 
 3. **Updated resolveWorktreePath**:
-   - Simple flag-based logic: `--path` present = explicit path, otherwise auto-generate
+   - Simple flag-based logic: `--path` present = explicit path, otherwise
+     auto-generate
    - More predictable and testable
 
 4. **Benefits**:
@@ -313,8 +309,9 @@ When implementing new features or fixing bugs:
    - **Maintainability**: Simpler logic without heuristics
 
 **Files Modified**:
-- `cmd/git-wtp/main.go`: Added --path flag, removed isPath(), updated logic
-- `cmd/git-wtp/main_test.go`: Updated tests for new behavior
+
+- `cmd/wtp/main.go`: Added --path flag, removed isPath(), updated logic
+- `cmd/wtp/main_test.go`: Updated tests for new behavior
 - `README.md`: Updated examples to use --path flag
 - `CLAUDE.md`: This documentation
 
