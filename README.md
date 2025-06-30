@@ -168,11 +168,24 @@ hooks:
 
 ## Shell Integration
 
+### Installation for `git wtp` usage
+
+To use `git-wtp` as a git subcommand (`git wtp`), make sure the binary is in your PATH with the name `git-wtp`:
+
+```bash
+# Example: symlink or copy to a directory in PATH
+ln -s /path/to/git-wtp /usr/local/bin/git-wtp
+```
+
 ### Bash
 
 ```bash
 # Add to ~/.bashrc or ~/.bash_profile
 source <(git-wtp completion bash)
+
+# The completion will work for both:
+# - git-wtp add <TAB>
+# - git wtp add <TAB>
 ```
 
 ### Zsh
@@ -180,6 +193,10 @@ source <(git-wtp completion bash)
 ```zsh
 # Add to ~/.zshrc
 source <(git-wtp completion zsh)
+
+# The completion will work for both:
+# - git-wtp add <TAB>
+# - git wtp add <TAB>
 ```
 
 ### Fish
@@ -187,6 +204,8 @@ source <(git-wtp completion zsh)
 ```fish
 # Add to ~/.config/fish/config.fish
 git-wtp completion fish | source
+
+# Note: For 'git wtp' usage in fish, additional setup may be required
 ```
 
 ## Worktree Structure

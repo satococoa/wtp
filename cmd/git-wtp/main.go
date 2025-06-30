@@ -512,12 +512,47 @@ func completionBash(_ context.Context, _ *cli.Command) error {
 # Add this to your ~/.bashrc or ~/.bash_profile:
 # source <(git-wtp completion bash)
 
+# Completion for git-wtp command
 _git_wtp_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
-    COMPREPLY=( $(compgen -W "$(git-wtp --generate-shell-completion)" -- "$cur") )
+    local prev="${COMP_WORDS[COMP_CWORD-1]}"
+    
+    # If we're completing after 'add' or 'remove'
+    if [[ "$prev" == "add" ]]; then
+        COMPREPLY=( $(compgen -W "$(git-wtp add --generate-shell-completion)" -- "$cur") )
+    elif [[ "$prev" == "remove" ]]; then
+        COMPREPLY=( $(compgen -W "$(git-wtp remove --generate-shell-completion)" -- "$cur") )
+    else
+        COMPREPLY=( $(compgen -W "$(git-wtp --generate-shell-completion)" -- "$cur") )
+    fi
 }
 
-complete -F _git_wtp_completions git-wtp`)
+# Register completion for git-wtp
+complete -F _git_wtp_completions git-wtp
+
+# Also register for 'git wtp' usage
+_git_wtp() {
+    # Remove 'git' from COMP_WORDS and adjust COMP_CWORD
+    local i
+    local words=()
+    local cword=0
+    
+    for (( i=1; i < ${#COMP_WORDS[@]}; i++ )); do
+        words+=("${COMP_WORDS[$i]}")
+        if [[ $i -lt $COMP_CWORD ]]; then
+            ((cword++))
+        fi
+    done
+    
+    # Call git-wtp with adjusted parameters
+    COMP_WORDS=("git-wtp" "${words[@]}")
+    COMP_CWORD=$cword
+    _git_wtp_completions
+}
+
+# This line hooks into git's completion system
+# Add to your git completion setup
+__git_complete git wtp _git_wtp 2>/dev/null || true`)
 	return nil
 }
 
@@ -528,6 +563,7 @@ func completionZsh(_ context.Context, _ *cli.Command) error {
 # Add this to your ~/.zshrc:
 # source <(git-wtp completion zsh)
 
+# Main completion function
 _git_wtp() {
     local line state
 
@@ -562,7 +598,26 @@ _git_wtp() {
     esac
 }
 
-compdef _git_wtp git-wtp`)
+# Register for git-wtp command
+compdef _git_wtp git-wtp
+
+# Function for 'git wtp' completion
+_git_wtp_git_wrapper() {
+    # Adjust words array to remove 'git'
+    local -a words
+    words=("git-wtp" "${words[@]:2}")
+    
+    # Call the main completion function
+    service="git-wtp"
+    _git_wtp "$@"
+}
+
+# Register git subcommand (if git completions are loaded)
+if (( $+functions[_git] )); then
+    # Add to git's completion system
+    _git_commands+=('wtp:Git Worktree Plus - Enhanced worktree management')
+    compdef _git_wtp_git_wrapper git-wtp
+fi`)
 	return nil
 }
 
