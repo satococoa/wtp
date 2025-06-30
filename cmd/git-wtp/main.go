@@ -517,42 +517,32 @@ _git_wtp_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local prev="${COMP_WORDS[COMP_CWORD-1]}"
     
-    # If we're completing after 'add' or 'remove'
-    if [[ "$prev" == "add" ]]; then
-        COMPREPLY=( $(compgen -W "$(git-wtp add --generate-shell-completion)" -- "$cur") )
-    elif [[ "$prev" == "remove" ]]; then
-        COMPREPLY=( $(compgen -W "$(git-wtp remove --generate-shell-completion)" -- "$cur") )
-    else
+    # Complete command names
+    if [[ ${COMP_CWORD} -eq 1 ]]; then
         COMPREPLY=( $(compgen -W "$(git-wtp --generate-shell-completion)" -- "$cur") )
+        return
     fi
+    
+    # Complete based on the command
+    case "${COMP_WORDS[1]}" in
+        add)
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "$(git-wtp add --generate-shell-completion)" -- "$cur") )
+            fi
+            ;;
+        remove)
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "$(git-wtp remove --generate-shell-completion)" -- "$cur") )
+            fi
+            ;;
+    esac
 }
 
 # Register completion for git-wtp
 complete -F _git_wtp_completions git-wtp
 
-# Also register for 'git wtp' usage
-_git_wtp() {
-    # Remove 'git' from COMP_WORDS and adjust COMP_CWORD
-    local i
-    local words=()
-    local cword=0
-    
-    for (( i=1; i < ${#COMP_WORDS[@]}; i++ )); do
-        words+=("${COMP_WORDS[$i]}")
-        if [[ $i -lt $COMP_CWORD ]]; then
-            ((cword++))
-        fi
-    done
-    
-    # Call git-wtp with adjusted parameters
-    COMP_WORDS=("git-wtp" "${words[@]}")
-    COMP_CWORD=$cword
-    _git_wtp_completions
-}
-
-# This line hooks into git's completion system
-# Add to your git completion setup
-__git_complete git wtp _git_wtp 2>/dev/null || true`)
+# For 'git wtp' usage, we recommend using git alias:
+# git config --global alias.wtp '!git-wtp'`)
 	return nil
 }
 
@@ -565,35 +555,34 @@ func completionZsh(_ context.Context, _ *cli.Command) error {
 
 # Main completion function
 _git_wtp() {
-    local line state
+    local context state state_descr line
+    typeset -A opt_args
 
-    _arguments -C \
-        "1: :->commands" \
-        "*::arg:->args"
+    # First argument is the command
+    if (( CURRENT == 2 )); then
+        local -a commands
+        commands=(${(@f)"$(git-wtp --generate-shell-completion)"})
+        _describe 'command' commands
+        return
+    fi
 
-    case $state in
-        commands)
-            local -a commands
-            commands=(${(@f)"$(git-wtp --generate-shell-completion)"})
-            _describe 'command' commands
+    # Complete based on the command
+    case "${words[2]}" in
+        add)
+            if (( CURRENT == 3 )); then
+                local -a branches
+                branches=(${(@f)"$(git-wtp add --generate-shell-completion)"})
+                _describe 'branch' branches
+            fi
             ;;
-        args)
-            case ${line[1]} in
-                add)
-                    if [[ ${#line[@]} -eq 1 ]]; then
-                        local -a branches
-                        branches=(${(@f)"$(git-wtp add --generate-shell-completion)"})
-                        _describe 'branch' branches
-                    fi
-                    ;;
-                remove)
-                    if [[ ${#line[@]} -eq 1 ]]; then
-                        local -a worktrees
-                        worktrees=(${(@f)"$(git-wtp remove --generate-shell-completion)"})
-                        _describe 'worktree' worktrees
-                    fi
-                    ;;
-            esac
+        remove)
+            if (( CURRENT == 3 )); then
+                local -a worktrees
+                worktrees=(${(@f)"$(git-wtp remove --generate-shell-completion)"})
+                _describe 'worktree' worktrees
+            fi
+            ;;
+        *)
             ;;
     esac
 }
@@ -601,23 +590,8 @@ _git_wtp() {
 # Register for git-wtp command
 compdef _git_wtp git-wtp
 
-# Function for 'git wtp' completion
-_git_wtp_git_wrapper() {
-    # Adjust words array to remove 'git'
-    local -a words
-    words=("git-wtp" "${words[@]:2}")
-    
-    # Call the main completion function
-    service="git-wtp"
-    _git_wtp "$@"
-}
-
-# Register git subcommand (if git completions are loaded)
-if (( $+functions[_git] )); then
-    # Add to git's completion system
-    _git_commands+=('wtp:Git Worktree Plus - Enhanced worktree management')
-    compdef _git_wtp_git_wrapper git-wtp
-fi`)
+# For 'git wtp' usage, we recommend using git alias:
+# git config --global alias.wtp '!git-wtp'`)
 	return nil
 }
 
@@ -678,12 +652,6 @@ func completeBranches(_ context.Context, cmd *cli.Command) {
 
 	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
 
-	// Filter out current input
-	currentInput := ""
-	if cmd.Args().Len() > 0 {
-		currentInput = cmd.Args().Get(0)
-	}
-
 	// Use a map to avoid duplicates
 	seen := make(map[string]bool)
 	
@@ -706,11 +674,6 @@ func completeBranches(_ context.Context, cmd *cli.Command) {
 
 		// Skip if already seen (handles case where local and remote have same name)
 		if seen[displayName] {
-			continue
-		}
-		
-		// Skip if doesn't match current input
-		if currentInput != "" && !strings.HasPrefix(displayName, currentInput) {
 			continue
 		}
 

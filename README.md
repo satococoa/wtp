@@ -168,44 +168,43 @@ hooks:
 
 ## Shell Integration
 
-### Installation for `git wtp` usage
+### Quick Setup (Recommended)
 
-To use `git-wtp` as a git subcommand (`git wtp`), make sure the binary is in your PATH with the name `git-wtp`:
+The easiest way to use `git-wtp` as `git wtp` with full completion support:
 
 ```bash
-# Example: symlink or copy to a directory in PATH
+# 1. Make sure git-wtp is in your PATH
 ln -s /path/to/git-wtp /usr/local/bin/git-wtp
-```
 
-### Bash
+# 2. Create a git alias (this enables completion for 'git wtp' automatically)
+git config --global alias.wtp '!git-wtp'
 
-```bash
-# Add to ~/.bashrc or ~/.bash_profile
+# 3. Enable completion for direct git-wtp usage
+# Bash: Add to ~/.bashrc
 source <(git-wtp completion bash)
 
-# The completion will work for both:
-# - git-wtp add <TAB>
-# - git wtp add <TAB>
-```
-
-### Zsh
-
-```zsh
-# Add to ~/.zshrc
+# Zsh: Add to ~/.zshrc
 source <(git-wtp completion zsh)
 
-# The completion will work for both:
-# - git-wtp add <TAB>
-# - git wtp add <TAB>
+# Fish: Add to ~/.config/fish/config.fish
+git-wtp completion fish | source
 ```
 
-### Fish
+Now you can use both:
+- `git wtp add <TAB>` - Works via git alias with completion
+- `git-wtp add <TAB>` - Direct usage with completion
 
-```fish
-# Add to ~/.config/fish/config.fish
-git-wtp completion fish | source
+### Alternative: Direct git-wtp Usage Only
 
-# Note: For 'git wtp' usage in fish, additional setup may be required
+If you prefer to use `git-wtp` directly without the git alias:
+
+```bash
+# Enable completion
+source <(git-wtp completion bash)  # or zsh/fish
+
+# Use directly
+git-wtp add feature/new
+git-wtp remove feature/old
 ```
 
 ## Worktree Structure

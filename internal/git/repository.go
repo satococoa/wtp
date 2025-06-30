@@ -2,9 +2,7 @@ package git
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -76,11 +74,14 @@ func (r *Repository) ExecuteGitCommand(args ...string) error {
 }
 
 func isGitRepository(path string) bool {
-	gitDir := filepath.Join(path, ".git")
-	if stat, err := os.Stat(gitDir); err == nil {
-		return stat.IsDir()
+	// Use git rev-parse to check if we're in a git repository
+	// This works for both regular repos and worktrees
+	cmd := exec.Command("git", "rev-parse", "--git-dir")
+	cmd.Dir = path
+	if err := cmd.Run(); err != nil {
+		return false
 	}
-	return false
+	return true
 }
 
 func parseWorktreeList(output string) ([]Worktree, error) {
