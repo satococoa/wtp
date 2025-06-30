@@ -6,7 +6,7 @@
 *.dylib
 
 # Test binary, built with `go build`
-git-wtp
+wtp
 
 # Coverage files
 coverage.out
