@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/satococoa/git-wtp/internal/config"
+	"github.com/satococoa/wtp/internal/config"
 )
 
 const (

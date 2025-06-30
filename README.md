@@ -49,19 +49,19 @@ go install github.com/satococoa/wtp/cmd/wtp@latest
 
 ### Download Binary
 
-Download the latest binary from [GitHub Releases](https://github.com/satococoa/git-wtp/releases):
+Download the latest binary from [GitHub Releases](https://github.com/satococoa/wtp/releases):
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/satococoa/git-wtp/releases/latest/download/wtp_Darwin_arm64.tar.gz | tar xz
+curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Darwin_arm64.tar.gz | tar xz
 sudo mv wtp /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/satococoa/git-wtp/releases/latest/download/wtp_Darwin_x86_64.tar.gz | tar xz
+curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Darwin_x86_64.tar.gz | tar xz
 sudo mv wtp /usr/local/bin/
 
 # Linux (x86_64)
-curl -L https://github.com/satococoa/git-wtp/releases/latest/download/wtp_Linux_x86_64.tar.gz | tar xz
+curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Linux_x86_64.tar.gz | tar xz
 sudo mv wtp /usr/local/bin/
 
 # Windows (download .zip from releases page)
@@ -70,9 +70,9 @@ sudo mv wtp /usr/local/bin/
 ### From Source
 
 ```bash
-git clone https://github.com/satococoa/git-wtp.git
-cd git-wtp
-go build -o wtp ./cmd/git-wtp
+git clone https://github.com/satococoa/wtp.git
+cd wtp
+go build -o wtp ./cmd/wtp
 sudo mv wtp /usr/local/bin/  # or add to PATH
 ```
 
@@ -248,8 +248,8 @@ for details.
 
 ```bash
 # Clone repository
-git clone https://github.com/satococoa/git-wtp.git
-cd git-wtp
+git clone https://github.com/satococoa/wtp.git
+cd wtp
 
 # Install dependencies
 go mod download

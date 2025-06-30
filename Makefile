@@ -18,16 +18,16 @@ all: build
 # Build the binary
 build:
 	@echo "Building $(BINARY_NAME)..."
-	go build -ldflags="$(LDFLAGS)" -o $(BINARY_NAME) ./cmd/git-wtp
+	go build -ldflags="$(LDFLAGS)" -o $(BINARY_NAME) ./cmd/wtp
 
 # Build for all platforms
 build-all:
 	@echo "Building for all platforms..."
-	GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-darwin-amd64 ./cmd/git-wtp
-	GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-darwin-arm64 ./cmd/git-wtp
-	GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-amd64 ./cmd/git-wtp
-	GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-arm64 ./cmd/git-wtp
-	GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-windows-amd64.exe ./cmd/git-wtp
+	GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-darwin-amd64 ./cmd/wtp
+	GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-darwin-arm64 ./cmd/wtp
+	GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-amd64 ./cmd/wtp
+	GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-arm64 ./cmd/wtp
+	GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o dist/$(BINARY_NAME)-windows-amd64.exe ./cmd/wtp
 
 # Run tests
 test:
@@ -55,7 +55,7 @@ clean:
 # Install the binary to $GOPATH/bin
 install:
 	@echo "Installing $(BINARY_NAME)..."
-	go install -ldflags="$(LDFLAGS)" ./cmd/git-wtp
+	go install -ldflags="$(LDFLAGS)" ./cmd/wtp
 
 # Development helpers
 dev: clean lint test build

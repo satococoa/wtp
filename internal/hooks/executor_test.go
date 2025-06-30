@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/satococoa/git-wtp/internal/config"
+	"github.com/satococoa/wtp/internal/config"
 )
 
 func TestNewExecutor(t *testing.T) {

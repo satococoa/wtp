@@ -1,6 +1,6 @@
-# Contributing to Git Worktree Plus
+# Contributing to Worktree Plus (wtp)
 
-Thank you for your interest in contributing to git-wtp! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to wtp! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
@@ -12,7 +12,7 @@ This project adheres to a code of conduct. By participating, you are expected to
 
 Before creating an issue, please:
 
-1. Check if the issue already exists in the [issue tracker](https://github.com/satococoa/git-wtp/issues)
+1. Check if the issue already exists in the [issue tracker](https://github.com/satococoa/wtp/issues)
 2. Use the search function to avoid duplicates
 3. Provide clear reproduction steps and expected vs actual behavior
 4. Include your environment details (OS, Go version, git version)
@@ -30,8 +30,8 @@ We welcome feature suggestions! Please:
 
 ```bash
 # Clone the repository
-git clone https://github.com/satococoa/git-wtp.git
-cd git-wtp
+git clone https://github.com/satococoa/wtp.git
+cd wtp
 
 # Install dependencies
 go mod download
@@ -183,7 +183,7 @@ Include:
 ### Project Structure
 
 ```
-git-wtp/
+wtp/
 ├── cmd/                    # Command implementations
 │   ├── add.go
 │   ├── remove.go
@@ -256,4 +256,4 @@ make clean         # Clean build artifacts
 make install       # Install locally
 ```
 
-Thank you for contributing to git-wtp! Your efforts help make Git worktree management better for everyone.
+Thank you for contributing to wtp! Your efforts help make Git worktree management better for everyone.

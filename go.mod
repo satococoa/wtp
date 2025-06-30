@@ -1,4 +1,4 @@
-module github.com/satococoa/git-wtp
+module github.com/satococoa/wtp
 
 go 1.24.4
 

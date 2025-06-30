@@ -8,7 +8,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Config represents the git-wtp configuration
+// Config represents the wtp configuration
 type Config struct {
 	Version  string   `yaml:"version"`
 	Defaults Defaults `yaml:"defaults,omitempty"`
