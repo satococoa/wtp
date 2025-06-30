@@ -81,6 +81,11 @@ func (e *Executor) executeCopyHook(hook *config.Hook, worktreePath string) error
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
+	// Log the copy operation
+	relSrc, _ := filepath.Rel(e.repoRoot, srcPath)
+	relDst, _ := filepath.Rel(worktreePath, dstPath)
+	fmt.Printf("  Copying: %s → %s\n", relSrc, relDst)
+
 	if srcInfo.IsDir() {
 		return e.copyDir(srcPath, dstPath)
 	}
@@ -112,10 +117,20 @@ func (e *Executor) executeCommandHook(hook *config.Hook, worktreePath string) er
 		fmt.Sprintf("GIT_WTP_WORKTREE_PATH=%s", worktreePath),
 		fmt.Sprintf("GIT_WTP_REPO_ROOT=%s", e.repoRoot))
 
+	// Log the command execution
+	fmt.Printf("  Running: %s", hook.Command)
+	if len(hook.Args) > 0 {
+		fmt.Printf(" %v", hook.Args)
+	}
+	fmt.Println()
+
+	// Connect stdout and stderr to the console for real-time output
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
 	// Execute command
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("command failed: %s\nOutput: %s", err, string(output))
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("command failed: %s", err)
 	}
 
 	return nil

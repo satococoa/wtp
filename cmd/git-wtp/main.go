@@ -172,10 +172,12 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 
 	// Execute post-create hooks
 	if cfg.HasHooks() {
-		fmt.Println("Executing post-create hooks...")
+		fmt.Println("\nExecuting post-create hooks...")
 		executor := hooks.NewExecutor(cfg, repo.Path())
 		if err := executor.ExecutePostCreateHooks(workTreePath); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Hook execution failed: %v\n", err)
+		} else {
+			fmt.Println("✓ All hooks executed successfully")
 		}
 	}
 
