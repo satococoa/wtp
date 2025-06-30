@@ -1,9 +1,13 @@
-version: 1
+version: 2
 
 before:
   hooks:
     - go mod tidy
     - go generate ./...
+    - mkdir -p dist/completions
+    - go run ./cmd/wtp completion bash > dist/completions/wtp.bash
+    - go run ./cmd/wtp completion zsh > dist/completions/wtp.zsh
+    - go run ./cmd/wtp completion fish > dist/completions/wtp.fish
 
 builds:
   - id: wtp
@@ -50,6 +54,7 @@ archives:
       - README.md
       - LICENSE
       - CONTRIBUTING.md
+      - dist/completions/*
 
 checksum:
   name_template: 'checksums.txt'
@@ -96,6 +101,9 @@ brews:
       - name: git
     install: |
       bin.install "wtp"
+      bash_completion.install "dist/completions/wtp.bash" => "wtp"
+      zsh_completion.install "dist/completions/wtp.zsh" => "_wtp"
+      fish_completion.install "dist/completions/wtp.fish"
     test: |
       system "#{bin}/wtp", "--help"
 
@@ -150,3 +158,16 @@ nfpms:
     dependencies:
       - git
     bindir: /usr/bin
+    contents:
+      - src: "dist/completions/wtp.bash"
+        dst: "/usr/share/bash-completion/completions/wtp"
+        file_info:
+          mode: 0644
+      - src: "dist/completions/wtp.zsh"
+        dst: "/usr/share/zsh/site-functions/_wtp"
+        file_info:
+          mode: 0644
+      - src: "dist/completions/wtp.fish"
+        dst: "/usr/share/fish/vendor_completions.d/wtp.fish"
+        file_info:
+          mode: 0644

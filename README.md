@@ -173,13 +173,15 @@ hooks:
 
 ### Quick Setup (Recommended)
 
-To enable shell completion for wtp:
+#### If installed via Homebrew or Package Manager
+
+Shell completions are automatically installed and should work immediately! No manual setup required.
+
+#### Manual Setup
+
+If you installed wtp manually, enable shell completion:
 
 ```bash
-# 1. Make sure wtp is in your PATH
-ln -s /path/to/wtp /usr/local/bin/wtp
-
-# 2. Enable completion based on your shell
 # Bash: Add to ~/.bashrc
 source <(wtp completion bash)
 
@@ -188,6 +190,14 @@ source <(wtp completion zsh)
 
 # Fish: Add to ~/.config/fish/config.fish
 wtp completion fish | source
+```
+
+#### One-time Setup Helper
+
+For convenience, wtp can show the exact commands for your current shell:
+
+```bash
+wtp shell-init
 ```
 
 ## Worktree Structure
