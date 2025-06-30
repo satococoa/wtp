@@ -38,13 +38,25 @@ func main() {
 		Usage:   "Git Worktree Plus - Enhanced worktree management",
 		Version: versionInfo,
 		Description: "A powerful Git worktree management tool that extends git's worktree " +
-			"functionality with automated setup, branch tracking, and project-specific hooks.",
+			"functionality with automated setup, branch tracking, and project-specific hooks.\n\n" +
+			"Examples:\n" +
+			"  git-wtp add feature/new-feature     # Create worktree from branch\n" +
+			"  git-wtp add -b hotfix/urgent main   # Create new branch from main\n" +
+			"  git-wtp remove feature/old-feature  # Remove worktree\n" +
+			"  git-wtp list                        # List all worktrees",
 		EnableShellCompletion: true,
 		Commands: []*cli.Command{
 			{
 				Name:          "add",
 				Usage:         "Create a new worktree",
 				UsageText:     "git-wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
+				Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
+					"but exists on a remote, it will be automatically tracked. Supports all git worktree flags.\n\n" +
+					"Examples:\n" +
+					"  git-wtp add feature/auth                    # Auto-generate path: ../worktrees/feature/auth\n" +
+					"  git-wtp add --path /tmp/test feature/auth   # Use explicit path\n" +
+					"  git-wtp add -b new-feature main             # Create new branch from main\n" +
+					"  git-wtp add --detach abc1234                # Detached HEAD at commit",
 				ShellComplete: completeBranches,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -92,12 +104,18 @@ func main() {
 			{
 				Name:   "list",
 				Usage:  "List all worktrees",
+				Description: "Shows all worktrees with their paths, branches, and HEAD commits.",
 				Action: listCommand,
 			},
 			{
 				Name:          "remove",
 				Usage:         "Remove a worktree",
 				UsageText:     "git-wtp remove <branch-name>",
+				Description: "Removes the worktree associated with the specified branch.\n\n" +
+					"Examples:\n" +
+					"  git-wtp remove feature/old                  # Remove worktree\n" +
+					"  git-wtp remove -f feature/dirty             # Force remove dirty worktree\n" +
+					"  git-wtp remove --with-branch feature/done   # Also delete the branch",
 				ShellComplete: completeWorktrees,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
@@ -119,6 +137,8 @@ func main() {
 			{
 				Name:   "init",
 				Usage:  "Initialize configuration file",
+				Description: "Creates a .git-worktree-plus.yml configuration file in the repository root " +
+					"with example hooks and settings.",
 				Action: initCommand,
 			},
 			{
@@ -513,7 +533,7 @@ _git_wtp() {
 
     _arguments -C \
         "1: :->commands" \
-        "*: :->args"
+        "*::arg:->args"
 
     case $state in
         commands)
@@ -524,14 +544,18 @@ _git_wtp() {
         args)
             case ${line[1]} in
                 add)
-                    local -a branches
-                    branches=(${(@f)"$(git-wtp add --generate-shell-completion)"})
-                    _describe 'branch' branches
+                    if [[ ${#line[@]} -eq 1 ]]; then
+                        local -a branches
+                        branches=(${(@f)"$(git-wtp add --generate-shell-completion)"})
+                        _describe 'branch' branches
+                    fi
                     ;;
                 remove)
-                    local -a worktrees
-                    worktrees=(${(@f)"$(git-wtp remove --generate-shell-completion)"})
-                    _describe 'worktree' worktrees
+                    if [[ ${#line[@]} -eq 1 ]]; then
+                        local -a worktrees
+                        worktrees=(${(@f)"$(git-wtp remove --generate-shell-completion)"})
+                        _describe 'worktree' worktrees
+                    fi
                     ;;
             esac
             ;;
