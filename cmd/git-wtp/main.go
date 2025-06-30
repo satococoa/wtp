@@ -28,6 +28,7 @@ const (
 	pathHeaderDashes   = 4
 	branchHeaderDashes = 6
 	headDisplayLength  = 8
+	configFileMode     = 0o600
 )
 
 func main() {
@@ -47,9 +48,9 @@ func main() {
 		EnableShellCompletion: true,
 		Commands: []*cli.Command{
 			{
-				Name:          "add",
-				Usage:         "Create a new worktree",
-				UsageText:     "git-wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
+				Name:      "add",
+				Usage:     "Create a new worktree",
+				UsageText: "git-wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
 				Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 					"but exists on a remote, it will be automatically tracked. Supports all git worktree flags.\n\n" +
 					"Examples:\n" +
@@ -102,15 +103,15 @@ func main() {
 				Action: addCommand,
 			},
 			{
-				Name:   "list",
-				Usage:  "List all worktrees",
+				Name:        "list",
+				Usage:       "List all worktrees",
 				Description: "Shows all worktrees with their paths, branches, and HEAD commits.",
-				Action: listCommand,
+				Action:      listCommand,
 			},
 			{
-				Name:          "remove",
-				Usage:         "Remove a worktree",
-				UsageText:     "git-wtp remove <branch-name>",
+				Name:      "remove",
+				Usage:     "Remove a worktree",
+				UsageText: "git-wtp remove <branch-name>",
 				Description: "Removes the worktree associated with the specified branch.\n\n" +
 					"Examples:\n" +
 					"  wtp remove feature/old                  # Remove worktree\n" +
@@ -135,8 +136,8 @@ func main() {
 				Action: removeCommand,
 			},
 			{
-				Name:   "init",
-				Usage:  "Initialize configuration file",
+				Name:  "init",
+				Usage: "Initialize configuration file",
 				Description: "Creates a .wtp.yml configuration file in the repository root " +
 					"with example hooks and settings.",
 				Action: initCommand,
@@ -495,7 +496,7 @@ hooks:
 `
 
 	// Write configuration file with comments
-	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), configFileMode); err != nil {
 		return fmt.Errorf("failed to create configuration file: %w", err)
 	}
 
@@ -635,7 +636,7 @@ func shellInit(_ context.Context, _ *cli.Command) error {
 }
 
 // completeBranches provides branch name completion
-func completeBranches(_ context.Context, cmd *cli.Command) {
+func completeBranches(_ context.Context, _ *cli.Command) {
 	// Get current directory
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -654,17 +655,17 @@ func completeBranches(_ context.Context, cmd *cli.Command) {
 
 	// Use a map to avoid duplicates
 	seen := make(map[string]bool)
-	
+
 	for _, branch := range branches {
 		if branch == "" {
 			continue
 		}
-		
+
 		// Skip HEAD references and bare origin
 		if branch == "origin/HEAD" || branch == "origin" {
 			continue
 		}
-		
+
 		// Remove remote prefix for display, but keep track of what we've seen
 		displayName := branch
 		if strings.HasPrefix(branch, "origin/") {

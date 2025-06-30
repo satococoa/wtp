@@ -111,8 +111,11 @@ When implementing new features, always remember to:
 2. **Update Feature Checklists**: Mark completed features as done in README.md roadmap
 3. **Add Usage Examples**: Include practical examples in the Quick Start section
 4. **Update Help Text**: Ensure command help text reflects new options
-5. **Run Tests**: Always run `make lint` and `make test` before committing
-6. **Update CLAUDE.md**: Document any new design decisions or architectural changes
+5. **Run Linter First**: ALWAYS run `make lint` and fix ALL issues before committing
+6. **Run Tests**: Always run `make test` to ensure nothing is broken
+7. **Update CLAUDE.md**: Document any new design decisions or architectural changes
+
+**CRITICAL**: Never commit code with lint errors. The linter helps maintain code quality and consistency.
 
 ## Testing Strategy
 
@@ -224,12 +227,16 @@ This ensures all team members use the same tool versions defined in go.mod.
 
 When implementing new features or fixing bugs:
 
-1. **Development**: `make dev` (runs lint, test, build)
-2. **Testing**: `make test`
-3. **Linting**: `make lint` 
-4. **Formatting**: `make fmt`
+1. **Linting First**: `make lint` - MUST pass with no errors before committing
+2. **Testing**: `make test` - Ensure all tests pass
+3. **Development**: `make dev` - Full check (runs lint, test, build)
+4. **Formatting**: `make fmt` - Auto-format code with goimports
 
-**Critical**: ALWAYS run `make lint` and fix all issues before committing.
+**Critical**: ALWAYS run `make lint` and fix ALL issues before committing. Common lint errors include:
+- Unused variables/parameters (use `_` for intentionally unused)
+- Magic numbers (define constants instead)
+- Cyclomatic complexity (refactor complex functions)
+- Parameter type combinations (e.g., `func(a, b string)` instead of `func(a string, b string)`)
 
 ## Major Design Changes
 
