@@ -125,7 +125,8 @@ func main() {
 }
 
 func addCommand(_ context.Context, cmd *cli.Command) error {
-	if cmd.Args().Len() == 0 {
+	// Check if we have a branch name from either args or -b flag
+	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
 		return fmt.Errorf("branch name is required")
 	}
 
@@ -148,7 +149,10 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Resolve worktree path and branch name
-	firstArg := cmd.Args().Get(0)
+	var firstArg string
+	if cmd.Args().Len() > 0 {
+		firstArg = cmd.Args().Get(0)
+	}
 	workTreePath, branchName := resolveWorktreePath(cfg, repo.Path(), firstArg, cmd)
 
 	// Build git worktree add command
@@ -194,6 +198,11 @@ func resolveWorktreePath(
 	// If -b flag is provided, use that as the branch name for path generation
 	if newBranch := cmd.String("branch"); newBranch != "" {
 		branchName = newBranch
+	}
+
+	// If still no branch name, try to use the first argument
+	if branchName == "" && firstArg != "" {
+		branchName = firstArg
 	}
 
 	workTreePath = cfg.ResolveWorktreePath(repoPath, branchName)
@@ -402,25 +411,38 @@ func initCommand(_ context.Context, _ *cli.Command) error {
 		return fmt.Errorf("configuration file already exists: %s", configPath)
 	}
 
-	// Create default configuration
-	defaultConfig := &config.Config{
-		Version: config.CurrentVersion,
-		Defaults: config.Defaults{
-			BaseDir: "../worktrees",
-		},
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type: config.HookTypeCopy,
-					From: ".env.example",
-					To:   ".env",
-				},
-			},
-		},
-	}
+	// Create configuration with comments
+	configContent := `# Git Worktree Plus Configuration
+version: "1.0"
 
-	// Save configuration
-	if err := config.SaveConfig(repo.Path(), defaultConfig); err != nil {
+# Default settings for worktrees
+defaults:
+  # Base directory for worktrees (relative to repository root)
+  base_dir: ../worktrees
+
+# Hooks that run after creating a worktree
+hooks:
+  post_create:
+    # Example: Copy environment file
+    - type: copy
+      from: .env.example
+      to: .env
+    
+    # Example: Run a command to show all worktrees
+    - type: command
+      command: git wtp list
+    
+    # More examples (commented out):
+    # - type: command
+    #   command: echo "Created new worktree!"
+    # - type: command
+    #   command: ls -la
+    # - type: command
+    #   command: npm install
+`
+
+	// Write configuration file with comments
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
 		return fmt.Errorf("failed to create configuration file: %w", err)
 	}
 
