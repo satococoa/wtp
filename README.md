@@ -1,4 +1,4 @@
-# Git Worktree Plus (git-wtp)
+# wtp (Worktree Plus)
 
 A powerful Git worktree management tool that extends git's worktree
 functionality with automated setup, branch tracking, and project-specific hooks.
@@ -7,18 +7,18 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 
 ### Core Commands
 
-- [x] `git wtp init` - Initialize configuration file
-- [x] `git wtp add` - Clean and unambiguous worktree creation
-  - [x] **Automatic path generation**: `git-wtp add feature/auth` (no redundant typing)
-  - [x] **Explicit path support**: `git-wtp add --path /custom/path feature/auth` (no ambiguity)
+- [x] `wtp init` - Initialize configuration file
+- [x] `wtp add` - Clean and unambiguous worktree creation
+  - [x] **Automatic path generation**: `wtp add feature/auth` (no redundant typing)
+  - [x] **Explicit path support**: `wtp add --path /custom/path feature/auth` (no ambiguity)
   - [x] **Transparent wrapper**: All git worktree options supported
   - [x] Post-create hooks execution
-- [x] `git wtp remove` - Remove worktree
+- [x] `wtp remove` - Remove worktree
   - [x] Remove worktree only (git worktree compatible)
   - [x] Remove with branch (`--with-branch` option for convenience)
   - [x] Force removal (`--force` option)
-- [x] `git wtp list` - List all worktrees with status
-- [ ] `git wtp cd` - Change directory to worktree (requires shell integration)
+- [x] `wtp list` - List all worktrees with status
+- [ ] `wtp cd` - Change directory to worktree (requires shell integration)
 
 ### Advanced Features
 
@@ -38,13 +38,13 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 ### Using Homebrew (macOS/Linux)
 
 ```bash
-brew install satococoa/tap/git-wtp
+brew install satococoa/tap/wtp
 ```
 
 ### Using Go
 
 ```bash
-go install github.com/satococoa/git-wtp/cmd/git-wtp@latest
+go install github.com/satococoa/wtp/cmd/wtp@latest
 ```
 
 ### Download Binary
@@ -53,16 +53,16 @@ Download the latest binary from [GitHub Releases](https://github.com/satococoa/g
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/satococoa/git-wtp/releases/latest/download/git-wtp_Darwin_arm64.tar.gz | tar xz
-sudo mv git-wtp /usr/local/bin/
+curl -L https://github.com/satococoa/git-wtp/releases/latest/download/wtp_Darwin_arm64.tar.gz | tar xz
+sudo mv wtp /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/satococoa/git-wtp/releases/latest/download/git-wtp_Darwin_x86_64.tar.gz | tar xz
-sudo mv git-wtp /usr/local/bin/
+curl -L https://github.com/satococoa/git-wtp/releases/latest/download/wtp_Darwin_x86_64.tar.gz | tar xz
+sudo mv wtp /usr/local/bin/
 
 # Linux (x86_64)
-curl -L https://github.com/satococoa/git-wtp/releases/latest/download/git-wtp_Linux_x86_64.tar.gz | tar xz
-sudo mv git-wtp /usr/local/bin/
+curl -L https://github.com/satococoa/git-wtp/releases/latest/download/wtp_Linux_x86_64.tar.gz | tar xz
+sudo mv wtp /usr/local/bin/
 
 # Windows (download .zip from releases page)
 ```
@@ -72,8 +72,8 @@ sudo mv git-wtp /usr/local/bin/
 ```bash
 git clone https://github.com/satococoa/git-wtp.git
 cd git-wtp
-go build -o git-wtp ./cmd/git-wtp
-sudo mv git-wtp /usr/local/bin/  # or add to PATH
+go build -o wtp ./cmd/git-wtp
+sudo mv wtp /usr/local/bin/  # or add to PATH
 ```
 
 ## Quick Start
@@ -83,58 +83,58 @@ sudo mv git-wtp /usr/local/bin/  # or add to PATH
 ```bash
 # Create worktree from existing branch (local or remote)
 # → Creates worktree at ../worktrees/feature/auth
-git-wtp add feature/auth
+wtp add feature/auth
 
 # Create worktree with new branch
 # → Creates worktree at ../worktrees/feature/new-feature
-git-wtp add -b feature/new-feature
+wtp add -b feature/new-feature
 
 # Create new branch from specific commit
 # → Creates worktree at ../worktrees/hotfix/urgent
-git-wtp add -b hotfix/urgent abc1234
+wtp add -b hotfix/urgent abc1234
 
 # Use all git worktree options
 # → Creates worktree at ../worktrees/feature/test
-git-wtp add -b feature/test --track origin/main
+wtp add -b feature/test --track origin/main
 ```
 
 ### Explicit Path Specification (Full Flexibility)
 
 ```bash
 # Create worktree at custom absolute path
-git-wtp add --path /tmp/experiment feature/auth
+wtp add --path /tmp/experiment feature/auth
 
 # Create worktree at custom relative path
-git-wtp add --path ./custom-location feature/auth
+wtp add --path ./custom-location feature/auth
 
 # Create detached HEAD worktree from commit
-git-wtp add --path /tmp/debug --detach abc1234
+wtp add --path /tmp/debug --detach abc1234
 
 # All git worktree options work with explicit paths
-git-wtp add --path /tmp/test --force feature/auth
+wtp add --path /tmp/test --force feature/auth
 
 # No ambiguity: foobar/foo is always treated as branch name
-git-wtp add --path /custom/location foobar/foo
+wtp add --path /custom/location foobar/foo
 ```
 
 ### Management Commands
 
 ```bash
 # List all worktrees
-git-wtp list
+wtp list
 
 # Remove worktree only
-git-wtp remove feature/auth
-git-wtp remove --force feature/auth  # Force removal even if dirty
+wtp remove feature/auth
+wtp remove --force feature/auth  # Force removal even if dirty
 
 # Remove worktree and its branch
-git-wtp remove --with-branch feature/auth              # Only if branch is merged
-git-wtp remove --with-branch --force-branch feature/auth  # Force branch deletion
+wtp remove --with-branch feature/auth              # Only if branch is merged
+wtp remove --with-branch --force-branch feature/auth  # Force branch deletion
 ```
 
 ## Configuration
 
-Git-wtp uses `.git-worktree-plus.yml` for project-specific configuration:
+wtp uses `.wtp.yml` for project-specific configuration:
 
 ```yaml
 version: "1.0"
@@ -170,41 +170,34 @@ hooks:
 
 ### Quick Setup (Recommended)
 
-The easiest way to use `git-wtp` as `git wtp` with full completion support:
+To enable shell completion for wtp:
 
 ```bash
-# 1. Make sure git-wtp is in your PATH
-ln -s /path/to/git-wtp /usr/local/bin/git-wtp
+# 1. Make sure wtp is in your PATH
+ln -s /path/to/wtp /usr/local/bin/wtp
 
-# 2. Create a git alias (this enables completion for 'git wtp' automatically)
-git config --global alias.wtp '!git-wtp'
-
-# 3. Enable completion for direct git-wtp usage
+# 2. Enable completion based on your shell
 # Bash: Add to ~/.bashrc
-source <(git-wtp completion bash)
+source <(wtp completion bash)
 
 # Zsh: Add to ~/.zshrc
-source <(git-wtp completion zsh)
+source <(wtp completion zsh)
 
 # Fish: Add to ~/.config/fish/config.fish
-git-wtp completion fish | source
+wtp completion fish | source
 ```
 
-Now you can use both:
-- `git wtp add <TAB>` - Works via git alias with completion
-- `git-wtp add <TAB>` - Direct usage with completion
+### Using wtp as a git alias (Optional)
 
-### Alternative: Direct git-wtp Usage Only
-
-If you prefer to use `git-wtp` directly without the git alias:
+If you prefer to use `git wtp` instead of `wtp`:
 
 ```bash
-# Enable completion
-source <(git-wtp completion bash)  # or zsh/fish
+# Create a git alias
+git config --global alias.wtp '!wtp'
 
-# Use directly
-git-wtp add feature/new
-git-wtp remove feature/old
+# Now you can use
+git wtp add feature/new
+git wtp remove feature/old
 ```
 
 ## Worktree Structure
@@ -214,23 +207,23 @@ With the default configuration (`base_dir: "../worktrees"`):
 ```
 <project-root>/
 ├── .git/
-├── .git-worktree-plus.yml
+├── .wtp.yml
 └── src/
 
 ../worktrees/
 ├── main/
 ├── feature/
-│   ├── auth/          # git-wtp add feature/auth
-│   └── payment/       # git-wtp add feature/payment
+│   ├── auth/          # wtp add feature/auth
+│   └── payment/       # wtp add feature/payment
 └── hotfix/
-    └── bug-123/       # git-wtp add hotfix/bug-123
+    └── bug-123/       # wtp add hotfix/bug-123
 ```
 
 Branch names with slashes are preserved as directory structure, automatically organizing worktrees by type/category.
 
 ## Error Handling
 
-Git-wtp provides clear error messages:
+wtp provides clear error messages:
 
 ```bash
 # Branch not found
@@ -268,7 +261,7 @@ make test
 make build
 
 # Run locally
-./git-wtp --help
+./wtp --help
 ```
 
 ## Roadmap

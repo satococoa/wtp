@@ -1,7 +1,7 @@
-# Git Worktree Plus - Development Notes
+# wtp (Worktree Plus) - Development Notes
 
 This document contains the design decisions, implementation details, and
-discussions that led to the creation of git-wtp.
+discussions that led to the creation of wtp (formerly git-wtp).
 
 ## Background
 
@@ -149,7 +149,7 @@ The original Product Requirements Document specified:
 
 - Simple worktree management commands
 - Automatic environment setup
-- Configuration via .git-worktree-plus.yml
+- Configuration via .wtp.yml
 - Cross-platform support
 - Shell integration
 
@@ -204,6 +204,21 @@ tool (
 - ❌ `goimports -w .` (may use different version)
 
 This ensures all team members use the same tool versions defined in go.mod.
+
+### Command Name Change (2024-12)
+
+**From git-wtp to wtp**: The command was renamed from `git-wtp` to `wtp` for:
+- Easier typing and better ergonomics
+- Following patterns like `ghq`, `gh`, `tig` (successful Git tools)
+- Simpler shell completion without git subcommand complexity
+- Users can still use `git wtp` via git alias if preferred
+
+### Configuration File Name Change (2024-12)
+
+**From .git-worktree-plus.yml to .wtp.yml**: The configuration file was renamed for:
+- Consistency with the new command name
+- Shorter and easier to type
+- Following common patterns (.gitignore, .editorconfig, etc.)
 
 ### Required Commands
 

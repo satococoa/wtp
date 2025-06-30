@@ -34,16 +34,16 @@ func main() {
 	versionInfo := fmt.Sprintf("%s (commit: %s, built: %s)", version, commit, date)
 
 	app := &cli.Command{
-		Name:    "git-wtp",
-		Usage:   "Git Worktree Plus - Enhanced worktree management",
+		Name:    "wtp",
+		Usage:   "Worktree Plus - Enhanced Git worktree management",
 		Version: versionInfo,
 		Description: "A powerful Git worktree management tool that extends git's worktree " +
 			"functionality with automated setup, branch tracking, and project-specific hooks.\n\n" +
 			"Examples:\n" +
-			"  git-wtp add feature/new-feature     # Create worktree from branch\n" +
-			"  git-wtp add -b hotfix/urgent main   # Create new branch from main\n" +
-			"  git-wtp remove feature/old-feature  # Remove worktree\n" +
-			"  git-wtp list                        # List all worktrees",
+			"  wtp add feature/new-feature     # Create worktree from branch\n" +
+			"  wtp add -b hotfix/urgent main   # Create new branch from main\n" +
+			"  wtp remove feature/old-feature  # Remove worktree\n" +
+			"  wtp list                        # List all worktrees",
 		EnableShellCompletion: true,
 		Commands: []*cli.Command{
 			{
@@ -53,10 +53,10 @@ func main() {
 				Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 					"but exists on a remote, it will be automatically tracked. Supports all git worktree flags.\n\n" +
 					"Examples:\n" +
-					"  git-wtp add feature/auth                    # Auto-generate path: ../worktrees/feature/auth\n" +
-					"  git-wtp add --path /tmp/test feature/auth   # Use explicit path\n" +
-					"  git-wtp add -b new-feature main             # Create new branch from main\n" +
-					"  git-wtp add --detach abc1234                # Detached HEAD at commit",
+					"  wtp add feature/auth                    # Auto-generate path: ../worktrees/feature/auth\n" +
+					"  wtp add --path /tmp/test feature/auth   # Use explicit path\n" +
+					"  wtp add -b new-feature main             # Create new branch from main\n" +
+					"  wtp add --detach abc1234                # Detached HEAD at commit",
 				ShellComplete: completeBranches,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
@@ -113,9 +113,9 @@ func main() {
 				UsageText:     "git-wtp remove <branch-name>",
 				Description: "Removes the worktree associated with the specified branch.\n\n" +
 					"Examples:\n" +
-					"  git-wtp remove feature/old                  # Remove worktree\n" +
-					"  git-wtp remove -f feature/dirty             # Force remove dirty worktree\n" +
-					"  git-wtp remove --with-branch feature/done   # Also delete the branch",
+					"  wtp remove feature/old                  # Remove worktree\n" +
+					"  wtp remove -f feature/dirty             # Force remove dirty worktree\n" +
+					"  wtp remove --with-branch feature/done   # Also delete the branch",
 				ShellComplete: completeWorktrees,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
@@ -137,7 +137,7 @@ func main() {
 			{
 				Name:   "init",
 				Usage:  "Initialize configuration file",
-				Description: "Creates a .git-worktree-plus.yml configuration file in the repository root " +
+				Description: "Creates a .wtp.yml configuration file in the repository root " +
 					"with example hooks and settings.",
 				Action: initCommand,
 			},
@@ -465,7 +465,7 @@ func initCommand(_ context.Context, _ *cli.Command) error {
 	}
 
 	// Create configuration with comments
-	configContent := `# Git Worktree Plus Configuration
+	configContent := `# Worktree Plus Configuration
 version: "1.0"
 
 # Default settings for worktrees
@@ -483,7 +483,7 @@ hooks:
     
     # Example: Run a command to show all worktrees
     - type: command
-      command: git wtp list
+      command: wtp list
     
     # More examples (commented out):
     # - type: command
@@ -508,18 +508,18 @@ hooks:
 func completionBash(_ context.Context, _ *cli.Command) error {
 	// For bash, we'll use the built-in completion support
 	fmt.Println(`#!/bin/bash
-# git-wtp bash completion script
+# wtp bash completion script
 # Add this to your ~/.bashrc or ~/.bash_profile:
-# source <(git-wtp completion bash)
+# source <(wtp completion bash)
 
-# Completion for git-wtp command
-_git_wtp_completions() {
+# Completion for wtp command
+_wtp_completions() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local prev="${COMP_WORDS[COMP_CWORD-1]}"
     
     # Complete command names
     if [[ ${COMP_CWORD} -eq 1 ]]; then
-        COMPREPLY=( $(compgen -W "$(git-wtp --generate-shell-completion)" -- "$cur") )
+        COMPREPLY=( $(compgen -W "$(wtp --generate-shell-completion)" -- "$cur") )
         return
     fi
     
@@ -527,41 +527,41 @@ _git_wtp_completions() {
     case "${COMP_WORDS[1]}" in
         add)
             if [[ ${COMP_CWORD} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "$(git-wtp add --generate-shell-completion)" -- "$cur") )
+                COMPREPLY=( $(compgen -W "$(wtp add --generate-shell-completion)" -- "$cur") )
             fi
             ;;
         remove)
             if [[ ${COMP_CWORD} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "$(git-wtp remove --generate-shell-completion)" -- "$cur") )
+                COMPREPLY=( $(compgen -W "$(wtp remove --generate-shell-completion)" -- "$cur") )
             fi
             ;;
     esac
 }
 
-# Register completion for git-wtp
-complete -F _git_wtp_completions git-wtp
+# Register completion for wtp
+complete -F _wtp_completions wtp
 
-# For 'git wtp' usage, we recommend using git alias:
-# git config --global alias.wtp '!git-wtp'`)
+# For 'git wtp' usage, you can create a git alias:
+# git config --global alias.wtp '!wtp'`)
 	return nil
 }
 
 func completionZsh(_ context.Context, _ *cli.Command) error {
 	// For zsh, we'll use the built-in completion support
-	fmt.Println(`#compdef git-wtp
-# git-wtp zsh completion script
+	fmt.Println(`#compdef wtp
+# wtp zsh completion script
 # Add this to your ~/.zshrc:
-# source <(git-wtp completion zsh)
+# source <(wtp completion zsh)
 
 # Main completion function
-_git_wtp() {
+_wtp() {
     local context state state_descr line
     typeset -A opt_args
 
     # First argument is the command
     if (( CURRENT == 2 )); then
         local -a commands
-        commands=(${(@f)"$(git-wtp --generate-shell-completion)"})
+        commands=(${(@f)"$(wtp --generate-shell-completion)"})
         _describe 'command' commands
         return
     fi
@@ -571,14 +571,14 @@ _git_wtp() {
         add)
             if (( CURRENT == 3 )); then
                 local -a branches
-                branches=(${(@f)"$(git-wtp add --generate-shell-completion)"})
+                branches=(${(@f)"$(wtp add --generate-shell-completion)"})
                 _describe 'branch' branches
             fi
             ;;
         remove)
             if (( CURRENT == 3 )); then
                 local -a worktrees
-                worktrees=(${(@f)"$(git-wtp remove --generate-shell-completion)"})
+                worktrees=(${(@f)"$(wtp remove --generate-shell-completion)"})
                 _describe 'worktree' worktrees
             fi
             ;;
@@ -587,11 +587,11 @@ _git_wtp() {
     esac
 }
 
-# Register for git-wtp command
-compdef _git_wtp git-wtp
+# Register for wtp command
+compdef _wtp wtp
 
-# For 'git wtp' usage, we recommend using git alias:
-# git config --global alias.wtp '!git-wtp'`)
+# For 'git wtp' usage, you can create a git alias:
+# git config --global alias.wtp '!wtp'`)
 	return nil
 }
 
@@ -619,13 +619,13 @@ func shellInit(_ context.Context, _ *cli.Command) error {
 	switch shellName {
 	case "bash":
 		fmt.Println("# Run this command to enable completion for current session:")
-		fmt.Println("source <(git-wtp completion bash)")
+		fmt.Println("source <(wtp completion bash)")
 	case "zsh":
 		fmt.Println("# Run this command to enable completion for current session:")
-		fmt.Println("source <(git-wtp completion zsh)")
+		fmt.Println("source <(wtp completion zsh)")
 	case "fish":
 		fmt.Println("# Run this command to enable completion for current session:")
-		fmt.Println("git-wtp completion fish | source")
+		fmt.Println("wtp completion fish | source")
 	default:
 		return fmt.Errorf("unsupported shell: %s", shellName)
 	}

@@ -37,14 +37,14 @@ type Hook struct {
 }
 
 const (
-	ConfigFileName        = ".git-worktree-plus.yml"
+	ConfigFileName        = ".wtp.yml"
 	CurrentVersion        = "1.0"
 	HookTypeCopy          = "copy"
 	HookTypeCommand       = "command"
 	configFilePermissions = 0o600
 )
 
-// LoadConfig loads configuration from .git-worktree-plus.yml in the repository root
+// LoadConfig loads configuration from .wtp.yml in the repository root
 func LoadConfig(repoRoot string) (*Config, error) {
 	configPath := filepath.Join(repoRoot, ConfigFileName)
 
