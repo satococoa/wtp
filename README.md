@@ -25,10 +25,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 - [x] **Post-create hooks**
   - [x] Copy files from main worktree
   - [x] Execute commands
-- [ ] **Shell completion** (reusing git's completion utilities)
-  - [ ] Bash completion using git's completion functions
-  - [ ] Zsh completion using git's completion functions
-  - [ ] Fish completion with custom logic
+- [x] **Shell completion** (with custom completion for branches and worktrees)
+  - [x] Bash completion with branch/worktree name completion
+  - [x] Zsh completion with branch/worktree name completion
+  - [x] Fish completion with branch/worktree name completion
 - [x] **Cross-platform support**
   - [x] Linux
   - [x] macOS
@@ -171,9 +171,8 @@ hooks:
 ### Bash
 
 ```bash
-# Add to ~/.bashrc
+# Add to ~/.bashrc or ~/.bash_profile
 source <(git-wtp completion bash)
-eval "$(git-wtp shell-init bash)"
 ```
 
 ### Zsh
@@ -181,7 +180,6 @@ eval "$(git-wtp shell-init bash)"
 ```zsh
 # Add to ~/.zshrc
 source <(git-wtp completion zsh)
-eval "$(git-wtp shell-init zsh)"
 ```
 
 ### Fish
@@ -189,7 +187,6 @@ eval "$(git-wtp shell-init zsh)"
 ```fish
 # Add to ~/.config/fish/config.fish
 git-wtp completion fish | source
-git-wtp shell-init fish | source
 ```
 
 ## Worktree Structure
@@ -268,7 +265,7 @@ make build
 
 ### v0.2.0
 
-- [ ] Shell completion (reusing git's completion utilities)
+- [x] Shell completion (with custom branch/worktree completion)
 - [x] Init command for configuration
 - [x] Branch creation (`-b` flag)
 - [x] Hybrid approach (automatic + explicit path support)

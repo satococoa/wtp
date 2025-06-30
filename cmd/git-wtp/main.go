@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/urfave/cli/v3"
@@ -37,11 +39,13 @@ func main() {
 		Version: versionInfo,
 		Description: "A powerful Git worktree management tool that extends git's worktree " +
 			"functionality with automated setup, branch tracking, and project-specific hooks.",
+		EnableShellCompletion: true,
 		Commands: []*cli.Command{
 			{
-				Name:      "add",
-				Usage:     "Create a new worktree",
-				UsageText: "git-wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
+				Name:          "add",
+				Usage:         "Create a new worktree",
+				UsageText:     "git-wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
+				ShellComplete: completeBranches,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "path",
@@ -91,9 +95,10 @@ func main() {
 				Action: listCommand,
 			},
 			{
-				Name:      "remove",
-				Usage:     "Remove a worktree",
-				UsageText: "git-wtp remove <branch-name>",
+				Name:          "remove",
+				Usage:         "Remove a worktree",
+				UsageText:     "git-wtp remove <branch-name>",
+				ShellComplete: completeWorktrees,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:    "force",
@@ -115,6 +120,32 @@ func main() {
 				Name:   "init",
 				Usage:  "Initialize configuration file",
 				Action: initCommand,
+			},
+			{
+				Name:   "shell-init",
+				Usage:  "Initialize shell completion for current session",
+				Action: shellInit,
+			},
+			{
+				Name:  "completion",
+				Usage: "Generate shell completion script",
+				Commands: []*cli.Command{
+					{
+						Name:   "bash",
+						Usage:  "Generate bash completion script",
+						Action: completionBash,
+					},
+					{
+						Name:   "zsh",
+						Usage:  "Generate zsh completion script",
+						Action: completionZsh,
+					},
+					{
+						Name:   "fish",
+						Usage:  "Generate fish completion script",
+						Action: completionFish,
+					},
+				},
 			},
 		},
 	}
@@ -451,4 +482,144 @@ hooks:
 	fmt.Printf("Configuration file created: %s\n", configPath)
 	fmt.Println("Edit this file to customize your worktree setup.")
 	return nil
+}
+
+// Shell completion commands
+func completionBash(_ context.Context, _ *cli.Command) error {
+	// For bash, we'll use the built-in completion support
+	fmt.Println(`#!/bin/bash
+# git-wtp bash completion script
+# Add this to your ~/.bashrc or ~/.bash_profile:
+# source <(git-wtp completion bash)
+
+_git_wtp_completions() {
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    COMPREPLY=( $(compgen -W "$(git-wtp --generate-shell-completion)" -- "$cur") )
+}
+
+complete -F _git_wtp_completions git-wtp`)
+	return nil
+}
+
+func completionZsh(_ context.Context, _ *cli.Command) error {
+	// For zsh, we'll use the built-in completion support
+	fmt.Println(`#compdef git-wtp
+# git-wtp zsh completion script
+# Add this to your ~/.zshrc:
+# source <(git-wtp completion zsh)
+
+_git_wtp() {
+    local -a opts
+    opts=("${(@f)$(git-wtp --generate-shell-completion)}")
+    _describe 'git-wtp' opts
+}
+
+compdef _git_wtp git-wtp`)
+	return nil
+}
+
+func completionFish(_ context.Context, cmd *cli.Command) error {
+	// For fish, use the built-in method
+	fish, err := cmd.Root().ToFishCompletion()
+	if err != nil {
+		return err
+	}
+	fmt.Println(fish)
+	return nil
+}
+
+// shellInit outputs shell initialization commands for the current shell
+func shellInit(_ context.Context, _ *cli.Command) error {
+	// Detect current shell
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		return fmt.Errorf("unable to detect shell from $SHELL environment variable")
+	}
+
+	// Extract shell name from path
+	shellName := filepath.Base(shell)
+
+	switch shellName {
+	case "bash":
+		fmt.Println("# Run this command to enable completion for current session:")
+		fmt.Println("source <(git-wtp completion bash)")
+	case "zsh":
+		fmt.Println("# Run this command to enable completion for current session:")
+		fmt.Println("source <(git-wtp completion zsh)")
+	case "fish":
+		fmt.Println("# Run this command to enable completion for current session:")
+		fmt.Println("git-wtp completion fish | source")
+	default:
+		return fmt.Errorf("unsupported shell: %s", shellName)
+	}
+
+	fmt.Println("\n# To make it permanent, add the above command to your shell config file")
+	return nil
+}
+
+// completeBranches provides branch name completion
+func completeBranches(_ context.Context, cmd *cli.Command) {
+	// Get current directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	// Get all branches using git command
+	gitCmd := exec.Command("git", "branch", "-a", "--format=%(refname:short)")
+	gitCmd.Dir = cwd
+	output, err := gitCmd.Output()
+	if err != nil {
+		return
+	}
+
+	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+	// Filter out current input
+	currentInput := ""
+	if cmd.Args().Len() > 0 {
+		currentInput = cmd.Args().Get(0)
+	}
+
+	for _, branch := range branches {
+		// Remove remote prefix for display
+		displayName := strings.TrimPrefix(branch, "remotes/")
+		displayName = strings.TrimPrefix(displayName, "origin/")
+
+		// Skip if already typed
+		if currentInput != "" && !strings.HasPrefix(displayName, currentInput) {
+			continue
+		}
+
+		fmt.Println(displayName)
+	}
+}
+
+// completeWorktrees provides worktree path completion for remove command
+func completeWorktrees(_ context.Context, _ *cli.Command) {
+	// Get current directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	// Initialize repository
+	repo, err := git.NewRepository(cwd)
+	if err != nil {
+		return
+	}
+
+	// Get all worktrees
+	worktrees, err := repo.GetWorktrees()
+	if err != nil {
+		return
+	}
+
+	// Extract branch names from worktrees
+	for _, wt := range worktrees {
+		if wt.Branch != "" {
+			// Branch name is already clean (without refs/heads/)
+			fmt.Println(wt.Branch)
+		}
+	}
 }
