@@ -9,8 +9,6 @@ import (
 	"github.com/satococoa/wtp/internal/config"
 )
 
-// TestIsPath removed - no longer needed since we use explicit --path flag
-
 func TestResolveWorktreePath(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{

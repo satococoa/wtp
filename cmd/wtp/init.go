@@ -1,0 +1,83 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/internal/git"
+	"github.com/urfave/cli/v3"
+)
+
+const configFileMode = 0o600
+
+// NewInitCommand creates the init command definition
+func NewInitCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "init",
+		Usage: "Initialize configuration file",
+		Description: "Creates a .wtp.yml configuration file in the repository root " +
+			"with example hooks and settings.",
+		Action: initCommand,
+	}
+}
+
+func initCommand(_ context.Context, _ *cli.Command) error {
+	// Get current working directory (should be a git repository)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Initialize repository
+	repo, err := git.NewRepository(cwd)
+	if err != nil {
+		return fmt.Errorf("not in a git repository: %w", err)
+	}
+
+	// Check if config file already exists
+	configPath := fmt.Sprintf("%s/%s", repo.Path(), config.ConfigFileName)
+	if _, err := os.Stat(configPath); err == nil {
+		return fmt.Errorf("configuration file already exists: %s", configPath)
+	}
+
+	// Create configuration with comments
+	configContent := `# Worktree Plus Configuration
+version: "1.0"
+
+# Default settings for worktrees
+defaults:
+  # Base directory for worktrees (relative to repository root)
+  base_dir: ../worktrees
+
+# Hooks that run after creating a worktree
+hooks:
+  post_create:
+    # Example: Copy environment file
+    - type: copy
+      from: .env.example
+      to: .env
+    
+    # Example: Run a command to show all worktrees
+    - type: command
+      command: wtp list
+    
+    # More examples (commented out):
+    # - type: command
+    #   command: echo "Created new worktree!"
+    # - type: command
+    #   command: ls -la
+    # - type: command
+    #   command: npm install
+`
+
+	// Write configuration file with comments
+	if err := os.WriteFile(configPath, []byte(configContent), configFileMode); err != nil {
+		return fmt.Errorf("failed to create configuration file: %w", err)
+	}
+
+	fmt.Printf("Configuration file created: %s\n", configPath)
+	fmt.Println("Edit this file to customize your worktree setup.")
+	return nil
+}
