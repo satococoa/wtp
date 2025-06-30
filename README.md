@@ -15,7 +15,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
   - [x] Post-create hooks execution
 - [x] `git wtp remove` - Remove worktree
   - [x] Remove worktree only (git worktree compatible)
-  - [ ] Remove with branch (`--with-branch` option for convenience)
+  - [x] Remove with branch (`--with-branch` option for convenience)
   - [x] Force removal (`--force` option)
 - [x] `git wtp list` - List all worktrees with status
 - [ ] `git wtp cd` - Change directory to worktree (requires shell integration)
@@ -123,9 +123,13 @@ git-wtp add --path /custom/location foobar/foo
 # List all worktrees
 git-wtp list
 
-# Remove worktree
+# Remove worktree only
 git-wtp remove feature/auth
 git-wtp remove --force feature/auth  # Force removal even if dirty
+
+# Remove worktree and its branch
+git-wtp remove --with-branch feature/auth              # Only if branch is merged
+git-wtp remove --with-branch --force-branch feature/auth  # Force branch deletion
 ```
 
 ## Configuration
@@ -271,7 +275,7 @@ make build
 
 ### v0.3.0
 
-- [ ] Remove with branch (`--with-branch` option)
+- [x] Remove with branch (`--with-branch` option)
 - [ ] Shell integration (cd command)
 - [ ] Multiple remote handling
 - [ ] Better error messages

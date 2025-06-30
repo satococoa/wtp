@@ -100,6 +100,14 @@ func main() {
 						Usage:   "Force removal even if worktree is dirty",
 						Aliases: []string{"f"},
 					},
+					&cli.BoolFlag{
+						Name:  "with-branch",
+						Usage: "Also remove the branch after removing worktree",
+					},
+					&cli.BoolFlag{
+						Name:  "force-branch",
+						Usage: "Force branch deletion even if not merged (requires --with-branch)",
+					},
 				},
 				Action: removeCommand,
 			},
@@ -308,9 +316,16 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 func removeCommand(_ context.Context, cmd *cli.Command) error {
 	branchName := cmd.Args().Get(0)
 	force := cmd.Bool("force")
+	withBranch := cmd.Bool("with-branch")
+	forceBranch := cmd.Bool("force-branch")
 
 	if branchName == "" {
 		return fmt.Errorf("branch name is required")
+	}
+
+	// Validate flags
+	if forceBranch && !withBranch {
+		return fmt.Errorf("--force-branch requires --with-branch")
 	}
 
 	// Get current working directory (should be a git repository)
@@ -341,6 +356,30 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	fmt.Printf("Removed worktree '%s' at %s\n", branchName, workTreePath)
+
+	// Remove branch if requested
+	if withBranch {
+		// Build git branch delete command
+		args := []string{"branch"}
+		if forceBranch {
+			args = append(args, "-D")
+		} else {
+			args = append(args, "-d")
+		}
+		args = append(args, branchName)
+
+		// Execute git branch delete
+		if err := repo.ExecuteGitCommand(args...); err != nil {
+			// Check if it's an unmerged branch error
+			if !forceBranch && strings.Contains(err.Error(), "not fully merged") {
+				return fmt.Errorf("branch '%s' is not fully merged. Use --force-branch to delete anyway", branchName)
+			}
+			return fmt.Errorf("failed to remove branch: %w", err)
+		}
+
+		fmt.Printf("Removed branch '%s'\n", branchName)
+	}
+
 	return nil
 }
 
