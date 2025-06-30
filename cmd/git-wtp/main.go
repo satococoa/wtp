@@ -509,9 +509,33 @@ func completionZsh(_ context.Context, _ *cli.Command) error {
 # source <(git-wtp completion zsh)
 
 _git_wtp() {
-    local -a opts
-    opts=("${(@f)$(git-wtp --generate-shell-completion)}")
-    _describe 'git-wtp' opts
+    local line state
+
+    _arguments -C \
+        "1: :->commands" \
+        "*: :->args"
+
+    case $state in
+        commands)
+            local -a commands
+            commands=(${(@f)"$(git-wtp --generate-shell-completion)"})
+            _describe 'command' commands
+            ;;
+        args)
+            case ${line[1]} in
+                add)
+                    local -a branches
+                    branches=(${(@f)"$(git-wtp add --generate-shell-completion)"})
+                    _describe 'branch' branches
+                    ;;
+                remove)
+                    local -a worktrees
+                    worktrees=(${(@f)"$(git-wtp remove --generate-shell-completion)"})
+                    _describe 'worktree' worktrees
+                    ;;
+            esac
+            ;;
+    esac
 }
 
 compdef _git_wtp git-wtp`)
@@ -565,8 +589,8 @@ func completeBranches(_ context.Context, cmd *cli.Command) {
 		return
 	}
 
-	// Get all branches using git command
-	gitCmd := exec.Command("git", "branch", "-a", "--format=%(refname:short)")
+	// Get all branches using git for-each-ref for better control
+	gitCmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes")
 	gitCmd.Dir = cwd
 	output, err := gitCmd.Output()
 	if err != nil {
@@ -581,16 +605,37 @@ func completeBranches(_ context.Context, cmd *cli.Command) {
 		currentInput = cmd.Args().Get(0)
 	}
 
+	// Use a map to avoid duplicates
+	seen := make(map[string]bool)
+	
 	for _, branch := range branches {
-		// Remove remote prefix for display
-		displayName := strings.TrimPrefix(branch, "remotes/")
-		displayName = strings.TrimPrefix(displayName, "origin/")
+		if branch == "" {
+			continue
+		}
+		
+		// Skip HEAD references and bare origin
+		if branch == "origin/HEAD" || branch == "origin" {
+			continue
+		}
+		
+		// Remove remote prefix for display, but keep track of what we've seen
+		displayName := branch
+		if strings.HasPrefix(branch, "origin/") {
+			// For remote branches, show without the origin/ prefix
+			displayName = strings.TrimPrefix(branch, "origin/")
+		}
 
-		// Skip if already typed
+		// Skip if already seen (handles case where local and remote have same name)
+		if seen[displayName] {
+			continue
+		}
+		
+		// Skip if doesn't match current input
 		if currentInput != "" && !strings.HasPrefix(displayName, currentInput) {
 			continue
 		}
 
+		seen[displayName] = true
 		fmt.Println(displayName)
 	}
 }
