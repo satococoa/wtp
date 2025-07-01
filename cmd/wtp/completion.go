@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,8 +65,16 @@ func NewCompletionCommand() *cli.Command {
 // NewShellInitCommand creates the shell-init command definition
 func NewShellInitCommand() *cli.Command {
 	return &cli.Command{
-		Name:   "shell-init",
-		Usage:  "Initialize shell completion for current session",
+		Name:  "shell-init",
+		Usage: "Initialize shell integration for current session",
+		Description: "Generate shell integration scripts for completion and cd command.\n" +
+			"Use --cd flag to enable the 'wtp cd' command functionality.",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "cd",
+				Usage: "Include cd command integration",
+			},
+		},
 		Action: shellInit,
 	}
 }
@@ -112,6 +121,9 @@ _wtp_completion() {
                 COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
                 ;;
             shell-init)
+                COMPREPLY=( $(compgen -W "--cd --help -h" -- "$cur") )
+                ;;
+            cd)
                 COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
                 ;;
             *)
@@ -152,7 +164,7 @@ _wtp_completion() {
 
     case $cword in
         1)
-            COMPREPLY=( $(compgen -W "add remove list init completion shell-init help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "add remove list init cd completion shell-init help" -- "$cur") )
             ;;
         *)
             case "${words[1]}" in
@@ -216,10 +228,30 @@ _wtp_completion() {
                             COMPREPLY=()
                         fi
                     else
-                        # Normal case: complete with branch names (max 1 arg)
+                        # Normal case: first arg is branch, optional second arg is commit-ish
                         if [[ $arg_count -eq 0 ]]; then
+                            # First argument: complete with branch names
                             local branches
                             branches=$(wtp completion __branches 2>/dev/null)
+                            COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+                        elif [[ $arg_count -eq 1 ]]; then
+                            # Second argument: complete with commits/branches/tags
+                            # Don't suggest the same branch that was used as first argument
+                            local first_arg=""
+                            for ((i=2; i<cword; i++)); do
+                                if [[ "${words[i]}" != -* ]]; then
+                                    local prev_word="${words[i-1]}"
+                                    if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" && 
+                                          "$prev_word" != "--path" && "$prev_word" != "--reason" && 
+                                          "$prev_word" != "-t" && "$prev_word" != "--track" ]]; then
+                                        first_arg="${words[i]}"
+                                        break
+                                    fi
+                                fi
+                            done
+                            
+                            local branches
+                            branches=$(wtp completion __branches 2>/dev/null | grep -v "^${first_arg}$")
                             COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
                         else
                             # No more completions needed
@@ -235,6 +267,12 @@ _wtp_completion() {
                     ;;
                 completion)
                     COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
+                    ;;
+                cd)
+                    # Get actual worktree branches dynamically
+                    local worktrees
+                    worktrees=$(wtp completion __worktrees 2>/dev/null)
+                    COMPREPLY=( $(compgen -W "$worktrees" -- "$cur") )
                     ;;
             esac
             ;;
@@ -330,7 +368,13 @@ _wtp() {
                     ;;
                 shell-init)
                     _arguments -s \
+                        '--cd[Include cd command integration]' \
                         '(--help -h)'{--help,-h}'[Show help]'
+                    ;;
+                cd)
+                    _arguments -s \
+                        '(--help -h)'{--help,-h}'[Show help]' \
+                        '1: :_wtp_worktrees'
                     ;;
             esac
             ;;
@@ -344,8 +388,9 @@ _wtp_commands() {
         'remove:Remove a worktree'
         'list:List all worktrees'
         'init:Initialize configuration file'
+        'cd:Change directory to worktree'
         'completion:Generate shell completion script'
-        'shell-init:Initialize shell completion for current session'
+        'shell-init:Initialize shell integration for current session'
         'help:Show help'
     )
     _describe 'commands' commands
@@ -393,11 +438,36 @@ _wtp_commits() {
     if (( $+functions[_git_commits] )) && (( $+functions[_git_tags] )); then
         _alternative \
             'commits:commits:_git_commits' \
-            'branches:branches:_wtp_branches' \
+            'branches:branches:_wtp_branches_except_first' \
             'tags:tags:_git_tags'
     else
         # Fallback to basic branch completion
-        _wtp_branches
+        _wtp_branches_except_first
+    fi
+}
+
+_wtp_branches_except_first() {
+    # Get the first non-flag argument (branch name)
+    local first_branch=""
+    local i
+    for ((i=2; i<=$#words; i++)); do
+        if [[ "${words[i]}" != -* && "${words[i-1]}" != -* ]]; then
+            first_branch="${words[i]}"
+            break
+        fi
+    done
+    
+    local branches
+    if [[ -n "$first_branch" ]]; then
+        branches=(${(f)"$(wtp completion __branches 2>/dev/null | grep -v "^${first_branch}$")"})
+    else
+        branches=(${(f)"$(wtp completion __branches 2>/dev/null)"})
+    fi
+    
+    if [[ ${#branches[@]} -gt 0 ]]; then
+        _describe 'branches' branches
+    else
+        _values 'branches' 'main' 'master' 'develop'
     fi
 }
 
@@ -418,7 +488,7 @@ func completionFish(_ context.Context, cmd *cli.Command) error {
 }
 
 // shellInit outputs shell initialization commands for the current shell
-func shellInit(_ context.Context, _ *cli.Command) error {
+func shellInit(_ context.Context, cmd *cli.Command) error {
 	// Detect current shell
 	shell := os.Getenv("SHELL")
 	if shell == "" {
@@ -427,22 +497,44 @@ func shellInit(_ context.Context, _ *cli.Command) error {
 
 	// Extract shell name from path
 	shellName := filepath.Base(shell)
+	includeCd := cmd.Bool("cd")
+	w := cmd.Root().Writer
 
 	switch shellName {
 	case "bash":
-		fmt.Println("# Run this command to enable completion for current session:")
-		fmt.Println("source <(wtp completion bash)")
+		if includeCd {
+			printBashCdFunction(w)
+		} else {
+			fmt.Fprintln(w, "# Run this command to enable completion for current session:")
+			fmt.Fprintln(w, "source <(wtp completion bash)")
+			fmt.Fprintln(w, "\n# To enable cd command integration, run:")
+			fmt.Fprintln(w, "eval \"$(wtp shell-init --cd)\"")
+		}
 	case "zsh":
-		fmt.Println("# Run this command to enable completion for current session:")
-		fmt.Println("source <(wtp completion zsh)")
+		if includeCd {
+			printZshCdFunction(w)
+		} else {
+			fmt.Fprintln(w, "# Run this command to enable completion for current session:")
+			fmt.Fprintln(w, "source <(wtp completion zsh)")
+			fmt.Fprintln(w, "\n# To enable cd command integration, run:")
+			fmt.Fprintln(w, "eval \"$(wtp shell-init --cd)\"")
+		}
 	case "fish":
-		fmt.Println("# Run this command to enable completion for current session:")
-		fmt.Println("wtp completion fish | source")
+		if includeCd {
+			printFishCdFunction(w)
+		} else {
+			fmt.Fprintln(w, "# Run this command to enable completion for current session:")
+			fmt.Fprintln(w, "wtp completion fish | source")
+			fmt.Fprintln(w, "\n# To enable cd command integration, run:")
+			fmt.Fprintln(w, "wtp shell-init --cd | source")
+		}
 	default:
 		return fmt.Errorf("unsupported shell: %s", shellName)
 	}
 
-	fmt.Println("\n# To make it permanent, add the above command to your shell config file")
+	if !includeCd {
+		fmt.Fprintln(w, "\n# To make it permanent, add the above command to your shell config file")
+	}
 	return nil
 }
 
@@ -531,4 +623,93 @@ func printWorktrees() {
 			fmt.Println(wt.Branch)
 		}
 	}
+}
+
+// printBashCdFunction prints the bash shell function for cd command
+func printBashCdFunction(w io.Writer) {
+	fmt.Fprintln(w, `# wtp cd command integration for bash
+# Add this to your ~/.bashrc or ~/.bash_profile:
+# eval "$(wtp shell-init --cd)"
+
+# Enable completion
+source <(wtp completion bash)
+
+# Define the cd function
+wtp() {
+    if [[ "$1" == "cd" ]]; then
+        if [[ -z "$2" ]]; then
+            command wtp cd
+            return
+        fi
+        local target_dir
+        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
+        if [[ $? -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        else
+            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
+        fi
+    else
+        command wtp "$@"
+    fi
+}
+
+# Preserve completion
+complete -F _wtp_completion wtp`)
+}
+
+// printZshCdFunction prints the zsh shell function for cd command
+func printZshCdFunction(w io.Writer) {
+	fmt.Fprintln(w, `# wtp cd command integration for zsh
+# Add this to your ~/.zshrc:
+# eval "$(wtp shell-init --cd)"
+
+# Enable completion
+source <(wtp completion zsh)
+
+# Define the cd function
+wtp() {
+    if [[ "$1" == "cd" ]]; then
+        if [[ -z "$2" ]]; then
+            command wtp cd
+            return
+        fi
+        local target_dir
+        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
+        if [[ $? -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        else
+            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
+        fi
+    else
+        command wtp "$@"
+    fi
+}`)
+}
+
+// printFishCdFunction prints the fish shell function for cd command
+func printFishCdFunction(w io.Writer) {
+	fmt.Fprintln(w, `# wtp cd command integration for fish
+# Add this to your ~/.config/fish/config.fish:
+# wtp shell-init --cd | source
+
+# Enable completion
+wtp completion fish | source
+
+# Define the cd function
+function wtp
+    if test "$argv[1]" = "cd"
+        if test -z "$argv[2]"
+            command wtp cd
+            return
+        end
+        set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2] 2>/dev/null)
+        if test $status -eq 0 -a -n "$target_dir"
+            cd $target_dir
+        else
+            env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
+        end
+    else
+        command wtp $argv
+    end
+end`)
 }

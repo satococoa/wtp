@@ -77,7 +77,8 @@ cmd/
 ├── remove.go            # Remove command
 ├── list.go              # List command
 ├── init.go              # Init command
-└── completion.go        # Shell completion
+├── cd.go                # Change directory command
+└── completion.go        # Shell completion & integration
 
 internal/
 ├── git/
@@ -271,6 +272,62 @@ Common lint errors include:
 - `CLAUDE.md`: This documentation
 
 **Testing**: All existing tests pass, new path resolution logic tested
+
+### 2025-01: Shell Integration (cd command) Implementation
+
+**Background**: v0.3.0 milestone included implementing the `wtp cd` command to quickly change directories to worktrees.
+
+**Implementation Details**:
+
+1. **Two-Part Architecture**:
+   - **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
+   - **Shell Function**: Wraps the Go command and performs the actual `cd`
+
+2. **Shell Integration Flow**:
+   ```bash
+   # User types:
+   wtp cd feature/auth
+   
+   # Shell function intercepts, runs:
+   WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
+   
+   # Go command returns path:
+   /path/to/worktrees/feature/auth
+   
+   # Shell function performs:
+   cd /path/to/worktrees/feature/auth
+   ```
+
+3. **Key Design Decisions**:
+   - **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
+   - **Shell Function Wrapper**: Required because child processes can't change parent's directory
+   - **Unified Setup Command**: `wtp shell-init --cd` generates both completion and cd functionality
+   - **Cross-Shell Support**: Bash, Zsh, and Fish implementations
+
+4. **User Experience**:
+   ```bash
+   # Enable shell integration
+   eval "$(wtp shell-init --cd)"
+   
+   # Use cd command with tab completion
+   wtp cd <TAB>           # Shows available worktrees
+   wtp cd feature/auth    # Changes to worktree directory
+   ```
+
+5. **Benefits**:
+   - **Fast Navigation**: No need to remember worktree paths
+   - **Tab Completion**: Discover available worktrees easily
+   - **Consistent Interface**: Same command across all shells
+   - **Backward Compatible**: Doesn't break existing functionality
+
+**Files Added/Modified**:
+- `cmd/wtp/cd.go`: Core cd command implementation
+- `cmd/wtp/cd_test.go`: Tests for cd functionality
+- `cmd/wtp/completion.go`: Extended with shell function generation
+- `cmd/wtp/main.go`: Added cd command registration
+- `README.md`: Updated documentation and feature checklist
+
+**Testing**: All tests pass, shell integration tested manually across bash/zsh/fish
 
 ### 2024-12: Explicit Path Flag Implementation
 

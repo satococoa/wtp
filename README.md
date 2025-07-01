@@ -20,7 +20,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
   - [x] Remove with branch (`--with-branch` option for convenience)
   - [x] Force removal (`--force` option)
 - [x] `wtp list` - List all worktrees with status
-- [ ] `wtp cd` - Change directory to worktree (requires shell integration)
+- [x] `wtp cd` - Change directory to worktree (requires shell integration)
 
 ### Advanced Features
 
@@ -179,7 +179,9 @@ Shell completions are automatically installed and should work immediately! No ma
 
 #### Manual Setup
 
-If you installed wtp manually, enable shell completion:
+If you installed wtp manually:
+
+##### For shell completion only:
 
 ```bash
 # Bash: Add to ~/.bashrc
@@ -192,12 +194,41 @@ source <(wtp completion zsh)
 wtp completion fish | source
 ```
 
+##### For full integration (completion + cd command):
+
+```bash
+# Bash: Add to ~/.bashrc
+eval "$(wtp shell-init --cd)"
+
+# Zsh: Add to ~/.zshrc
+eval "$(wtp shell-init --cd)"
+
+# Fish: Add to ~/.config/fish/config.fish
+wtp shell-init --cd | source
+```
+
 #### One-time Setup Helper
 
 For convenience, wtp can show the exact commands for your current shell:
 
 ```bash
+# Show completion setup
 wtp shell-init
+
+# Show full integration setup (with cd command)
+wtp shell-init --cd
+```
+
+### Using the cd Command
+
+Once shell integration is enabled, you can quickly change to any worktree:
+
+```bash
+# Change to a worktree by branch name
+wtp cd feature/auth
+
+# Tab completion works!
+wtp cd <TAB>
 ```
 
 ## Worktree Structure
@@ -285,7 +316,7 @@ make build
 ### v0.3.0
 
 - [x] Remove with branch (`--with-branch` option)
-- [ ] Shell integration (cd command)
+- [x] Shell integration (cd command)
 - [ ] Multiple remote handling
 - [ ] Better error messages
 
