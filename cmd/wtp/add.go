@@ -197,11 +197,17 @@ func buildGitWorktreeArgs(cmd *cli.Command, workTreePath, branchName string) []s
 			args = append(args, cmd.Args().Slice()[1:]...)
 		}
 	} else {
-		// Auto-generated path case: add branch name if not using -b flag
-		if cmd.String("branch") == "" {
+		// Auto-generated path case
+		if cmd.String("branch") != "" {
+			// Using -b flag: first arg (if any) is the commit-ish to branch from
+			if cmd.Args().Len() > 0 {
+				args = append(args, cmd.Args().Get(0))
+			}
+		} else {
+			// No -b flag: first arg is branch name
 			args = append(args, branchName)
 		}
-		// Add any additional arguments (commit-ish, etc.)
+		// Add any additional arguments (for both cases)
 		if cmd.Args().Len() > 1 {
 			args = append(args, cmd.Args().Slice()[1:]...)
 		}
