@@ -17,21 +17,27 @@ func NewCompletionCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "completion",
 		Usage: "Generate shell completion script",
+		Description: "Generate shell completion scripts for bash, zsh, or fish. " +
+			"The generated scripts provide comprehensive completion for commands, flags, " +
+			"branch names, worktree names, and flag values.",
 		Commands: []*cli.Command{
 			{
-				Name:   "bash",
-				Usage:  "Generate bash completion script",
-				Action: completionBash,
+				Name:        "bash",
+				Usage:       "Generate bash completion script",
+				Description: "Generate bash completion script with full flag and option support",
+				Action:      completionBash,
 			},
 			{
-				Name:   "zsh",
-				Usage:  "Generate zsh completion script",
-				Action: completionZsh,
+				Name:        "zsh",
+				Usage:       "Generate zsh completion script",
+				Description: "Generate zsh completion script with full flag and option support",
+				Action:      completionZsh,
 			},
 			{
-				Name:   "fish",
-				Usage:  "Generate fish completion script",
-				Action: completionFish,
+				Name:        "fish",
+				Usage:       "Generate fish completion script",
+				Description: "Generate fish completion script using urfave/cli built-in support",
+				Action:      completionFish,
 			},
 			{
 				Name:   "__branches",
@@ -64,7 +70,7 @@ func NewShellInitCommand() *cli.Command {
 	}
 }
 
-func completionBash(_ context.Context, cmd *cli.Command) error {
+func completionBash(_ context.Context, _ *cli.Command) error {
 	fmt.Println(`#!/bin/bash
 # wtp bash completion script
 # Add this to your ~/.bashrc or ~/.bash_profile:
@@ -74,14 +80,90 @@ _wtp_completion() {
     local cur prev words cword
     _init_completion || return
 
+    # Handle flag completion for all commands
+    if [[ $cur == -* ]]; then
+        case "${words[1]}" in
+            add)
+                local add_flags="--path --force -f --detach --checkout --lock --reason --orphan"
+                add_flags="$add_flags --branch -b --track -t --help -h"
+                COMPREPLY=( $(compgen -W "$add_flags" -- "$cur") )
+                ;;
+            remove)
+                COMPREPLY=( $(compgen -W "--force -f --with-branch --force-branch --help -h" -- "$cur") )
+                ;;
+            list)
+                COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
+                ;;
+            init)
+                COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
+                ;;
+            completion)
+                COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
+                ;;
+            shell-init)
+                COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
+                ;;
+            *)
+                COMPREPLY=( $(compgen -W "--help -h --version" -- "$cur") )
+                ;;
+        esac
+        return
+    fi
+
+    # Handle value completion for flags that require arguments
+    case "$prev" in
+        --path)
+            # Complete with directories
+            COMPREPLY=( $(compgen -d -- "$cur") )
+            return
+            ;;
+        --reason)
+            # Complete with common lock reasons
+            COMPREPLY=( $(compgen -W "testing debugging maintenance" -- "$cur") )
+            return
+            ;;
+        --branch|-b)
+            # Complete with branch names for new branch creation
+            local branches
+            branches=$(wtp completion __branches 2>/dev/null)
+            COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+            return
+            ;;
+        --track|-t)
+            # Complete with remote branches for tracking
+            local remote_branches
+            local git_cmd="git for-each-ref --format='%(refname:short)' refs/remotes 2>/dev/null"
+            remote_branches=$($git_cmd | grep -v '/HEAD$')
+            COMPREPLY=( $(compgen -W "$remote_branches" -- "$cur") )
+            return
+            ;;
+    esac
+
     case $cword in
         1)
             COMPREPLY=( $(compgen -W "add remove list init completion shell-init help" -- "$cur") )
             ;;
-        2)
+        *)
             case "${words[1]}" in
                 add)
-                    # Get actual branch names dynamically
+                    # For add command, check if we need branch name or have already provided it
+                    local has_branch_flag=false
+                    local has_path_flag=false
+                    local i
+                    for ((i=2; i<cword; i++)); do
+                        case "${words[i]}" in
+                            --branch|-b)
+                                has_branch_flag=true
+                                ((i++)) # Skip the branch name value
+                                ;;
+                            --path)
+                                has_path_flag=true
+                                ((i++)) # Skip the path value
+                                ;;
+                        esac
+                    done
+                    
+                    # Complete with branch names
                     local branches
                     branches=$(wtp completion __branches 2>/dev/null)
                     COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
@@ -104,7 +186,7 @@ complete -F _wtp_completion wtp`)
 	return nil
 }
 
-func completionZsh(_ context.Context, cmd *cli.Command) error {
+func completionZsh(_ context.Context, _ *cli.Command) error {
 	fmt.Println(`#compdef wtp
 # wtp zsh completion script
 # Add this to your ~/.zshrc:
@@ -112,51 +194,116 @@ func completionZsh(_ context.Context, cmd *cli.Command) error {
 
 _wtp() {
     local context state line
+    typeset -A opt_args
     
-    case $CURRENT in
-        2)
-            # First argument - complete commands
-            _values 'commands' \
-                'add[Create a new worktree]' \
-                'remove[Remove a worktree]' \
-                'list[List all worktrees]' \
-                'init[Initialize configuration file]' \
-                'completion[Generate shell completion script]' \
-                'shell-init[Initialize shell completion for current session]' \
-                'help[Show help]'
-            ;;
-        3)
-            # Second argument - context-dependent completion
-            case $words[2] in
+    _arguments -C \
+        '1: :_wtp_commands' \
+        '*:: :->args'
+    
+    case $state in
+        args)
+            case $words[1] in
                 add)
-                    # Get actual branch names dynamically
-                    local branches
-                    branches=(${(f)"$(wtp completion __branches 2>/dev/null)"})
-                    if [[ ${#branches[@]} -gt 0 ]]; then
-                        _values 'branches' $branches
-                    else
-                        _values 'branches' 'main' 'master' 'develop'
-                    fi
+                    _arguments -s \
+                        '--path[Specify explicit path for worktree]:path:_directories' \
+                        '(--force -f)'{--force,-f}'[Checkout even if already checked out in other worktree]' \
+                        '--detach[Make the new worktree HEAD detached]' \
+                        '--checkout[Populate the new worktree (default)]' \
+                        '--lock[Keep the new worktree locked]' \
+                        '--reason[Reason for locking]:reason:(testing debugging maintenance)' \
+                        '--orphan[Create orphan branch in new worktree]' \
+                        '(--branch -b)'{--branch,-b}'[Create new branch]:branch:_wtp_branches' \
+                        '(--track -t)'{--track,-t}'[Set upstream branch]:upstream:_wtp_remote_branches' \
+                        '(--help -h)'{--help,-h}'[Show help]' \
+                        '1: :_wtp_branches' \
+                        '2: :_wtp_commits'
                     ;;
                 remove)
-                    # Get actual worktree branches dynamically
-                    local worktrees
-                    worktrees=(${(f)"$(wtp completion __worktrees 2>/dev/null)"})
-                    if [[ ${#worktrees[@]} -gt 0 ]]; then
-                        _values 'worktrees' $worktrees
-                    else
-                        _values 'worktrees' 'main' 'master' 'develop'
-                    fi
+                    _arguments -s \
+                        '(--force -f)'{--force,-f}'[Force removal even if worktree is dirty]' \
+                        '--with-branch[Also remove the branch after removing worktree]' \
+                        '--force-branch[Force branch deletion even if not merged (requires --with-branch)]' \
+                        '(--help -h)'{--help,-h}'[Show help]' \
+                        '1: :_wtp_worktrees'
+                    ;;
+                list)
+                    _arguments -s \
+                        '(--help -h)'{--help,-h}'[Show help]'
+                    ;;
+                init)
+                    _arguments -s \
+                        '(--help -h)'{--help,-h}'[Show help]'
                     ;;
                 completion)
-                    _values 'shells' \
-                        'bash[Bash completion]' \
-                        'zsh[Zsh completion]' \
-                        'fish[Fish completion]'
+                    _arguments -s \
+                        '(--help -h)'{--help,-h}'[Show help]' \
+                        '1: :_wtp_shells'
+                    ;;
+                shell-init)
+                    _arguments -s \
+                        '(--help -h)'{--help,-h}'[Show help]'
                     ;;
             esac
             ;;
     esac
+}
+
+_wtp_commands() {
+    local commands
+    commands=(
+        'add:Create a new worktree'
+        'remove:Remove a worktree'
+        'list:List all worktrees'
+        'init:Initialize configuration file'
+        'completion:Generate shell completion script'
+        'shell-init:Initialize shell completion for current session'
+        'help:Show help'
+    )
+    _describe 'commands' commands
+}
+
+_wtp_branches() {
+    local branches
+    branches=(${(f)"$(wtp completion __branches 2>/dev/null)"})
+    if [[ ${#branches[@]} -gt 0 ]]; then
+        _describe 'branches' branches
+    else
+        _values 'branches' 'main' 'master' 'develop'
+    fi
+}
+
+_wtp_worktrees() {
+    local worktrees
+    worktrees=(${(f)"$(wtp completion __worktrees 2>/dev/null)"})
+    if [[ ${#worktrees[@]} -gt 0 ]]; then
+        _describe 'worktrees' worktrees
+    fi
+}
+
+_wtp_remote_branches() {
+    local remote_branches
+    local git_cmd="git for-each-ref --format='%(refname:short)' refs/remotes 2>/dev/null"
+    remote_branches=(${(f)"$($git_cmd | grep -v '/HEAD$')"})
+    if [[ ${#remote_branches[@]} -gt 0 ]]; then
+        _describe 'remote branches' remote_branches
+    fi
+}
+
+_wtp_shells() {
+    local shells
+    shells=(
+        'bash:Bash completion'
+        'zsh:Zsh completion'
+        'fish:Fish completion'
+    )
+    _describe 'shells' shells
+}
+
+_wtp_commits() {
+    _alternative \
+        'commits:commits:_git_commits' \
+        'branches:branches:_wtp_branches' \
+        'tags:tags:_git_tags'
 }
 
 if [ -n "$ZSH_VERSION" ]; then
