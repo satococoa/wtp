@@ -33,6 +33,24 @@ func NewCompletionCommand() *cli.Command {
 				Usage:  "Generate fish completion script",
 				Action: completionFish,
 			},
+			{
+				Name:   "__branches",
+				Hidden: true,
+				Usage:  "List branches for completion",
+				Action: func(_ context.Context, _ *cli.Command) error {
+					printBranches()
+					return nil
+				},
+			},
+			{
+				Name:   "__worktrees",
+				Hidden: true,
+				Usage:  "List worktrees for completion",
+				Action: func(_ context.Context, _ *cli.Command) error {
+					printWorktrees()
+					return nil
+				},
+			},
 		},
 	}
 }
@@ -63,15 +81,16 @@ _wtp_completion() {
         2)
             case "${words[1]}" in
                 add)
-                    # Get branch completions by calling our completion function
+                    # Get actual branch names dynamically
                     local branches
-                    branches=$(COMP_LINE="$COMP_LINE" COMP_POINT="$COMP_POINT" wtp add --help 2>/dev/null | grep -v "USAGE\|FLAGS\|DESCRIPTION" || echo "")
-                    # For now, just complete common branch patterns
-                    COMPREPLY=( $(compgen -W "main master develop feature/ bugfix/ hotfix/" -- "$cur") )
+                    branches=$(wtp completion __branches 2>/dev/null)
+                    COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
                     ;;
                 remove)
-                    # Complete with existing worktree branches
-                    COMPREPLY=( $(compgen -W "main master develop feature/ bugfix/ hotfix/" -- "$cur") )
+                    # Get actual worktree branches dynamically
+                    local worktrees
+                    worktrees=$(wtp completion __worktrees 2>/dev/null)
+                    COMPREPLY=( $(compgen -W "$worktrees" -- "$cur") )
                     ;;
                 completion)
                     COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
@@ -110,22 +129,24 @@ _wtp() {
             # Second argument - context-dependent completion
             case $words[2] in
                 add)
-                    _values 'branches' \
-                        'main[Main branch]' \
-                        'master[Master branch]' \
-                        'develop[Develop branch]' \
-                        'feature/[Feature branch prefix]' \
-                        'bugfix/[Bugfix branch prefix]' \
-                        'hotfix/[Hotfix branch prefix]'
+                    # Get actual branch names dynamically
+                    local branches
+                    branches=(${(f)"$(wtp completion __branches 2>/dev/null)"})
+                    if [[ ${#branches[@]} -gt 0 ]]; then
+                        _values 'branches' $branches
+                    else
+                        _values 'branches' 'main' 'master' 'develop'
+                    fi
                     ;;
                 remove)
-                    _values 'worktrees' \
-                        'main[Main branch]' \
-                        'master[Master branch]' \
-                        'develop[Develop branch]' \
-                        'feature/[Feature branch prefix]' \
-                        'bugfix/[Bugfix branch prefix]' \
-                        'hotfix/[Hotfix branch prefix]'
+                    # Get actual worktree branches dynamically
+                    local worktrees
+                    worktrees=(${(f)"$(wtp completion __worktrees 2>/dev/null)"})
+                    if [[ ${#worktrees[@]} -gt 0 ]]; then
+                        _values 'worktrees' $worktrees
+                    else
+                        _values 'worktrees' 'main' 'master' 'develop'
+                    fi
                     ;;
                 completion)
                     _values 'shells' \
@@ -185,6 +206,11 @@ func shellInit(_ context.Context, _ *cli.Command) error {
 
 // completeBranches provides branch name completion
 func completeBranches(_ context.Context, _ *cli.Command) {
+	printBranches()
+}
+
+// printBranches prints available branch names for completion
+func printBranches() {
 	// Get current directory
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -233,6 +259,11 @@ func completeBranches(_ context.Context, _ *cli.Command) {
 
 // completeWorktrees provides worktree path completion for remove command
 func completeWorktrees(_ context.Context, _ *cli.Command) {
+	printWorktrees()
+}
+
+// printWorktrees prints existing worktree branch names for completion
+func printWorktrees() {
 	// Get current directory
 	cwd, err := os.Getwd()
 	if err != nil {
