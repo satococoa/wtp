@@ -14,6 +14,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
   - [x] **Explicit path support**: `wtp add --path /custom/path feature/auth`
         (no ambiguity)
   - [x] **Transparent wrapper**: All git worktree options supported
+  - [x] **Automatic remote tracking**: Tracks remote branches when local branch
+        doesn't exist
+  - [x] **Multiple remote handling**: Detects and reports when branch exists in
+        multiple remotes
   - [x] Post-create hooks execution
 - [x] `wtp remove` - Remove worktree
   - [x] Remove worktree only (git worktree compatible)
@@ -86,6 +90,7 @@ sudo mv wtp /usr/local/bin/  # or add to PATH
 ```bash
 # Create worktree from existing branch (local or remote)
 # → Creates worktree at ../worktrees/feature/auth
+# Automatically tracks remote branch if not found locally
 wtp add feature/auth
 
 # Create worktree with new branch
@@ -99,6 +104,20 @@ wtp add -b hotfix/urgent abc1234
 # Use all git worktree options
 # → Creates worktree at ../worktrees/feature/test
 wtp add -b feature/test --track origin/main
+
+# Remote branch handling examples:
+
+# Automatically tracks remote branch if not found locally
+# → Creates worktree tracking origin/feature/remote-only
+wtp add feature/remote-only
+
+# If branch exists in multiple remotes, shows helpful error:
+# Error: branch 'feature/shared' exists in multiple remotes: origin, upstream
+# Please specify the remote explicitly (e.g., --track origin/feature/shared)
+wtp add feature/shared
+
+# Explicitly specify which remote to track
+wtp add --track upstream/feature/shared feature/shared
 ```
 
 ### Explicit Path Specification (Full Flexibility)
@@ -317,7 +336,7 @@ make build
 
 - [x] Remove with branch (`--with-branch` option)
 - [x] Shell integration (cd command)
-- [ ] Multiple remote handling
+- [x] Multiple remote handling
 - [ ] Better error messages
 
 ### v1.0.0

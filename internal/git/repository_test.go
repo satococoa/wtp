@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -192,4 +193,128 @@ func TestIsGitRepository(t *testing.T) {
 	if isGitRepository("/path/that/does/not/exist") {
 		t.Error("Expected false for non-existent directory")
 	}
+}
+
+func TestBranchResolution(t *testing.T) {
+	// Create a temporary directory for test repository
+	repoDir := setupTestRepo(t)
+
+	// Create local branch
+	runCmd(t, repoDir, "git", "branch", "local-feature")
+
+	// Add remotes and their branches
+	// Remote "origin"
+	runCmd(t, repoDir, "git", "remote", "add", "origin", "https://example.com/repo.git")
+
+	// Create fake remote refs
+	originRefsDir := filepath.Join(repoDir, ".git", "refs", "remotes", "origin")
+	if err := os.MkdirAll(originRefsDir, 0755); err != nil {
+		t.Fatalf("Failed to create origin refs dir: %v", err)
+	}
+
+	// Get current HEAD commit
+	headCommit := getHeadCommit(t, repoDir)
+
+	// Create remote branches
+	if err := os.WriteFile(filepath.Join(originRefsDir, "remote-only"), []byte(headCommit), 0644); err != nil {
+		t.Fatalf("Failed to create origin/remote-only: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(originRefsDir, "shared-branch"), []byte(headCommit), 0644); err != nil {
+		t.Fatalf("Failed to create origin/shared-branch: %v", err)
+	}
+
+	// Remote "upstream"
+	runCmd(t, repoDir, "git", "remote", "add", "upstream", "https://example.com/upstream.git")
+	upstreamRefsDir := filepath.Join(repoDir, ".git", "refs", "remotes", "upstream")
+	if err := os.MkdirAll(upstreamRefsDir, 0755); err != nil {
+		t.Fatalf("Failed to create upstream refs dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(upstreamRefsDir, "shared-branch"), []byte(headCommit), 0644); err != nil {
+		t.Fatalf("Failed to create upstream/shared-branch: %v", err)
+	}
+
+	// Create repository instance
+	repo, err := NewRepository(repoDir)
+	if err != nil {
+		t.Fatalf("Failed to create repository: %v", err)
+	}
+
+	// Test cases
+	tests := []struct {
+		name          string
+		branch        string
+		expectError   bool
+		expectRemote  bool
+		expectBranch  string
+		errorContains string
+	}{
+		{
+			name:         "Local branch exists",
+			branch:       "local-feature",
+			expectError:  false,
+			expectRemote: false,
+			expectBranch: "local-feature",
+		},
+		{
+			name:         "Remote branch exists in single remote",
+			branch:       "remote-only",
+			expectError:  false,
+			expectRemote: true,
+			expectBranch: "origin/remote-only",
+		},
+		{
+			name:          "Branch exists in multiple remotes",
+			branch:        "shared-branch",
+			expectError:   true,
+			errorContains: "exists in multiple remotes",
+		},
+		{
+			name:          "Branch does not exist",
+			branch:        "nonexistent",
+			expectError:   true,
+			errorContains: "not found in local or remote branches",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolvedBranch, isRemote, err := repo.ResolveBranch(tt.branch)
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("Expected error containing '%s', got: %v", tt.errorContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if isRemote != tt.expectRemote {
+					t.Errorf("Expected isRemote=%v, got %v", tt.expectRemote, isRemote)
+				}
+				if resolvedBranch != tt.expectBranch {
+					t.Errorf("Expected branch '%s', got '%s'", tt.expectBranch, resolvedBranch)
+				}
+			}
+		})
+	}
+}
+
+func runCmd(t *testing.T, dir, name string, args ...string) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("command failed: %s\nOutput: %s", err, output)
+	}
+}
+
+func getHeadCommit(t *testing.T, dir string) string {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Failed to get HEAD commit: %v", err)
+	}
+	return strings.TrimSpace(string(output))
 }

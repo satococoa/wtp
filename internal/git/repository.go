@@ -113,6 +113,106 @@ func (r *Repository) ExecuteGitCommand(args ...string) error {
 	return nil
 }
 
+// BranchExists checks if a branch exists locally
+func (r *Repository) BranchExists(branch string) (bool, error) {
+	// Validate branch name to prevent command injection
+	if strings.Contains(branch, "..") || strings.ContainsAny(branch, "\n\r") {
+		return false, fmt.Errorf("invalid branch name: %s", branch)
+	}
+
+	// #nosec G204 - branch is validated above
+	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", fmt.Sprintf("refs/heads/%s", branch))
+	cmd.Dir = r.path
+	err := cmd.Run()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check branch existence: %w", err)
+	}
+	return true, nil
+}
+
+// GetRemoteBranches returns a map of remote branches by remote name
+func (r *Repository) GetRemoteBranches(branch string) (map[string]string, error) {
+	// Validate branch name to prevent command injection
+	if strings.Contains(branch, "..") || strings.ContainsAny(branch, "\n\r") {
+		return nil, fmt.Errorf("invalid branch name: %s", branch)
+	}
+
+	remotes := make(map[string]string)
+
+	// Get all remote branches that match the branch name
+	// #nosec G204 - branch is validated above
+	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", fmt.Sprintf("refs/remotes/*/%s", branch))
+	cmd.Dir = r.path
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get remote branches: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Parse remote/branch format
+		const remotePartCount = 2
+		parts := strings.SplitN(line, "/", remotePartCount)
+		if len(parts) == remotePartCount {
+			remote := parts[0]
+			remotes[remote] = line
+		}
+	}
+
+	return remotes, nil
+}
+
+// ResolveBranch resolves a branch name following git's behavior:
+// 1. Check if branch exists locally
+// 2. If not, check remote branches
+// 3. If multiple remotes have the branch, return an error
+func (r *Repository) ResolveBranch(branch string) (resolvedBranch string, isRemote bool, err error) {
+	// First check if branch exists locally
+	exists, err := r.BranchExists(branch)
+	if err != nil {
+		return "", false, err
+	}
+	if exists {
+		return branch, false, nil
+	}
+
+	// Check remote branches
+	remoteBranches, err := r.GetRemoteBranches(branch)
+	if err != nil {
+		return "", false, err
+	}
+
+	if len(remoteBranches) == 0 {
+		return "", false, fmt.Errorf("branch '%s' not found in local or remote branches", branch)
+	}
+
+	if len(remoteBranches) > 1 {
+		// Multiple remotes have this branch
+		remoteNames := make([]string, 0, len(remoteBranches))
+		for remote := range remoteBranches {
+			remoteNames = append(remoteNames, remote)
+		}
+		return "", false, fmt.Errorf(
+			"branch '%s' exists in multiple remotes: %s\nPlease specify the remote explicitly (e.g., --track %s/%s)",
+			branch, strings.Join(remoteNames, ", "), remoteNames[0], branch)
+	}
+
+	// Single remote has this branch
+	for _, remoteBranch := range remoteBranches {
+		return remoteBranch, true, nil
+	}
+
+	return "", false, nil
+}
+
 func isGitRepository(path string) bool {
 	// Use git rev-parse to check if we're in a git repository
 	// This works for both regular repos and worktrees

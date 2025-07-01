@@ -71,34 +71,15 @@ func NewAddCommand() *cli.Command {
 }
 
 func addCommand(_ context.Context, cmd *cli.Command) error {
-	// Check if we have a branch name from either args or -b flag
-	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
-		return fmt.Errorf("branch name is required")
+	// Validate inputs
+	if err := validateAddInput(cmd); err != nil {
+		return err
 	}
 
-	// Get current working directory (should be a git repository)
-	cwd, err := os.Getwd()
+	// Setup repository and configuration
+	repo, cfg, err := setupRepoAndConfig()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
-	}
-
-	// Initialize repository
-	repo, err := git.NewRepository(cwd)
-	if err != nil {
-		return fmt.Errorf("not in a git repository: %w", err)
-	}
-
-	// Get main repository path for config loading
-	mainRepoPath, err := repo.GetMainWorktreePath()
-	if err != nil {
-		// Fallback to current repository path if we can't determine main repo
-		mainRepoPath = repo.Path()
-	}
-
-	// Load configuration from main repository
-	cfg, err := config.LoadConfig(mainRepoPath)
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	// Resolve worktree path and branch name
@@ -108,32 +89,92 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 	workTreePath, branchName := resolveWorktreePath(cfg, repo.Path(), firstArg, cmd)
 
-	// Build git worktree add command
-	args := buildGitWorktreeArgs(cmd, workTreePath, branchName)
+	// Handle branch resolution if needed
+	if err := handleBranchResolution(cmd, repo, branchName); err != nil {
+		return err
+	}
 
-	// Execute git worktree add
+	// Build and execute git worktree command
+	args := buildGitWorktreeArgs(cmd, workTreePath, branchName)
 	if err := repo.ExecuteGitCommand(args...); err != nil {
 		return fmt.Errorf("failed to create worktree: %w", err)
 	}
 
-	// Display appropriate success message
+	// Display success message
+	displaySuccessMessage(branchName, workTreePath)
+
+	// Execute post-create hooks
+	if err := executePostCreateHooks(cfg, repo.Path(), workTreePath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateAddInput(cmd *cli.Command) error {
+	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
+		return fmt.Errorf("branch name is required")
+	}
+	return nil
+}
+
+func setupRepoAndConfig() (*git.Repository, *config.Config, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	repo, err := git.NewRepository(cwd)
+	if err != nil {
+		return nil, nil, fmt.Errorf("not in a git repository: %w", err)
+	}
+
+	mainRepoPath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		mainRepoPath = repo.Path()
+	}
+
+	cfg, err := config.LoadConfig(mainRepoPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	return repo, cfg, nil
+}
+
+func handleBranchResolution(cmd *cli.Command, repo *git.Repository, branchName string) error {
+	if cmd.String("branch") == "" && cmd.String("track") == "" && branchName != "" && !cmd.Bool("detach") {
+		resolvedBranch, isRemoteBranch, err := repo.ResolveBranch(branchName)
+		if err != nil {
+			return err
+		}
+		if isRemoteBranch {
+			if err := cmd.Set("track", resolvedBranch); err != nil {
+				return fmt.Errorf("failed to set track flag: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func displaySuccessMessage(branchName, workTreePath string) {
 	if branchName != "" {
 		fmt.Printf("Created worktree '%s' at %s\n", branchName, workTreePath)
 	} else {
 		fmt.Printf("Created worktree at %s\n", workTreePath)
 	}
+}
 
-	// Execute post-create hooks
+func executePostCreateHooks(cfg *config.Config, repoPath, workTreePath string) error {
 	if cfg.HasHooks() {
 		fmt.Println("\nExecuting post-create hooks...")
-		executor := hooks.NewExecutor(cfg, repo.Path())
+		executor := hooks.NewExecutor(cfg, repoPath)
 		if err := executor.ExecutePostCreateHooks(workTreePath); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Hook execution failed: %v\n", err)
 		} else {
 			fmt.Println("✓ All hooks executed successfully")
 		}
 	}
-
 	return nil
 }
 
