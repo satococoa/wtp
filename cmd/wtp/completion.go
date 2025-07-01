@@ -263,7 +263,7 @@ _wtp() {
         args)
             case $words[1] in
                 add)
-                    _arguments -s \
+                    _arguments -C -s \
                         '--path[Specify explicit path for worktree]:path:_directories' \
                         '(--force -f)'{--force,-f}'[Checkout even if already checked out in other worktree]' \
                         '--detach[Make the new worktree HEAD detached]' \
@@ -274,8 +274,38 @@ _wtp() {
                         '(--branch -b)'{--branch,-b}'[Create new branch]:branch:_wtp_branches' \
                         '(--track -t)'{--track,-t}'[Set upstream branch]:upstream:_wtp_remote_branches' \
                         '(--help -h)'{--help,-h}'[Show help]' \
-                        '1:branch:_wtp_branches' \
-                        '::commit-ish:_wtp_commits'
+                        '*:::arg:->add_args' && return
+                    
+                    # Handle positional arguments based on context
+                    case $state in
+                        add_args)
+                            # Count non-option arguments
+                            local arg_count=0
+                            local has_b_flag=false
+                            local i
+                            for ((i=2; i<=$#line; i++)); do
+                                if [[ "${line[i]}" == "-b" || "${line[i]}" == "--branch" ]]; then
+                                    has_b_flag=true
+                                elif [[ "${line[i]}" != -* ]]; then
+                                    ((arg_count++))
+                                fi
+                            done
+                            
+                            if [[ $has_b_flag == true ]]; then
+                                # With -b flag: max 1 positional arg (commit-ish)
+                                if [[ $arg_count -eq 0 ]]; then
+                                    _wtp_branches  # Complete with branches for commit-ish
+                                fi
+                            else
+                                # Without -b flag: max 2 positional args
+                                if [[ $arg_count -eq 0 ]]; then
+                                    _wtp_branches  # First arg is branch name
+                                elif [[ $arg_count -eq 1 ]]; then
+                                    _wtp_commits   # Second arg is commit-ish
+                                fi
+                            fi
+                            ;;
+                    esac
                     ;;
                 remove)
                     _arguments -s \
