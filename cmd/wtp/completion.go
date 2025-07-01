@@ -215,8 +215,7 @@ _wtp() {
                         '(--branch -b)'{--branch,-b}'[Create new branch]:branch:_wtp_branches' \
                         '(--track -t)'{--track,-t}'[Set upstream branch]:upstream:_wtp_remote_branches' \
                         '(--help -h)'{--help,-h}'[Show help]' \
-                        '1: :_wtp_branches' \
-                        '2: :_wtp_commits'
+                        '*: :_wtp_branches_or_commits'
                     ;;
                 remove)
                     _arguments -s \
@@ -299,11 +298,22 @@ _wtp_shells() {
     _describe 'shells' shells
 }
 
+_wtp_branches_or_commits() {
+    # For positional arguments, complete with branch names primarily
+    _wtp_branches
+}
+
 _wtp_commits() {
-    _alternative \
-        'commits:commits:_git_commits' \
-        'branches:branches:_wtp_branches' \
-        'tags:tags:_git_tags'
+    # Try to use git's completion functions if available, otherwise fallback to basic completion
+    if (( $+functions[_git_commits] )) && (( $+functions[_git_tags] )); then
+        _alternative \
+            'commits:commits:_git_commits' \
+            'branches:branches:_wtp_branches' \
+            'tags:tags:_git_tags'
+    else
+        # Fallback to basic branch completion
+        _wtp_branches
+    fi
 }
 
 if [ -n "$ZSH_VERSION" ]; then
