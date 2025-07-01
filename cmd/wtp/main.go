@@ -21,7 +21,8 @@ func main() {
 		Usage: "Enhanced Git worktree management",
 		Description: "wtp (Worktree Plus) simplifies Git worktree creation with automatic branch tracking, " +
 			"project-specific setup hooks, and convenient defaults.",
-		Version: version,
+		Version:               version,
+		EnableShellCompletion: true,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "version",

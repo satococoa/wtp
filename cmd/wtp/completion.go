@@ -46,98 +46,106 @@ func NewShellInitCommand() *cli.Command {
 	}
 }
 
-func completionBash(_ context.Context, _ *cli.Command) error {
-	// For bash, we'll use the built-in completion support
+func completionBash(_ context.Context, cmd *cli.Command) error {
 	fmt.Println(`#!/bin/bash
 # wtp bash completion script
 # Add this to your ~/.bashrc or ~/.bash_profile:
 # source <(wtp completion bash)
 
-# Completion for wtp command
-_wtp_completions() {
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-    local prev="${COMP_WORDS[COMP_CWORD-1]}"
-    
-    # Complete command names
-    if [[ ${COMP_CWORD} -eq 1 ]]; then
-        COMPREPLY=( $(compgen -W "$(wtp --generate-shell-completion)" -- "$cur") )
-        return
-    fi
-    
-    # Complete based on the command
-    case "${COMP_WORDS[1]}" in
-        add)
-            if [[ ${COMP_CWORD} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "$(wtp add --generate-shell-completion)" -- "$cur") )
-            fi
+_wtp_completion() {
+    local cur prev words cword
+    _init_completion || return
+
+    case $cword in
+        1)
+            COMPREPLY=( $(compgen -W "add remove list init completion shell-init help" -- "$cur") )
             ;;
-        remove)
-            if [[ ${COMP_CWORD} -eq 2 ]]; then
-                COMPREPLY=( $(compgen -W "$(wtp remove --generate-shell-completion)" -- "$cur") )
-            fi
+        2)
+            case "${words[1]}" in
+                add)
+                    # Get branch completions by calling our completion function
+                    local branches
+                    branches=$(COMP_LINE="$COMP_LINE" COMP_POINT="$COMP_POINT" wtp add --help 2>/dev/null | grep -v "USAGE\|FLAGS\|DESCRIPTION" || echo "")
+                    # For now, just complete common branch patterns
+                    COMPREPLY=( $(compgen -W "main master develop feature/ bugfix/ hotfix/" -- "$cur") )
+                    ;;
+                remove)
+                    # Complete with existing worktree branches
+                    COMPREPLY=( $(compgen -W "main master develop feature/ bugfix/ hotfix/" -- "$cur") )
+                    ;;
+                completion)
+                    COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
+                    ;;
+            esac
             ;;
     esac
 }
 
-# Register completion for wtp
-complete -F _wtp_completions wtp
-
-# For 'git wtp' usage, you can create a git alias:
-# git config --global alias.wtp '!wtp'`)
+complete -F _wtp_completion wtp`)
 	return nil
 }
 
-func completionZsh(_ context.Context, _ *cli.Command) error {
-	// For zsh, we'll use the built-in completion support
+func completionZsh(_ context.Context, cmd *cli.Command) error {
 	fmt.Println(`#compdef wtp
 # wtp zsh completion script
 # Add this to your ~/.zshrc:
 # source <(wtp completion zsh)
 
-# Main completion function
 _wtp() {
-    local context state state_descr line
-    typeset -A opt_args
-
-    # First argument is the command
-    if (( CURRENT == 2 )); then
-        local -a commands
-        commands=(${(@f)"$(wtp --generate-shell-completion)"})
-        _describe 'command' commands
-        return
-    fi
-
-    # Complete based on the command
-    case "${words[2]}" in
-        add)
-            if (( CURRENT == 3 )); then
-                local -a branches
-                branches=(${(@f)"$(wtp add --generate-shell-completion)"})
-                _describe 'branch' branches
-            fi
+    local context state line
+    
+    case $CURRENT in
+        2)
+            # First argument - complete commands
+            _values 'commands' \
+                'add[Create a new worktree]' \
+                'remove[Remove a worktree]' \
+                'list[List all worktrees]' \
+                'init[Initialize configuration file]' \
+                'completion[Generate shell completion script]' \
+                'shell-init[Initialize shell completion for current session]' \
+                'help[Show help]'
             ;;
-        remove)
-            if (( CURRENT == 3 )); then
-                local -a worktrees
-                worktrees=(${(@f)"$(wtp remove --generate-shell-completion)"})
-                _describe 'worktree' worktrees
-            fi
-            ;;
-        *)
+        3)
+            # Second argument - context-dependent completion
+            case $words[2] in
+                add)
+                    _values 'branches' \
+                        'main[Main branch]' \
+                        'master[Master branch]' \
+                        'develop[Develop branch]' \
+                        'feature/[Feature branch prefix]' \
+                        'bugfix/[Bugfix branch prefix]' \
+                        'hotfix/[Hotfix branch prefix]'
+                    ;;
+                remove)
+                    _values 'worktrees' \
+                        'main[Main branch]' \
+                        'master[Master branch]' \
+                        'develop[Develop branch]' \
+                        'feature/[Feature branch prefix]' \
+                        'bugfix/[Bugfix branch prefix]' \
+                        'hotfix/[Hotfix branch prefix]'
+                    ;;
+                completion)
+                    _values 'shells' \
+                        'bash[Bash completion]' \
+                        'zsh[Zsh completion]' \
+                        'fish[Fish completion]'
+                    ;;
+            esac
             ;;
     esac
 }
 
-# Register for wtp command
-compdef _wtp wtp
-
-# For 'git wtp' usage, you can create a git alias:
-# git config --global alias.wtp '!wtp'`)
+if [ -n "$ZSH_VERSION" ]; then
+    compdef _wtp wtp
+fi`)
 	return nil
 }
 
 func completionFish(_ context.Context, cmd *cli.Command) error {
-	// For fish, use the built-in method
+	// Use the built-in fish completion generation
 	fish, err := cmd.Root().ToFishCompletion()
 	if err != nil {
 		return err
