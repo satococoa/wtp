@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/satococoa/wtp/internal/errors"
 )
 
 type Repository struct {
@@ -12,7 +14,7 @@ type Repository struct {
 
 func NewRepository(path string) (*Repository, error) {
 	if !isGitRepository(path) {
-		return nil, fmt.Errorf("not a git repository: %s", path)
+		return nil, errors.NotInGitRepository()
 	}
 	return &Repository{path: path}, nil
 }
@@ -108,7 +110,7 @@ func (r *Repository) ExecuteGitCommand(args ...string) error {
 	cmd.Dir = r.path
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("git command failed: %s", string(output))
+		return errors.GitCommandFailed(fmt.Sprintf("git %s", strings.Join(args, " ")), string(output))
 	}
 	return nil
 }
@@ -117,7 +119,7 @@ func (r *Repository) ExecuteGitCommand(args ...string) error {
 func (r *Repository) BranchExists(branch string) (bool, error) {
 	// Validate branch name to prevent command injection
 	if strings.Contains(branch, "..") || strings.ContainsAny(branch, "\n\r") {
-		return false, fmt.Errorf("invalid branch name: %s", branch)
+		return false, errors.InvalidBranchName(branch)
 	}
 
 	// #nosec G204 - branch is validated above
@@ -137,7 +139,7 @@ func (r *Repository) BranchExists(branch string) (bool, error) {
 func (r *Repository) GetRemoteBranches(branch string) (map[string]string, error) {
 	// Validate branch name to prevent command injection
 	if strings.Contains(branch, "..") || strings.ContainsAny(branch, "\n\r") {
-		return nil, fmt.Errorf("invalid branch name: %s", branch)
+		return nil, errors.InvalidBranchName(branch)
 	}
 
 	remotes := make(map[string]string)
@@ -191,7 +193,7 @@ func (r *Repository) ResolveBranch(branch string) (resolvedBranch string, isRemo
 	}
 
 	if len(remoteBranches) == 0 {
-		return "", false, fmt.Errorf("branch '%s' not found in local or remote branches", branch)
+		return "", false, errors.BranchNotFound(branch)
 	}
 
 	if len(remoteBranches) > 1 {
@@ -200,9 +202,7 @@ func (r *Repository) ResolveBranch(branch string) (resolvedBranch string, isRemo
 		for remote := range remoteBranches {
 			remoteNames = append(remoteNames, remote)
 		}
-		return "", false, fmt.Errorf(
-			"branch '%s' exists in multiple remotes: %s\nPlease specify the remote explicitly (e.g., --track %s/%s)",
-			branch, strings.Join(remoteNames, ", "), remoteNames[0], branch)
+		return "", false, errors.MultipleBranchesFound(branch, remoteNames)
 	}
 
 	// Single remote has this branch

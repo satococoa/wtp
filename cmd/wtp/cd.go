@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -29,12 +30,12 @@ func NewCdCommand() *cli.Command {
 func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	// Check if we're running inside the shell function
 	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
-		return fmt.Errorf("cd command requires shell integration. Run 'wtp shell-init --cd' for setup instructions")
+		return errors.ShellIntegrationRequired()
 	}
 
 	args := cmd.Args()
 	if args.Len() == 0 {
-		return fmt.Errorf("worktree name required")
+		return errors.WorktreeNameRequired()
 	}
 
 	worktreeName := args.Get(0)
@@ -42,13 +43,13 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	// Get current directory
 	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
 	// Initialize repository
 	repo, err := git.NewRepository(cwd)
 	if err != nil {
-		return fmt.Errorf("not in a git repository: %w", err)
+		return errors.NotInGitRepository()
 	}
 
 	// Get all worktrees
@@ -68,7 +69,16 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if targetPath == "" {
-		return fmt.Errorf("worktree '%s' not found", worktreeName)
+		// Get available worktree names for suggestions
+		availableWorktrees := make([]string, 0, len(worktrees))
+		for _, wt := range worktrees {
+			if wt.Branch != "" {
+				availableWorktrees = append(availableWorktrees, wt.Branch)
+			} else {
+				availableWorktrees = append(availableWorktrees, filepath.Base(wt.Path))
+			}
+		}
+		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
 
 	// Output the path for the shell function to cd to

@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/satococoa/wtp/internal/hooks"
 	"github.com/urfave/cli/v3"
@@ -97,7 +98,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	// Build and execute git worktree command
 	args := buildGitWorktreeArgs(cmd, workTreePath, branchName)
 	if err := repo.ExecuteGitCommand(args...); err != nil {
-		return fmt.Errorf("failed to create worktree: %w", err)
+		return errors.WorktreeCreationFailed(workTreePath, branchName, err)
 	}
 
 	// Display success message
@@ -113,7 +114,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 
 func validateAddInput(cmd *cli.Command) error {
 	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
-		return fmt.Errorf("branch name is required")
+		return errors.BranchNameRequired("wtp add <branch-name>")
 	}
 	return nil
 }
@@ -121,12 +122,12 @@ func validateAddInput(cmd *cli.Command) error {
 func setupRepoAndConfig() (*git.Repository, *config.Config, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get current directory: %w", err)
+		return nil, nil, errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
 	repo, err := git.NewRepository(cwd)
 	if err != nil {
-		return nil, nil, fmt.Errorf("not in a git repository: %w", err)
+		return nil, nil, errors.NotInGitRepository()
 	}
 
 	mainRepoPath, err := repo.GetMainWorktreePath()
@@ -136,7 +137,8 @@ func setupRepoAndConfig() (*git.Repository, *config.Config, error) {
 
 	cfg, err := config.LoadConfig(mainRepoPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load configuration: %w", err)
+		configPath := mainRepoPath + "/.wtp.yml"
+		return nil, nil, errors.ConfigLoadFailed(configPath, err)
 	}
 
 	return repo, cfg, nil

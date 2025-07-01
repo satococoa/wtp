@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -529,7 +530,8 @@ func shellInit(_ context.Context, cmd *cli.Command) error {
 			fmt.Fprintln(w, "wtp shell-init --cd | source")
 		}
 	default:
-		return fmt.Errorf("unsupported shell: %s", shellName)
+		supportedShells := []string{"bash", "zsh", "fish"}
+		return errors.UnsupportedShell(shellName, supportedShells)
 	}
 
 	if !includeCd {

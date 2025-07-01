@@ -38,6 +38,10 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 - [x] **Cross-platform support**
   - [x] Linux
   - [x] macOS
+- [x] **Better error messages**
+  - [x] Contextual error descriptions with clear causes
+  - [x] Actionable suggestions for resolution
+  - [x] Examples and helpful tips
 
 ## Installation
 
@@ -337,7 +341,7 @@ make build
 - [x] Remove with branch (`--with-branch` option)
 - [x] Shell integration (cd command)
 - [x] Multiple remote handling
-- [ ] Better error messages
+- [x] Better error messages
 
 ### v1.0.0
 

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -49,7 +49,7 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	forceBranch := cmd.Bool("force-branch")
 
 	if branchName == "" {
-		return fmt.Errorf("branch name is required")
+		return errors.BranchNameRequired("wtp remove <branch-name>")
 	}
 
 	// Validate flags
@@ -60,13 +60,13 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
 	// Initialize repository
 	repo, err := git.NewRepository(cwd)
 	if err != nil {
-		return fmt.Errorf("not in a git repository: %w", err)
+		return errors.NotInGitRepository()
 	}
 
 	// Get main repository path for config loading
@@ -79,7 +79,8 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	// Load configuration from main repository
 	cfg, err := config.LoadConfig(mainRepoPath)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		configPath := mainRepoPath + "/.wtp.yml"
+		return errors.ConfigLoadFailed(configPath, err)
 	}
 
 	// Resolve worktree path using configuration
@@ -88,7 +89,7 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 
 	// Remove worktree
 	if err := repo.RemoveWorktree(workTreePath, force); err != nil {
-		return fmt.Errorf("failed to remove worktree: %w", err)
+		return errors.WorktreeRemovalFailed(workTreePath, err)
 	}
 
 	fmt.Printf("Removed worktree '%s' at %s\n", branchName, workTreePath)
@@ -106,11 +107,7 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 
 		// Execute git branch delete
 		if err := repo.ExecuteGitCommand(args...); err != nil {
-			// Check if it's an unmerged branch error
-			if !forceBranch && strings.Contains(err.Error(), "not fully merged") {
-				return fmt.Errorf("branch '%s' is not fully merged. Use --force-branch to delete anyway", branchName)
-			}
-			return fmt.Errorf("failed to remove branch: %w", err)
+			return errors.BranchRemovalFailed(branchName, err, forceBranch)
 		}
 
 		fmt.Printf("Removed branch '%s'\n", branchName)

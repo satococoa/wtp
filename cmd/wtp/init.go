@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -27,19 +28,19 @@ func initCommand(_ context.Context, _ *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
 	// Initialize repository
 	repo, err := git.NewRepository(cwd)
 	if err != nil {
-		return fmt.Errorf("not in a git repository: %w", err)
+		return errors.NotInGitRepository()
 	}
 
 	// Check if config file already exists
 	configPath := fmt.Sprintf("%s/%s", repo.Path(), config.ConfigFileName)
 	if _, err := os.Stat(configPath); err == nil {
-		return fmt.Errorf("configuration file already exists: %s", configPath)
+		return errors.ConfigAlreadyExists(configPath)
 	}
 
 	// Create configuration with comments
@@ -74,7 +75,7 @@ hooks:
 
 	// Write configuration file with comments
 	if err := os.WriteFile(configPath, []byte(configContent), configFileMode); err != nil {
-		return fmt.Errorf("failed to create configuration file: %w", err)
+		return errors.DirectoryAccessFailed("create configuration file", configPath, err)
 	}
 
 	fmt.Printf("Configuration file created: %s\n", configPath)

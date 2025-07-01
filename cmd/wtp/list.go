@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -31,19 +32,19 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("failed to get current directory: %w", err)
+		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
 	// Initialize repository
 	repo, err := git.NewRepository(cwd)
 	if err != nil {
-		return fmt.Errorf("not in a git repository: %w", err)
+		return errors.NotInGitRepository()
 	}
 
 	// Get worktrees
 	worktrees, err := repo.GetWorktrees()
 	if err != nil {
-		return fmt.Errorf("failed to list worktrees: %w", err)
+		return errors.GitCommandFailed("git worktree list", err.Error())
 	}
 
 	if len(worktrees) == 0 {
