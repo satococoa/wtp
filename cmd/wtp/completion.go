@@ -157,27 +157,75 @@ _wtp_completion() {
         *)
             case "${words[1]}" in
                 add)
-                    # For add command, check if we need branch name or have already provided it
+                    # For add command, determine what kind of completion is needed
                     local has_branch_flag=false
                     local has_path_flag=false
+                    local branch_value_provided=false
                     local i
+                    
+                    # Parse previous words to understand current context
                     for ((i=2; i<cword; i++)); do
                         case "${words[i]}" in
                             --branch|-b)
                                 has_branch_flag=true
-                                ((i++)) # Skip the branch name value
+                                if [[ $((i+1)) -lt $cword ]]; then
+                                    branch_value_provided=true
+                                    ((i++)) # Skip the branch name value
+                                fi
                                 ;;
                             --path)
                                 has_path_flag=true
-                                ((i++)) # Skip the path value
+                                if [[ $((i+1)) -lt $cword ]]; then
+                                    ((i++)) # Skip the path value
+                                fi
                                 ;;
                         esac
                     done
                     
-                    # Complete with branch names
-                    local branches
-                    branches=$(wtp completion __branches 2>/dev/null)
-                    COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+                    # If we're immediately after -b/--branch, complete with branch names
+                    if [[ "$prev" == "-b" || "$prev" == "--branch" ]]; then
+                        local branches
+                        branches=$(wtp completion __branches 2>/dev/null)
+                        COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+                        return
+                    fi
+                    
+                    # Count non-flag arguments to determine if we should complete
+                    local arg_count=0
+                    for ((i=2; i<cword; i++)); do
+                        if [[ "${words[i]}" != -* ]]; then
+                            # Skip values that follow flags
+                            local prev_word="${words[i-1]}"
+                            if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" && 
+                                  "$prev_word" != "--path" && "$prev_word" != "--reason" && 
+                                  "$prev_word" != "-t" && "$prev_word" != "--track" ]]; then
+                                ((arg_count++))
+                            fi
+                        fi
+                    done
+                    
+                    # If -b flag was used and value provided, complete with commit-ish (max 1 arg)
+                    if [[ $has_branch_flag == true && $branch_value_provided == true ]]; then
+                        if [[ $arg_count -eq 0 ]]; then
+                            # Complete with branch names as potential commit-ish
+                            local branches
+                            branches=$(wtp completion __branches 2>/dev/null)
+                            COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+                        else
+                            # No more completions needed
+                            COMPREPLY=()
+                        fi
+                    else
+                        # Normal case: complete with branch names (max 1 arg)
+                        if [[ $arg_count -eq 0 ]]; then
+                            local branches
+                            branches=$(wtp completion __branches 2>/dev/null)
+                            COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
+                        else
+                            # No more completions needed
+                            COMPREPLY=()
+                        fi
+                    fi
                     ;;
                 remove)
                     # Get actual worktree branches dynamically
