@@ -274,7 +274,8 @@ _wtp() {
                         '(--branch -b)'{--branch,-b}'[Create new branch]:branch:_wtp_branches' \
                         '(--track -t)'{--track,-t}'[Set upstream branch]:upstream:_wtp_remote_branches' \
                         '(--help -h)'{--help,-h}'[Show help]' \
-                        '*: :_wtp_branches_or_commits'
+                        '1:branch:_wtp_branches' \
+                        '::commit-ish:_wtp_commits'
                     ;;
                 remove)
                     _arguments -s \
@@ -355,11 +356,6 @@ _wtp_shells() {
         'fish:Fish completion'
     )
     _describe 'shells' shells
-}
-
-_wtp_branches_or_commits() {
-    # For positional arguments, complete with branch names primarily
-    _wtp_branches
 }
 
 _wtp_commits() {
