@@ -78,7 +78,18 @@ func completionBash(_ context.Context, _ *cli.Command) error {
 
 _wtp_completion() {
     local cur prev words cword
-    _init_completion || return
+    
+    # Use _init_completion if available, otherwise manual setup
+    if declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion || return
+    else
+        # Manual completion setup for broader compatibility
+        COMPREPLY=()
+        cur="${COMP_WORDS[COMP_CWORD]}"
+        prev="${COMP_WORDS[COMP_CWORD-1]}"
+        words=("${COMP_WORDS[@]}")
+        cword=$COMP_CWORD
+    fi
 
     # Handle flag completion for all commands
     if [[ $cur == -* ]]; then
