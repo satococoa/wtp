@@ -21,6 +21,46 @@ func (r *Repository) Path() string {
 	return r.path
 }
 
+// GetMainWorktreePath returns the path to the main worktree (original repository)
+// This is useful when running commands from within a worktree
+func (r *Repository) GetMainWorktreePath() (string, error) {
+	// Get the common directory which points to the main repository's .git
+	cmd := exec.Command("git", "rev-parse", "--git-common-dir")
+	cmd.Dir = r.path
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get main repository path: %w", err)
+	}
+
+	commonDir := strings.TrimSpace(string(output))
+
+	// If commonDir ends with .git, get its parent directory
+	if strings.HasSuffix(commonDir, ".git") {
+		return strings.TrimSuffix(commonDir, "/.git"), nil
+	}
+
+	// For older git versions or different configurations
+	// Try to get the main worktree from worktree list
+	cmd = exec.Command("git", "worktree", "list", "--porcelain")
+	cmd.Dir = r.path
+	output, err = cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	worktrees, err := parseWorktreeList(string(output))
+	if err != nil {
+		return "", err
+	}
+
+	// The first worktree in the list is typically the main one
+	if len(worktrees) > 0 {
+		return worktrees[0].Path, nil
+	}
+
+	return "", fmt.Errorf("could not determine main repository path")
+}
+
 func (r *Repository) GetWorktrees() ([]Worktree, error) {
 	cmd := exec.Command("git", "worktree", "list", "--porcelain")
 	cmd.Dir = r.path

@@ -88,8 +88,15 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("not in a git repository: %w", err)
 	}
 
-	// Load configuration
-	cfg, err := config.LoadConfig(repo.Path())
+	// Get main repository path for config loading
+	mainRepoPath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		// Fallback to current repository path if we can't determine main repo
+		mainRepoPath = repo.Path()
+	}
+
+	// Load configuration from main repository
+	cfg, err := config.LoadConfig(mainRepoPath)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
