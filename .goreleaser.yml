@@ -83,7 +83,7 @@ brews:
     homepage: "https://github.com/satococoa/wtp"
     description: "Worktree Plus - Enhanced worktree management with automated setup and hooks"
     license: "MIT"
-    skip_upload: false
+    skip_upload: auto
     dependencies:
       - name: git
     install: |
