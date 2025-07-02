@@ -295,12 +295,17 @@ func appendAutoPathArgs(args []string, cmd *cli.Command, branch, track, branchNa
 		if cmd.Args().Len() > 0 {
 			args = append(args, cmd.Args().Get(0))
 		}
-	} else if track != "" && branch == "" && !cmd.Bool("detach") {
-		// When auto-tracking remote branch, need to specify remote branch as commit-ish
+	} else if track != "" && branch == "" {
+		// When tracking a remote branch (with or without --detach), need to specify remote branch as commit-ish
 		args = append(args, track)
-	} else if track == "" {
-		// No -b flag and no --track: first arg is branch name
+	} else if track == "" && !cmd.Bool("detach") {
+		// No -b flag and no --track: first arg is branch name (unless detached)
 		args = append(args, branchName)
+	} else if cmd.Bool("detach") && track == "" {
+		// Detached mode without tracking: first arg is the commit-ish
+		if cmd.Args().Len() > 0 {
+			args = append(args, cmd.Args().Get(0))
+		}
 	}
 	// Add any additional arguments (for certain cases)
 	if cmd.Args().Len() > 1 && branch == "" && track == "" {

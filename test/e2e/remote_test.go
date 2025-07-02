@@ -178,9 +178,9 @@ func TestTrackFlagBehavior(t *testing.T) {
 		repo.AddRemote("origin", "https://example.com/repo.git")
 		repo.CreateRemoteBranch("origin", "remote-detach")
 
-		// --track with --detach should work
-		_, err := repo.RunWTP("add", "--track", "origin/remote-detach", "--detach", "detached-tracking")
-		framework.AssertNoError(t, err)
-		framework.AssertWorktreeExists(t, repo, "detached-tracking")
+		// --track with --detach should fail (git limitation)
+		output, err := repo.RunWTP("add", "--track", "origin/remote-detach", "--detach", "detached-tracking")
+		framework.AssertError(t, err)
+		framework.AssertOutputContains(t, output, "track can only be used if a new branch is created")
 	})
 }

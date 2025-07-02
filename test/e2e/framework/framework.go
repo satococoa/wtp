@@ -152,16 +152,8 @@ func (e *TestEnvironment) RunWTP(args ...string) (string, error) {
 		}
 	}
 
-	// Create slice with binary as first element to satisfy gosec
-	cmdArgs := make([]string, 0, len(args)+1)
-	cmdArgs = append(cmdArgs, e.wtpBinary)
-	cmdArgs = append(cmdArgs, args...)
-
-	// Use CommandContext for better control
-	cmd := &exec.Cmd{
-		Path: cmdArgs[0],
-		Args: cmdArgs,
-	}
+	// Create command with validated binary path
+	cmd := createSafeCommand(e.wtpBinary, args...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -216,18 +208,10 @@ func (r *TestRepo) RunWTP(args ...string) (string, error) {
 		}
 	}
 
-	// Create slice with binary as first element to satisfy gosec
-	cmdArgs := make([]string, 0, len(args)+1)
-	cmdArgs = append(cmdArgs, r.env.wtpBinary)
-	cmdArgs = append(cmdArgs, args...)
-
-	// Use CommandContext for better control
-	cmd := &exec.Cmd{
-		Path: cmdArgs[0],
-		Args: cmdArgs,
-		Dir:  r.path,
-		Env:  append(os.Environ(), "HOME="+r.env.tmpDir),
-	}
+	// Create command with validated binary path
+	cmd := createSafeCommand(r.env.wtpBinary, args...)
+	cmd.Dir = r.path
+	cmd.Env = append(os.Environ(), "HOME="+r.env.tmpDir)
 
 	output, err := cmd.CombinedOutput()
 	return string(output), err
@@ -326,7 +310,8 @@ func validateArg(arg string) error {
 	}
 
 	// Check for shell metacharacters that could be dangerous
-	dangerousChars := []string{";", "&", "|", "$", "`", "(", ")", "{", "}", "<", ">", "\n", "\r"}
+	// Note: { and } are allowed for branch names like branch@{upstream}
+	dangerousChars := []string{";", "&", "|", "$", "`", "(", ")", "<", ">", "\n", "\r"}
 	for _, char := range dangerousChars {
 		if strings.Contains(arg, char) {
 			return fmt.Errorf("argument contains potentially dangerous character: %s", char)
@@ -334,4 +319,11 @@ func validateArg(arg string) error {
 	}
 
 	return nil
+}
+
+// createSafeCommand creates an exec.Cmd with a validated binary path
+func createSafeCommand(binary string, args ...string) *exec.Cmd {
+	// The binary path has already been validated during initialization
+	// This function separates the concern of command creation from validation
+	return exec.Command(binary, args...)
 }

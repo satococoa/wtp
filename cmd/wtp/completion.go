@@ -513,43 +513,22 @@ func shellInit(_ context.Context, cmd *cli.Command) error {
 		if includeCd {
 			printBashCdFunction(w)
 		} else {
-			// Output shell function that sources completion
-			fmt.Fprintln(w, "# wtp shell integration for bash")
-			fmt.Fprintln(w, "# This enables completion for the current session")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "# Load completion")
-			fmt.Fprintln(w, "source <(wtp completion bash)")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "# Ensure wtp function is available")
-			fmt.Fprintln(w, "command -v wtp >/dev/null 2>&1 || { echo 'wtp command not found'; return 1; }")
+			// Output the actual completion script
+			_ = completionBash(context.TODO(), nil)
 		}
 	case "zsh":
 		if includeCd {
 			printZshCdFunction(w)
 		} else {
-			// Output shell function that sources completion
-			fmt.Fprintln(w, "# wtp shell integration for zsh")
-			fmt.Fprintln(w, "# This enables completion for the current session")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "# Load completion")
-			fmt.Fprintln(w, "source <(wtp completion zsh)")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "# Ensure wtp command is available")
-			fmt.Fprintln(w, "command -v wtp >/dev/null 2>&1 || { echo 'wtp command not found'; return 1; }")
+			// Output the actual completion script
+			_ = completionZsh(context.TODO(), nil)
 		}
 	case "fish":
 		if includeCd {
 			printFishCdFunction(w)
 		} else {
-			// Output shell function that sources completion
-			fmt.Fprintln(w, "# wtp shell integration for fish")
-			fmt.Fprintln(w, "# This enables completion for the current session")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "# Load completion")
-			fmt.Fprintln(w, "wtp completion fish | source")
-			fmt.Fprintln(w, "")
-			fmt.Fprintln(w, "# Ensure wtp command is available")
-			fmt.Fprintln(w, "command -v wtp >/dev/null 2>&1 || begin; echo 'wtp command not found'; return 1; end")
+			// Output the actual completion script
+			_ = completionFish(context.TODO(), cmd)
 		}
 	default:
 		supportedShells := []string{"bash", "zsh", "fish"}
@@ -704,7 +683,12 @@ wtp() {
     else
         command wtp "$@"
     fi
-}`)
+}
+
+# Ensure completion is set up
+if [ -n "$ZSH_VERSION" ]; then
+    compdef _wtp wtp
+fi`)
 }
 
 // printFishCdFunction prints the fish shell function for cd command
