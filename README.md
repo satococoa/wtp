@@ -36,12 +36,23 @@ functionality with automated setup, branch tracking, and project-specific hooks.
   - [x] Zsh completion with branch/worktree name completion
   - [x] Fish completion with branch/worktree name completion
 - [x] **Cross-platform support**
-  - [x] Linux
-  - [x] macOS
+  - [x] Linux (x86_64, ARM64)
+  - [x] macOS (Apple Silicon only)
 - [x] **Better error messages**
   - [x] Contextual error descriptions with clear causes
   - [x] Actionable suggestions for resolution
   - [x] Examples and helpful tips
+
+## Requirements
+
+- Git 2.17 or later (for worktree support)
+- One of the following operating systems:
+  - Linux (x86_64 or ARM64)
+  - macOS (Apple Silicon M1/M2/M3)
+- One of the following shells (for completion support):
+  - Bash
+  - Zsh
+  - Fish
 
 ## Installation
 
@@ -67,15 +78,13 @@ Download the latest binary from
 curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Darwin_arm64.tar.gz | tar xz
 sudo mv wtp /usr/local/bin/
 
-# macOS (Intel)
-curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Darwin_x86_64.tar.gz | tar xz
-sudo mv wtp /usr/local/bin/
-
 # Linux (x86_64)
 curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Linux_x86_64.tar.gz | tar xz
 sudo mv wtp /usr/local/bin/
 
-# Windows (download .zip from releases page)
+# Linux (ARM64)
+curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Linux_arm64.tar.gz | tar xz
+sudo mv wtp /usr/local/bin/
 ```
 
 ### From Source
