@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -159,9 +160,24 @@ func TestWorktreeRemoval(t *testing.T) {
 	})
 
 	t.Run("RemoveWithDifferentBaseDir", func(t *testing.T) {
-		t.Skip("Testing with different base_dir requires config support")
-		// This test is to ensure remove works regardless of config base_dir
-		// since we now use git's worktree list to find the actual path
+		repo := env.CreateTestRepo("remove-different-basedir")
+		
+		// Create worktree with default location
+		env.RunInDir(repo.Path(), "git", "worktree", "add", "../worktrees/feature/remove-test", "-b", "feature/remove-test")
+		
+		// Create config with different base_dir
+		configContent := `version: 1
+base_dir: custom-location`
+		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
+		
+		// Remove should still work because it uses git worktree list
+		output, err := repo.RunWTP("remove", "feature/remove-test")
+		framework.AssertNoError(t, err)
+		framework.AssertOutputContains(t, output, "Removed worktree")
+		
+		// Verify worktree is gone
+		worktreePath := env.TmpDir() + "/worktrees/feature/remove-test"
+		framework.AssertFalse(t, env.FileExists(worktreePath), "Worktree should be removed")
 	})
 }
 
@@ -250,10 +266,59 @@ func TestWorktreeWithConfig(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Run("CustomBaseDir", func(t *testing.T) {
-		t.Skip("Skipping config test - config functionality may vary")
+		repo := env.CreateTestRepo("config-basedir")
+		
+		// Create config with custom base_dir
+		configContent := `version: "1.0"
+defaults:
+  base_dir: custom-worktrees`
+		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
+		
+		// Create worktree with config
+		output, err := repo.RunWTP("add", "-b", "feature/custom-dir")
+		framework.AssertNoError(t, err)
+		
+		// Check if worktree was created in custom base_dir
+		customPath := repo.Path() + "/custom-worktrees/feature/custom-dir"
+		framework.AssertTrue(t, env.FileExists(customPath+"/.git"), "Worktree .git should exist")
+		framework.AssertOutputContains(t, output, "custom-worktrees/feature/custom-dir")
 	})
 
 	t.Run("PostCreateHook", func(t *testing.T) {
-		t.Skip("Skipping hook test - hook functionality may vary")
+		repo := env.CreateTestRepo("config-hooks")
+		
+		// Create source file for copy hook
+		env.WriteFile(repo.Path()+"/template.txt", "template content")
+		
+		// Create config with hooks
+		configContent := `version: "1.0"
+defaults:
+  base_dir: ../worktrees
+hooks:
+  post_create:
+    - type: copy
+      from: template.txt
+      to: copied.txt
+    - type: command
+      command: touch
+      args:
+        - hook-executed.txt`
+		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
+		
+		// Create worktree with hooks
+		output, err := repo.RunWTP("add", "-b", "feature/hooks")
+		framework.AssertNoError(t, err)
+		
+		// Verify hooks were executed
+		worktreePath := env.TmpDir() + "/worktrees/feature/hooks"
+		framework.AssertTrue(t, env.FileExists(worktreePath+"/copied.txt"), "Copied file should exist")
+		framework.AssertTrue(t, env.FileExists(worktreePath+"/hook-executed.txt"), "Hook-executed file should exist")
+		framework.AssertOutputContains(t, output, "Executing post-create hooks")
+		framework.AssertOutputContains(t, output, "All hooks executed successfully")
+		
+		// Verify copied file content manually since worktree isn't a TestRepo
+		copiedContent, err := os.ReadFile(worktreePath + "/copied.txt")
+		framework.AssertNoError(t, err)
+		framework.AssertEqual(t, "template content", string(copiedContent))
 	})
 }
