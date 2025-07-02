@@ -31,7 +31,6 @@ func TestNewCompletionCommand(t *testing.T) {
 	}
 }
 
-
 func TestCompletionFunctions(t *testing.T) {
 	t.Run("completionBash", func(t *testing.T) {
 		// This would require capturing output

@@ -70,7 +70,6 @@ func TestShellIntegration(t *testing.T) {
 				strings.Contains(output, "Available worktrees:"),
 			"Should show helpful error for non-existent worktree")
 	})
-
 }
 
 func TestShellCompletionCommands(t *testing.T) {
@@ -179,7 +178,6 @@ func TestShellCompletionBehavior(t *testing.T) {
 func TestShellEnvironment(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
-
 
 	t.Run("PowerShellCompletion", func(t *testing.T) {
 		repo := env.CreateTestRepo("powershell-completion")

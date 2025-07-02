@@ -510,7 +510,7 @@ func completionFish(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	fmt.Println(fish)
-	
+
 	// Add cd command integration
 	fmt.Println(`
 # wtp cd command integration
@@ -532,7 +532,6 @@ function wtp
 end`)
 	return nil
 }
-
 
 // completeBranches provides branch name completion
 func completeBranches(_ context.Context, _ *cli.Command) {
@@ -620,4 +619,3 @@ func printWorktrees() {
 		}
 	}
 }
-

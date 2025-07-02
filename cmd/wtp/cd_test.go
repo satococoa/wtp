@@ -39,4 +39,3 @@ func TestCdCommandDescription(t *testing.T) {
 	assert.Contains(t, cmd.Description, "Zsh:")
 	assert.Contains(t, cmd.Description, "Fish:")
 }
-
