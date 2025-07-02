@@ -55,7 +55,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc
@@ -91,7 +91,7 @@ brews:
     homepage: "https://github.com/satococoa/wtp"
     description: "Worktree Plus - Enhanced worktree management with automated setup and hooks"
     license: "MIT"
-    skip_upload: auto
+    skip_upload: false
     dependencies:
       - name: git
     install: |
