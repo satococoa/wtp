@@ -23,7 +23,7 @@ func TestBasicCommands(t *testing.T) {
 
 		expectedCommands := []string{"add", "remove", "list", "init", "cd"}
 		framework.AssertMultipleStringsInOutput(t, output, expectedCommands)
-		
+
 		framework.AssertOutputContains(t, output, "USAGE:")
 		framework.AssertOutputContains(t, output, "COMMANDS:")
 		framework.AssertOutputContains(t, output, "GLOBAL OPTIONS:")
@@ -31,7 +31,7 @@ func TestBasicCommands(t *testing.T) {
 
 	t.Run("HelpForCommand", func(t *testing.T) {
 		commands := []string{"add", "remove", "list", "init", "cd"}
-		
+
 		for _, cmd := range commands {
 			output, err := env.RunWTP(cmd, "--help")
 			framework.AssertNoError(t, err)
@@ -52,7 +52,7 @@ func TestInitCommand(t *testing.T) {
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Configuration file created")
 		framework.AssertFileExists(t, repo, ".wtp.yml")
-		
+
 		content := repo.ReadFile(".wtp.yml")
 		framework.AssertTrue(t, strings.Contains(content, "version:"), "Config should contain version")
 		framework.AssertTrue(t, strings.Contains(content, "base_dir:"), "Config should contain base_dir")
@@ -60,10 +60,10 @@ func TestInitCommand(t *testing.T) {
 
 	t.Run("ConfigAlreadyExists", func(t *testing.T) {
 		repo := env.CreateTestRepo("init-exists-test")
-		
+
 		_, err := repo.RunWTP("init")
 		framework.AssertNoError(t, err)
-		
+
 		output, err := repo.RunWTP("init")
 		framework.AssertError(t, err)
 		framework.AssertOutputContains(t, output, "already exists")
@@ -72,7 +72,7 @@ func TestInitCommand(t *testing.T) {
 
 	t.Run("InitOutsideRepo", func(t *testing.T) {
 		cmd := env.CreateNonRepoDir("not-a-repo")
-		
+
 		output, err := cmd.RunWTP("init")
 		framework.AssertError(t, err)
 		framework.AssertOutputContains(t, output, "not in a git repository")

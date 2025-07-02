@@ -58,7 +58,7 @@ func TestRemoteBranchHandling(t *testing.T) {
 		output, err := repo.RunWTP("add", "remote-only-branch")
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCreated(t, output, "remote-only-branch")
-		
+
 		// Check that branch is tracking the remote
 		branchOutput, _ := repo.RunWTP("branch", "-vv")
 		_ = branchOutput // Branch tracking verification would go here
@@ -83,7 +83,7 @@ func TestRemoteBranchHandling(t *testing.T) {
 		output, err := repo.RunWTP("add", "precedence-branch")
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCreated(t, output, "precedence-branch")
-		
+
 		// Should use local branch, not remote
 		worktrees := repo.ListWorktrees()
 		framework.AssertEqual(t, 2, len(worktrees))
@@ -115,13 +115,13 @@ func TestRemoteConfiguration(t *testing.T) {
 
 	t.Run("InvalidRemoteURL", func(t *testing.T) {
 		repo := env.CreateTestRepo("invalid-remote")
-		
+
 		// Add remote with invalid URL format
 		_ = env.RunInDir(repo.Path(), "git", "remote", "add", "invalid", "not-a-url")
 		// Git might accept this, but it's still invalid
-		
+
 		repo.CreateRemoteBranch("invalid", "test-branch")
-		
+
 		// wtp should still work with the remote branch
 		output, err := repo.RunWTP("add", "test-branch")
 		framework.AssertNoError(t, err)

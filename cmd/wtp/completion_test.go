@@ -14,7 +14,7 @@ func TestNewCompletionCommand(t *testing.T) {
 	}
 
 	// Check subcommands
-	expectedSubcommands := []string{"bash", "zsh", "fish", "__branches", "__worktrees"}
+	expectedSubcommands := []string{"bash", "zsh", "fish", "powershell", "__branches", "__worktrees"}
 	if len(cmd.Commands) != len(expectedSubcommands) {
 		t.Errorf("Expected %d subcommands, got %d", len(expectedSubcommands), len(cmd.Commands))
 	}

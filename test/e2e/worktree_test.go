@@ -18,7 +18,7 @@ func TestWorktreeCreation(t *testing.T) {
 		output, err := repo.RunWTP("add", "feature/test-branch")
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCreated(t, output, "feature/test-branch")
-		
+
 		worktrees := repo.ListWorktrees()
 		framework.AssertEqual(t, 2, len(worktrees))
 		framework.AssertWorktreeExists(t, repo, "feature/test-branch")
@@ -40,7 +40,7 @@ func TestWorktreeCreation(t *testing.T) {
 		output, err := repo.RunWTP("add", "-b", "new-feature")
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCreated(t, output, "new-feature")
-		
+
 		worktrees := repo.ListWorktrees()
 		framework.AssertEqual(t, 2, len(worktrees))
 		framework.AssertWorktreeExists(t, repo, "new-feature")
@@ -69,7 +69,7 @@ func TestWorktreeCreation(t *testing.T) {
 
 	t.Run("DetachedHead", func(t *testing.T) {
 		repo := env.CreateTestRepo("worktree-detached")
-		
+
 		commit := repo.GetCommitHash()[:7]
 
 		_, err := repo.RunWTP("add", "--detach", commit)
@@ -126,9 +126,9 @@ func TestWorktreeRemoval(t *testing.T) {
 		framework.AssertError(t, err)
 		framework.AssertOutputContains(t, output, "not found")
 		// Should show available worktrees
-		framework.AssertTrue(t, 
+		framework.AssertTrue(t,
 			strings.Contains(output, "Available worktrees:") ||
-			strings.Contains(output, "No worktrees found"),
+				strings.Contains(output, "No worktrees found"),
 			"Should show available worktrees or indicate none found")
 	})
 
@@ -148,7 +148,7 @@ func TestWorktreeRemoval(t *testing.T) {
 				break
 			}
 		}
-		
+
 		if worktreePath != "" {
 			env.WriteFile(worktreePath+"/dirty.txt", "uncommitted changes")
 		}

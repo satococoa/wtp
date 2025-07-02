@@ -22,12 +22,12 @@ func TestShellIntegration(t *testing.T) {
 		framework.AssertError(t, err)
 		framework.AssertOutputContains(t, output, "requires shell integration")
 		framework.AssertHelpfulError(t, output)
-		
+
 		// Should provide setup instructions
 		framework.AssertOutputContains(t, output, "eval")
 		framework.AssertTrue(t,
 			strings.Contains(output, "shell-init") ||
-			strings.Contains(output, "Setup:"),
+				strings.Contains(output, "Setup:"),
 			"Should provide shell integration setup instructions")
 	})
 
@@ -45,13 +45,13 @@ func TestShellIntegration(t *testing.T) {
 		// Should output the path
 		framework.AssertTrue(t,
 			strings.Contains(output, "worktrees/feature/test") ||
-			strings.Contains(output, "feature/test"),
+				strings.Contains(output, "feature/test"),
 			"Should output worktree path")
-		
+
 		// Should not contain error messages
 		framework.AssertFalse(t,
 			strings.Contains(output, "error") ||
-			strings.Contains(output, "Error"),
+				strings.Contains(output, "Error"),
 			"Should not contain error messages")
 	})
 
@@ -66,8 +66,8 @@ func TestShellIntegration(t *testing.T) {
 		framework.AssertError(t, err)
 		framework.AssertTrue(t,
 			strings.Contains(output, "not found") ||
-			strings.Contains(output, "does not exist") ||
-			strings.Contains(output, "Available worktrees:"),
+				strings.Contains(output, "does not exist") ||
+				strings.Contains(output, "Available worktrees:"),
 			"Should show helpful error for non-existent worktree")
 	})
 
@@ -76,13 +76,13 @@ func TestShellIntegration(t *testing.T) {
 
 		output, err := repo.RunWTP("shell-init")
 		framework.AssertNoError(t, err)
-		
+
 		// Should output shell functions
 		framework.AssertTrue(t,
 			strings.Contains(output, "function") ||
-			strings.Contains(output, "wtp()") ||
-			strings.Contains(output, "complete") ||
-			strings.Contains(output, "compdef"),
+				strings.Contains(output, "wtp()") ||
+				strings.Contains(output, "complete") ||
+				strings.Contains(output, "compdef"),
 			"Should output shell integration code")
 	})
 
@@ -91,17 +91,17 @@ func TestShellIntegration(t *testing.T) {
 
 		output, err := repo.RunWTP("shell-init", "--cd")
 		framework.AssertNoError(t, err)
-		
+
 		// Should include cd functionality
 		framework.AssertTrue(t,
 			strings.Contains(output, "cd") ||
-			strings.Contains(output, "WTP_SHELL_INTEGRATION"),
+				strings.Contains(output, "WTP_SHELL_INTEGRATION"),
 			"Should include cd functionality with --cd flag")
-		
+
 		// Should include completion
 		framework.AssertTrue(t,
 			strings.Contains(output, "complete") ||
-			strings.Contains(output, "compdef"),
+				strings.Contains(output, "compdef"),
 			"Should include completion functionality")
 	})
 
@@ -114,7 +114,7 @@ func TestShellIntegration(t *testing.T) {
 		framework.AssertOutputContains(t, output, "complete")
 		framework.AssertTrue(t,
 			strings.Contains(output, "wtp") ||
-			strings.Contains(output, "_wtp"),
+				strings.Contains(output, "_wtp"),
 			"Should output bash completion script")
 
 		// Test zsh completion
@@ -122,8 +122,8 @@ func TestShellIntegration(t *testing.T) {
 		framework.AssertNoError(t, err)
 		framework.AssertTrue(t,
 			strings.Contains(output, "compdef") ||
-			strings.Contains(output, "#compdef") ||
-			strings.Contains(output, "compadd"),
+				strings.Contains(output, "#compdef") ||
+				strings.Contains(output, "compadd"),
 			"Should output zsh completion script")
 
 		// Test fish completion
@@ -131,7 +131,7 @@ func TestShellIntegration(t *testing.T) {
 		framework.AssertNoError(t, err)
 		framework.AssertTrue(t,
 			strings.Contains(output, "complete") ||
-			strings.Contains(output, "fish"),
+				strings.Contains(output, "fish"),
 			"Should output fish completion script")
 	})
 
@@ -142,10 +142,10 @@ func TestShellIntegration(t *testing.T) {
 		framework.AssertError(t, err)
 		framework.AssertTrue(t,
 			strings.Contains(output, "unsupported") ||
-			strings.Contains(output, "invalid") ||
-			strings.Contains(output, "bash") ||
-			strings.Contains(output, "zsh") ||
-			strings.Contains(output, "fish"),
+				strings.Contains(output, "invalid") ||
+				strings.Contains(output, "bash") ||
+				strings.Contains(output, "zsh") ||
+				strings.Contains(output, "fish"),
 			"Should show error for invalid shell type")
 	})
 }
@@ -159,7 +159,7 @@ func TestShellCompletionBehavior(t *testing.T) {
 		repo.CreateBranch("feature/one")
 		repo.CreateBranch("feature/two")
 		repo.CreateBranch("bugfix/three")
-		
+
 		repo.RunWTP("add", "feature/one")
 		repo.RunWTP("add", "feature/two")
 		repo.RunWTP("add", "bugfix/three")
@@ -192,8 +192,8 @@ func TestShellCompletionBehavior(t *testing.T) {
 			// Should suggest available options
 			framework.AssertTrue(t,
 				strings.Contains(output, "authentication") ||
-				strings.Contains(output, "authorization") ||
-				strings.Contains(output, "Available"),
+					strings.Contains(output, "authorization") ||
+					strings.Contains(output, "Available"),
 				"Should suggest matching worktrees")
 		}
 	})
@@ -217,12 +217,12 @@ func TestShellEnvironment(t *testing.T) {
 			os.Setenv("SHELL", shellPath)
 			output, err := repo.RunWTP("shell-init")
 			os.Unsetenv("SHELL")
-			
+
 			framework.AssertNoError(t, err)
 			framework.AssertTrue(t,
 				strings.Contains(output, shellName) ||
-				strings.Contains(output, "complete") ||
-				strings.Contains(output, "function"),
+					strings.Contains(output, "complete") ||
+					strings.Contains(output, "function"),
 				"Should generate appropriate shell code for "+shellName)
 		}
 	})
@@ -235,15 +235,15 @@ func TestShellEnvironment(t *testing.T) {
 		if err != nil {
 			framework.AssertTrue(t,
 				strings.Contains(output, "not supported") ||
-				strings.Contains(output, "unsupported") ||
-				strings.Contains(output, "bash") ||
-				strings.Contains(output, "zsh"),
+					strings.Contains(output, "unsupported") ||
+					strings.Contains(output, "bash") ||
+					strings.Contains(output, "zsh"),
 				"Should handle PowerShell completion request appropriately")
 		} else {
 			// If supported, should have PowerShell syntax
 			framework.AssertTrue(t,
 				strings.Contains(output, "Register-ArgumentCompleter") ||
-				strings.Contains(output, "param"),
+					strings.Contains(output, "param"),
 				"Should output PowerShell completion if supported")
 		}
 	})

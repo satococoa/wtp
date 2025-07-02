@@ -14,17 +14,17 @@ func TestConfigBaseDirIntegration(t *testing.T) {
 
 	t.Run("AddUsesConfigBaseDir", func(t *testing.T) {
 		repo := env.CreateTestRepo("config-base-dir")
-		
+
 		// Create config with custom base_dir
 		config := `version: 1.0
 defaults:
   base_dir: "../my-custom-worktrees"
 `
 		repo.WriteConfig(config)
-		
+
 		// Verify config file exists
 		framework.AssertFileExists(t, repo, ".wtp.yml")
-		
+
 		repo.CreateBranch("feature/test")
 
 		// Add worktree
@@ -35,7 +35,7 @@ defaults:
 		// Verify worktree was created in custom directory
 		worktrees := repo.ListWorktrees()
 		foundInCustomDir := false
-		
+
 		for _, wt := range worktrees {
 			if strings.Contains(wt, "feature/test") && wt != repo.Path() {
 				// Check if the path contains the custom directory
@@ -45,13 +45,13 @@ defaults:
 				}
 			}
 		}
-		
+
 		framework.AssertTrue(t, foundInCustomDir, "Worktree should be created in custom base_dir")
 	})
 
 	t.Run("RemoveFindsWorktreeRegardlessOfConfig", func(t *testing.T) {
 		repo := env.CreateTestRepo("remove-config-test")
-		
+
 		// Create initial config
 		config := `version: 1.0
 defaults:
@@ -81,7 +81,7 @@ defaults:
 
 	t.Run("ListShowsAllWorktreesRegardlessOfConfig", func(t *testing.T) {
 		repo := env.CreateTestRepo("list-config-test")
-		
+
 		// Create worktrees with different configs
 		config1 := `version: 1.0
 defaults:
@@ -109,7 +109,7 @@ defaults:
 
 	t.Run("ExplicitPathOverridesConfig", func(t *testing.T) {
 		repo := env.CreateTestRepo("explicit-path-test")
-		
+
 		// Create config with base_dir
 		config := `version: 1.0
 defaults:
@@ -126,7 +126,7 @@ defaults:
 
 		// Verify worktree was created at explicit path, not config path
 		framework.AssertWorktreeExists(t, repo, explicitPath)
-		
+
 		// Remove using branch name should still work
 		output, err = repo.RunWTP("remove", "feature/explicit")
 		framework.AssertNoError(t, err)

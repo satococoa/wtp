@@ -119,6 +119,8 @@ func (r *Repository) RemoveWorktree(path string, force bool) error {
 func (r *Repository) ExecuteGitCommand(args ...string) error {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.path
+	// Debug: print the command being executed
+	// fmt.Printf("DEBUG: Executing: git %s\n", strings.Join(args, " "))
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.GitCommandFailed(fmt.Sprintf("git %s", strings.Join(args, " ")), string(output))

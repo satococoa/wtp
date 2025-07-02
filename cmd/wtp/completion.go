@@ -42,6 +42,13 @@ func NewCompletionCommand() *cli.Command {
 				Action:      completionFish,
 			},
 			{
+				Name:  "powershell",
+				Usage: "Generate PowerShell completion script",
+				Action: func(_ context.Context, _ *cli.Command) error {
+					return fmt.Errorf("PowerShell completion is not supported. Supported shells: bash, zsh, fish")
+				},
+			},
+			{
 				Name:   "__branches",
 				Hidden: true,
 				Usage:  "List branches for completion",
@@ -506,37 +513,49 @@ func shellInit(_ context.Context, cmd *cli.Command) error {
 		if includeCd {
 			printBashCdFunction(w)
 		} else {
-			fmt.Fprintln(w, "# Run this command to enable completion for current session:")
+			// Output shell function that sources completion
+			fmt.Fprintln(w, "# wtp shell integration for bash")
+			fmt.Fprintln(w, "# This enables completion for the current session")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "# Load completion")
 			fmt.Fprintln(w, "source <(wtp completion bash)")
-			fmt.Fprintln(w, "\n# To enable cd command integration, run:")
-			fmt.Fprintln(w, "eval \"$(wtp shell-init --cd)\"")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "# Ensure wtp function is available")
+			fmt.Fprintln(w, "command -v wtp >/dev/null 2>&1 || { echo 'wtp command not found'; return 1; }")
 		}
 	case "zsh":
 		if includeCd {
 			printZshCdFunction(w)
 		} else {
-			fmt.Fprintln(w, "# Run this command to enable completion for current session:")
+			// Output shell function that sources completion
+			fmt.Fprintln(w, "# wtp shell integration for zsh")
+			fmt.Fprintln(w, "# This enables completion for the current session")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "# Load completion")
 			fmt.Fprintln(w, "source <(wtp completion zsh)")
-			fmt.Fprintln(w, "\n# To enable cd command integration, run:")
-			fmt.Fprintln(w, "eval \"$(wtp shell-init --cd)\"")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "# Ensure wtp command is available")
+			fmt.Fprintln(w, "command -v wtp >/dev/null 2>&1 || { echo 'wtp command not found'; return 1; }")
 		}
 	case "fish":
 		if includeCd {
 			printFishCdFunction(w)
 		} else {
-			fmt.Fprintln(w, "# Run this command to enable completion for current session:")
+			// Output shell function that sources completion
+			fmt.Fprintln(w, "# wtp shell integration for fish")
+			fmt.Fprintln(w, "# This enables completion for the current session")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "# Load completion")
 			fmt.Fprintln(w, "wtp completion fish | source")
-			fmt.Fprintln(w, "\n# To enable cd command integration, run:")
-			fmt.Fprintln(w, "wtp shell-init --cd | source")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "# Ensure wtp command is available")
+			fmt.Fprintln(w, "command -v wtp >/dev/null 2>&1 || begin; echo 'wtp command not found'; return 1; end")
 		}
 	default:
 		supportedShells := []string{"bash", "zsh", "fish"}
 		return errors.UnsupportedShell(shellName, supportedShells)
 	}
 
-	if !includeCd {
-		fmt.Fprintln(w, "\n# To make it permanent, add the above command to your shell config file")
-	}
 	return nil
 }
 

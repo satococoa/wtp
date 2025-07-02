@@ -140,12 +140,12 @@ func (e *TestEnvironment) TmpDir() string {
 
 func (e *TestEnvironment) CreateNonRepoDir(name string) *TestRepo {
 	e.t.Helper()
-	
+
 	dir := filepath.Join(e.tmpDir, name)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		e.t.Fatalf("Failed to create directory: %v", err)
 	}
-	
+
 	return &TestRepo{
 		env:  e,
 		path: dir,
@@ -179,9 +179,9 @@ type TestRepo struct {
 func (r *TestRepo) RunWTP(args ...string) (string, error) {
 	cmd := exec.Command(r.env.wtpBinary, args...)
 	cmd.Dir = r.path
-	
+
 	cmd.Env = append(os.Environ(), "HOME="+r.env.tmpDir)
-	
+
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -247,7 +247,7 @@ func (r *TestRepo) GetCommitHash() string {
 func (r *TestRepo) ListWorktrees() []string {
 	output := r.env.runInDir(r.path, "git", "worktree", "list", "--porcelain")
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	var worktrees []string
 	for _, line := range lines {
 		if strings.HasPrefix(line, "worktree ") {
