@@ -100,11 +100,31 @@ When implementing new features, always remember to:
    roadmap
 3. **Add Usage Examples**: Include practical examples in the Quick Start section
 4. **Update Help Text**: Ensure command help text reflects new options
-5. **Run Linter First**: ALWAYS run `make lint` and fix ALL issues before
-   committing
-6. **Run Tests**: Always run `make test` to ensure nothing is broken
-7. **Update CLAUDE.md**: Document any new design decisions or architectural
+5. **Format Code**: Run `make fmt` to ensure consistent code formatting
+6. **Run Linter**: ALWAYS run `make lint` and fix ALL issues before committing
+7. **Run Tests**: Always run `make test` to ensure nothing is broken
+8. **Update CLAUDE.md**: Document any new design decisions or architectural
    changes
+
+### Development Workflow
+
+Before committing any changes, always run these commands in order:
+
+```bash
+# 1. Format code
+make fmt
+
+# 2. Check for lint issues
+make lint
+
+# 3. Run tests
+make test
+
+# Or run all checks at once:
+make dev
+```
+
+**Important**: Never commit code that fails any of these checks. The `make dev` command runs all three checks and is the recommended way to verify your changes before committing.
 
 ## Testing Strategy
 
