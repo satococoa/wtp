@@ -78,7 +78,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Setup repository and configuration
-	repo, cfg, err := setupRepoAndConfig()
+	repo, cfg, mainRepoPath, err := setupRepoAndConfig()
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	if cmd.Args().Len() > 0 {
 		firstArg = cmd.Args().Get(0)
 	}
-	workTreePath, branchName := resolveWorktreePath(cfg, repo.Path(), firstArg, cmd)
+	workTreePath, branchName := resolveWorktreePath(cfg, mainRepoPath, firstArg, cmd)
 
 	// Handle branch resolution if needed
 	if err := handleBranchResolution(cmd, repo, branchName); err != nil {
@@ -105,7 +105,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	displaySuccessMessage(branchName, workTreePath)
 
 	// Execute post-create hooks
-	if err := executePostCreateHooks(cfg, repo.Path(), workTreePath); err != nil {
+	if err := executePostCreateHooks(cfg, mainRepoPath, workTreePath); err != nil {
 		return err
 	}
 
@@ -119,15 +119,15 @@ func validateAddInput(cmd *cli.Command) error {
 	return nil
 }
 
-func setupRepoAndConfig() (*git.Repository, *config.Config, error) {
+func setupRepoAndConfig() (*git.Repository, *config.Config, string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return nil, nil, errors.DirectoryAccessFailed("access current", ".", err)
+		return nil, nil, "", errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
 	repo, err := git.NewRepository(cwd)
 	if err != nil {
-		return nil, nil, errors.NotInGitRepository()
+		return nil, nil, "", errors.NotInGitRepository()
 	}
 
 	mainRepoPath, err := repo.GetMainWorktreePath()
@@ -138,10 +138,11 @@ func setupRepoAndConfig() (*git.Repository, *config.Config, error) {
 	cfg, err := config.LoadConfig(mainRepoPath)
 	if err != nil {
 		configPath := mainRepoPath + "/.wtp.yml"
-		return nil, nil, errors.ConfigLoadFailed(configPath, err)
+		return nil, nil, "", errors.ConfigLoadFailed(configPath, err)
 	}
 
-	return repo, cfg, nil
+
+	return repo, cfg, mainRepoPath, nil
 }
 
 func handleBranchResolution(cmd *cli.Command, repo *git.Repository, branchName string) error {

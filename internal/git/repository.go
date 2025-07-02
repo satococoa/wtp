@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/satococoa/wtp/internal/errors"
@@ -38,7 +39,17 @@ func (r *Repository) GetMainWorktreePath() (string, error) {
 
 	// If commonDir ends with .git, get its parent directory
 	if strings.HasSuffix(commonDir, ".git") {
-		return strings.TrimSuffix(commonDir, "/.git"), nil
+		// Get the parent directory of .git
+		parent := filepath.Dir(commonDir)
+		// Convert to absolute path if needed
+		if !filepath.IsAbs(parent) {
+			absPath, err := filepath.Abs(filepath.Join(r.path, parent))
+			if err != nil {
+				return "", fmt.Errorf("failed to get absolute path: %w", err)
+			}
+			return absPath, nil
+		}
+		return parent, nil
 	}
 
 	// For older git versions or different configurations

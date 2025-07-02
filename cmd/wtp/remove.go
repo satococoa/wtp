@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -69,30 +68,35 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 		return errors.NotInGitRepository()
 	}
 
-	// Get main repository path for config loading
-	mainRepoPath, err := repo.GetMainWorktreePath()
+	// Get list of worktrees to find the one with matching branch
+	worktrees, err := repo.GetWorktrees()
 	if err != nil {
-		// Fallback to current repository path if we can't determine main repo
-		mainRepoPath = repo.Path()
+		return errors.GitCommandFailed("git worktree list", err.Error())
 	}
 
-	// Load configuration from main repository
-	cfg, err := config.LoadConfig(mainRepoPath)
-	if err != nil {
-		configPath := mainRepoPath + "/.wtp.yml"
-		return errors.ConfigLoadFailed(configPath, err)
+	// Find worktree by branch name
+	var targetWorktree *git.Worktree
+	var availableBranches []string
+	for _, wt := range worktrees {
+		if wt.Branch != "" {
+			availableBranches = append(availableBranches, wt.Branch)
+		}
+		if wt.Branch == branchName {
+			targetWorktree = &wt
+			break
+		}
 	}
 
-	// Resolve worktree path using configuration
-	// Use branch name as worktree name
-	workTreePath := cfg.ResolveWorktreePath(repo.Path(), branchName)
-
-	// Remove worktree
-	if err := repo.RemoveWorktree(workTreePath, force); err != nil {
-		return errors.WorktreeRemovalFailed(workTreePath, err)
+	if targetWorktree == nil {
+		return errors.WorktreeNotFound(branchName, availableBranches)
 	}
 
-	fmt.Printf("Removed worktree '%s' at %s\n", branchName, workTreePath)
+	// Remove worktree using the actual path from git
+	if err := repo.RemoveWorktree(targetWorktree.Path, force); err != nil {
+		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
+	}
+
+	fmt.Printf("Removed worktree '%s' at %s\n", branchName, targetWorktree.Path)
 
 	// Remove branch if requested
 	if withBranch {
