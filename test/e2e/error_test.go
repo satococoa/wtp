@@ -7,7 +7,6 @@ import (
 	"github.com/satococoa/wtp/test/e2e/framework"
 )
 
-//nolint:gocyclo
 func TestErrorMessages(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
@@ -107,6 +106,11 @@ func TestErrorMessages(t *testing.T) {
 		// Should suggest --track flag
 		framework.AssertOutputContains(t, output, "--track")
 	})
+}
+
+func TestErrorMessagesValidation(t *testing.T) {
+	env := framework.NewTestEnvironment(t)
+	defer env.Cleanup()
 
 	t.Run("InvalidBranchName", func(t *testing.T) {
 		repo := env.CreateTestRepo("error-invalid-branch")

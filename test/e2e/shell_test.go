@@ -8,7 +8,6 @@ import (
 	"github.com/satococoa/wtp/test/e2e/framework"
 )
 
-//nolint:gocyclo
 func TestShellIntegration(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
@@ -105,11 +104,15 @@ func TestShellIntegration(t *testing.T) {
 				strings.Contains(output, "compdef"),
 			"Should include completion functionality")
 	})
+}
 
-	t.Run("CompletionCommand", func(t *testing.T) {
-		repo := env.CreateTestRepo("shell-completion")
+func TestShellCompletionCommands(t *testing.T) {
+	env := framework.NewTestEnvironment(t)
+	defer env.Cleanup()
 
-		// Test bash completion
+	t.Run("BashCompletion", func(t *testing.T) {
+		repo := env.CreateTestRepo("shell-completion-bash")
+
 		output, err := repo.RunWTP("completion", "bash")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "complete")
@@ -117,18 +120,24 @@ func TestShellIntegration(t *testing.T) {
 			strings.Contains(output, "wtp") ||
 				strings.Contains(output, "_wtp"),
 			"Should output bash completion script")
+	})
 
-		// Test zsh completion
-		output, err = repo.RunWTP("completion", "zsh")
+	t.Run("ZshCompletion", func(t *testing.T) {
+		repo := env.CreateTestRepo("shell-completion-zsh")
+
+		output, err := repo.RunWTP("completion", "zsh")
 		framework.AssertNoError(t, err)
 		framework.AssertTrue(t,
 			strings.Contains(output, "compdef") ||
 				strings.Contains(output, "#compdef") ||
 				strings.Contains(output, "compadd"),
 			"Should output zsh completion script")
+	})
 
-		// Test fish completion
-		output, err = repo.RunWTP("completion", "fish")
+	t.Run("FishCompletion", func(t *testing.T) {
+		repo := env.CreateTestRepo("shell-completion-fish")
+
+		output, err := repo.RunWTP("completion", "fish")
 		framework.AssertNoError(t, err)
 		framework.AssertTrue(t,
 			strings.Contains(output, "complete") ||
@@ -136,7 +145,7 @@ func TestShellIntegration(t *testing.T) {
 			"Should output fish completion script")
 	})
 
-	t.Run("CompletionInvalidShell", func(t *testing.T) {
+	t.Run("InvalidShell", func(t *testing.T) {
 		repo := env.CreateTestRepo("shell-completion-invalid")
 
 		output, err := repo.RunWTP("completion", "invalid-shell")
