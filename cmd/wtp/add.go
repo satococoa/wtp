@@ -19,7 +19,7 @@ func NewAddCommand() *cli.Command {
 		Usage:     "Create a new worktree",
 		UsageText: "wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
-			"but exists on a remote, it will be automatically tracked. Supports all git worktree flags.\n\n" +
+			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
 			"  wtp add feature/auth                    # Auto-generate path: ../worktrees/feature/auth\n" +
 			"  wtp add --path /tmp/test feature/auth   # Use explicit path\n" +
@@ -39,22 +39,6 @@ func NewAddCommand() *cli.Command {
 			&cli.BoolFlag{
 				Name:  "detach",
 				Usage: "Make the new worktree's HEAD detached",
-			},
-			&cli.BoolFlag{
-				Name:  "checkout",
-				Usage: "Populate the new worktree (default)",
-			},
-			&cli.BoolFlag{
-				Name:  "lock",
-				Usage: "Keep the new worktree locked",
-			},
-			&cli.StringFlag{
-				Name:  "reason",
-				Usage: "Reason for locking",
-			},
-			&cli.BoolFlag{
-				Name:  "orphan",
-				Usage: "Create orphan branch in new worktree",
 			},
 			&cli.StringFlag{
 				Name:    "branch",
@@ -233,18 +217,6 @@ func appendBasicFlags(args []string, cmd *cli.Command) []string {
 	}
 	if cmd.Bool("detach") {
 		args = append(args, "--detach")
-	}
-	if cmd.Bool("checkout") {
-		args = append(args, "--checkout")
-	}
-	if cmd.Bool("lock") {
-		args = append(args, "--lock")
-	}
-	if reason := cmd.String("reason"); reason != "" {
-		args = append(args, "--reason", reason)
-	}
-	if cmd.Bool("orphan") {
-		args = append(args, "--orphan")
 	}
 	return args
 }
