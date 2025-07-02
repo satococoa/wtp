@@ -7,6 +7,7 @@ import (
 	"github.com/satococoa/wtp/test/e2e/framework"
 )
 
+//nolint:gocyclo
 func TestErrorMessages(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
@@ -142,7 +143,7 @@ func TestErrorMessages(t *testing.T) {
 	t.Run("CDWithoutShellIntegration", func(t *testing.T) {
 		repo := env.CreateTestRepo("error-cd-no-shell")
 		repo.CreateBranch("test-branch")
-		repo.RunWTP("add", "test-branch")
+		_, _ = repo.RunWTP("add", "test-branch")
 
 		// Run cd command without shell integration
 		output, err := repo.RunWTP("cd", "test-branch")

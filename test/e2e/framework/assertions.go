@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func AssertWorktreeCreated(t *testing.T, output string, branch string) {
+func AssertWorktreeCreated(t *testing.T, output, branch string) {
 	t.Helper()
 	if !strings.Contains(output, "Created worktree") && !strings.Contains(output, "Preparing worktree") {
 		t.Errorf("Expected worktree creation message, got: %s", output)
@@ -26,7 +26,7 @@ func AssertErrorContains(t *testing.T, err error, expected string) {
 	}
 }
 
-func AssertOutputContains(t *testing.T, output string, expected string) {
+func AssertOutputContains(t *testing.T, output, expected string) {
 	t.Helper()
 	if !strings.Contains(output, expected) {
 		t.Errorf("Expected output containing '%s', got: %s", expected, output)
@@ -97,7 +97,7 @@ func AssertFileNotExists(t *testing.T, repo *TestRepo, path string) {
 	}
 }
 
-func AssertFileContains(t *testing.T, repo *TestRepo, path string, content string) {
+func AssertFileContains(t *testing.T, repo *TestRepo, path, content string) {
 	t.Helper()
 	if !repo.HasFile(path) {
 		t.Errorf("File '%s' does not exist", path)

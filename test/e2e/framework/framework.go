@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	dirPerm  = 0755
+	filePerm = 0600
+)
+
 type TestEnvironment struct {
 	t         *testing.T
 	tmpDir    string
@@ -119,16 +124,17 @@ func (e *TestEnvironment) writeFile(path, content string) {
 	e.t.Helper()
 
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, dirPerm); err != nil {
 		e.t.Fatalf("Failed to create directory %s: %v", dir, err)
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(content), filePerm); err != nil {
 		e.t.Fatalf("Failed to write file %s: %v", path, err)
 	}
 }
 
 func (e *TestEnvironment) RunWTP(args ...string) (string, error) {
+	// #nosec G204 - This is test code with controlled inputs
 	cmd := exec.Command(e.wtpBinary, args...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
@@ -142,7 +148,7 @@ func (e *TestEnvironment) CreateNonRepoDir(name string) *TestRepo {
 	e.t.Helper()
 
 	dir := filepath.Join(e.tmpDir, name)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, dirPerm); err != nil {
 		e.t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -177,6 +183,7 @@ type TestRepo struct {
 }
 
 func (r *TestRepo) RunWTP(args ...string) (string, error) {
+	// #nosec G204 - This is test code with controlled inputs
 	cmd := exec.Command(r.env.wtpBinary, args...)
 	cmd.Dir = r.path
 
@@ -196,7 +203,7 @@ func (r *TestRepo) AddRemote(name, url string) {
 
 func (r *TestRepo) CreateRemoteBranch(remote, branch string) {
 	refPath := filepath.Join(r.path, ".git", "refs", "remotes", remote)
-	if err := os.MkdirAll(refPath, 0755); err != nil {
+	if err := os.MkdirAll(refPath, dirPerm); err != nil {
 		r.env.t.Fatalf("Failed to create remote ref directory: %v", err)
 	}
 
@@ -261,11 +268,11 @@ func WithTimeout(timeout time.Duration) func(cmd *exec.Cmd) {
 	return func(cmd *exec.Cmd) {
 		timer := time.AfterFunc(timeout, func() {
 			if cmd.Process != nil {
-				cmd.Process.Kill()
+				_ = cmd.Process.Kill()
 			}
 		})
-		cmd.Start()
-		cmd.Wait()
+		_ = cmd.Start()
+		_ = cmd.Wait()
 		timer.Stop()
 	}
 }

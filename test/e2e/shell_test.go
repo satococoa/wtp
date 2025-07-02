@@ -8,6 +8,7 @@ import (
 	"github.com/satococoa/wtp/test/e2e/framework"
 )
 
+//nolint:gocyclo
 func TestShellIntegration(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
@@ -15,7 +16,7 @@ func TestShellIntegration(t *testing.T) {
 	t.Run("CDCommandWithoutIntegration", func(t *testing.T) {
 		repo := env.CreateTestRepo("shell-cd-without")
 		repo.CreateBranch("test-branch")
-		repo.RunWTP("add", "test-branch")
+		_, _ = repo.RunWTP("add", "test-branch")
 
 		// Try cd without shell integration
 		output, err := repo.RunWTP("cd", "test-branch")
@@ -34,7 +35,7 @@ func TestShellIntegration(t *testing.T) {
 	t.Run("CDCommandWithIntegration", func(t *testing.T) {
 		repo := env.CreateTestRepo("shell-cd-with")
 		repo.CreateBranch("feature/test")
-		repo.RunWTP("add", "feature/test")
+		_, _ = repo.RunWTP("add", "feature/test")
 
 		// Simulate shell integration environment
 		os.Setenv("WTP_SHELL_INTEGRATION", "1")
@@ -160,9 +161,9 @@ func TestShellCompletionBehavior(t *testing.T) {
 		repo.CreateBranch("feature/two")
 		repo.CreateBranch("bugfix/three")
 
-		repo.RunWTP("add", "feature/one")
-		repo.RunWTP("add", "feature/two")
-		repo.RunWTP("add", "bugfix/three")
+		_, _ = repo.RunWTP("add", "feature/one")
+		_, _ = repo.RunWTP("add", "feature/two")
+		_, _ = repo.RunWTP("add", "bugfix/three")
 
 		// Simulate shell integration for cd command
 		os.Setenv("WTP_SHELL_INTEGRATION", "1")
@@ -180,8 +181,8 @@ func TestShellCompletionBehavior(t *testing.T) {
 		repo := env.CreateTestRepo("cd-partial")
 		repo.CreateBranch("feature/authentication")
 		repo.CreateBranch("feature/authorization")
-		repo.RunWTP("add", "feature/authentication")
-		repo.RunWTP("add", "feature/authorization")
+		_, _ = repo.RunWTP("add", "feature/authentication")
+		_, _ = repo.RunWTP("add", "feature/authorization")
 
 		os.Setenv("WTP_SHELL_INTEGRATION", "1")
 		defer os.Unsetenv("WTP_SHELL_INTEGRATION")

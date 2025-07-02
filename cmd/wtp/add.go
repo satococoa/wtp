@@ -210,7 +210,24 @@ func resolveWorktreePath(
 func buildGitWorktreeArgs(cmd *cli.Command, workTreePath, branchName string) []string {
 	args := []string{"worktree", "add"}
 
-	// Add flags (excluding our custom --path flag)
+	// Add basic flags
+	args = appendBasicFlags(args, cmd)
+
+	// Handle branch and track flags
+	track := cmd.String("track")
+	branch := cmd.String("branch")
+	args = appendBranchAndTrackFlags(args, branch, track, branchName, cmd.Bool("detach"))
+
+	// Add worktree path
+	args = append(args, workTreePath)
+
+	// Handle positional arguments
+	args = appendPositionalArgs(args, cmd, branch, track, branchName)
+
+	return args
+}
+
+func appendBasicFlags(args []string, cmd *cli.Command) []string {
 	if cmd.Bool("force") {
 		args = append(args, "--force")
 	}
@@ -229,18 +246,16 @@ func buildGitWorktreeArgs(cmd *cli.Command, workTreePath, branchName string) []s
 	if cmd.Bool("orphan") {
 		args = append(args, "--orphan")
 	}
+	return args
+}
 
-	// Handle branch and track flags
-	track := cmd.String("track")
-	branch := cmd.String("branch")
-
-	// Handle branch and track flags together
+func appendBranchAndTrackFlags(args []string, branch, track, branchName string, isDetached bool) []string {
 	if branch != "" {
 		args = append(args, "-b", branch)
 	}
 
 	// If tracking a remote branch and no explicit -b flag, add -b automatically
-	if track != "" && branch == "" && !cmd.Bool("detach") {
+	if track != "" && branch == "" && !isDetached {
 		// When tracking remote branch, we need to create local branch with -b
 		args = append(args, "--track", "-b", branchName)
 	} else if track != "" {
@@ -248,41 +263,48 @@ func buildGitWorktreeArgs(cmd *cli.Command, workTreePath, branchName string) []s
 		args = append(args, "--track")
 	}
 
-	// Add worktree path
-	args = append(args, workTreePath)
+	return args
+}
 
-	// Handle arguments based on whether explicit path was specified
+func appendPositionalArgs(args []string, cmd *cli.Command, branch, track, branchName string) []string {
 	if cmd.String("path") != "" {
-		// Explicit path case: first arg is branch name, add remaining args
-		// Only add branch name if not using -b flag (to avoid duplication)
-		if branch == "" && track == "" {
-			args = append(args, branchName)
-		} else if track != "" && branch == "" {
-			// When tracking with -b, need to specify the remote branch
-			args = append(args, track)
-		}
-		if cmd.Args().Len() > 1 {
-			args = append(args, cmd.Args().Slice()[1:]...)
-		}
-	} else {
-		// Auto-generated path case
-		if cmd.String("branch") != "" {
-			// Using -b flag: first arg (if any) is the commit-ish to branch from
-			if cmd.Args().Len() > 0 {
-				args = append(args, cmd.Args().Get(0))
-			}
-		} else if track != "" && branch == "" && !cmd.Bool("detach") {
-			// When auto-tracking remote branch, need to specify remote branch as commit-ish
-			args = append(args, track)
-		} else if track == "" {
-			// No -b flag and no --track: first arg is branch name
-			args = append(args, branchName)
-		}
-		// Add any additional arguments (for certain cases)
-		if cmd.Args().Len() > 1 && branch == "" && track == "" {
-			args = append(args, cmd.Args().Slice()[1:]...)
-		}
+		// Explicit path case
+		return appendExplicitPathArgs(args, cmd, branch, track, branchName)
 	}
+	// Auto-generated path case
+	return appendAutoPathArgs(args, cmd, branch, track, branchName)
+}
 
+func appendExplicitPathArgs(args []string, cmd *cli.Command, branch, track, branchName string) []string {
+	// Only add branch name if not using -b flag (to avoid duplication)
+	if branch == "" && track == "" {
+		args = append(args, branchName)
+	} else if track != "" && branch == "" {
+		// When tracking with -b, need to specify the remote branch
+		args = append(args, track)
+	}
+	if cmd.Args().Len() > 1 {
+		args = append(args, cmd.Args().Slice()[1:]...)
+	}
+	return args
+}
+
+func appendAutoPathArgs(args []string, cmd *cli.Command, branch, track, branchName string) []string {
+	if branch != "" {
+		// Using -b flag: first arg (if any) is the commit-ish to branch from
+		if cmd.Args().Len() > 0 {
+			args = append(args, cmd.Args().Get(0))
+		}
+	} else if track != "" && branch == "" && !cmd.Bool("detach") {
+		// When auto-tracking remote branch, need to specify remote branch as commit-ish
+		args = append(args, track)
+	} else if track == "" {
+		// No -b flag and no --track: first arg is branch name
+		args = append(args, branchName)
+	}
+	// Add any additional arguments (for certain cases)
+	if cmd.Args().Len() > 1 && branch == "" && track == "" {
+		args = append(args, cmd.Args().Slice()[1:]...)
+	}
 	return args
 }

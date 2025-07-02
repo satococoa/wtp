@@ -43,9 +43,9 @@ func (r *Repository) GetMainWorktreePath() (string, error) {
 		parent := filepath.Dir(commonDir)
 		// Convert to absolute path if needed
 		if !filepath.IsAbs(parent) {
-			absPath, err := filepath.Abs(filepath.Join(r.path, parent))
-			if err != nil {
-				return "", fmt.Errorf("failed to get absolute path: %w", err)
+			absPath, absErr := filepath.Abs(filepath.Join(r.path, parent))
+			if absErr != nil {
+				return "", fmt.Errorf("failed to get absolute path: %w", absErr)
 			}
 			return absPath, nil
 		}

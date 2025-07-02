@@ -156,7 +156,9 @@ func TestTrackFlagBehavior(t *testing.T) {
 		// --track should fail without remote branch
 		output, err := repo.RunWTP("add", "--track", "origin/nonexistent", "local-branch")
 		framework.AssertError(t, err)
-		framework.AssertTrue(t, strings.Contains(output, "failed") || strings.Contains(output, "error"), "Should fail when tracking non-existent remote")
+		framework.AssertTrue(t,
+			strings.Contains(output, "failed") || strings.Contains(output, "error"),
+			"Should fail when tracking non-existent remote")
 	})
 
 	t.Run("TrackDifferentBranchName", func(t *testing.T) {

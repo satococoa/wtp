@@ -89,7 +89,7 @@ defaults:
 `
 		repo.WriteConfig(config1)
 		repo.CreateBranch("feature/a")
-		repo.RunWTP("add", "feature/a")
+		_, _ = repo.RunWTP("add", "feature/a")
 
 		config2 := `version: 1.0
 defaults:
@@ -97,7 +97,7 @@ defaults:
 `
 		repo.WriteConfig(config2)
 		repo.CreateBranch("feature/b")
-		repo.RunWTP("add", "feature/b")
+		_, _ = repo.RunWTP("add", "feature/b")
 
 		// List should show all worktrees
 		output, err := repo.RunWTP("list")
