@@ -211,45 +211,24 @@ Shell completions are automatically installed and should work immediately! No ma
 
 #### Manual Setup
 
-If you installed wtp manually:
-
-##### For shell completion only:
+If you installed wtp manually, add the following to your shell configuration file:
 
 ```bash
 # Bash: Add to ~/.bashrc
-source <(wtp completion bash)
+eval "$(wtp completion bash)"
 
 # Zsh: Add to ~/.zshrc
-source <(wtp completion zsh)
+eval "$(wtp completion zsh)"
 
 # Fish: Add to ~/.config/fish/config.fish
 wtp completion fish | source
 ```
 
-##### For full integration (completion + cd command):
-
-```bash
-# Bash: Add to ~/.bashrc
-eval "$(wtp shell-init --cd)"
-
-# Zsh: Add to ~/.zshrc
-eval "$(wtp shell-init --cd)"
-
-# Fish: Add to ~/.config/fish/config.fish
-wtp shell-init --cd | source
-```
-
-#### One-time Setup Helper
-
-For convenience, wtp can show the exact commands for your current shell:
-
-```bash
-# Show completion setup
-wtp shell-init
-
-# Show full integration setup (with cd command)
-wtp shell-init --cd
-```
+This enables:
+- Tab completion for all wtp commands, flags, and options
+- Branch name completion for `wtp add` and `wtp remove`
+- Worktree name completion for `wtp cd`
+- The `wtp cd` command for quick navigation to worktrees
 
 ### Using the cd Command
 

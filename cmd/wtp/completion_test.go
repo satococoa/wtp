@@ -31,18 +31,6 @@ func TestNewCompletionCommand(t *testing.T) {
 	}
 }
 
-func TestNewShellInitCommand(t *testing.T) {
-	cmd := NewShellInitCommand()
-	if cmd == nil {
-		t.Fatal("NewShellInitCommand() returned nil")
-	}
-	if cmd.Name != "shell-init" {
-		t.Errorf("Expected command name 'shell-init', got '%s'", cmd.Name)
-	}
-	if cmd.Action == nil {
-		t.Error("Shell-init command has no action")
-	}
-}
 
 func TestCompletionFunctions(t *testing.T) {
 	t.Run("completionBash", func(t *testing.T) {

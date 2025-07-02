@@ -3,13 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
-	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -21,7 +18,7 @@ func NewCompletionCommand() *cli.Command {
 		Usage: "Generate shell completion script",
 		Description: "Generate shell completion scripts for bash, zsh, or fish. " +
 			"The generated scripts provide comprehensive completion for commands, flags, " +
-			"branch names, worktree names, and flag values.",
+			"branch names, worktree names, and also include the 'wtp cd' command integration.",
 		Commands: []*cli.Command{
 			{
 				Name:        "bash",
@@ -70,28 +67,11 @@ func NewCompletionCommand() *cli.Command {
 	}
 }
 
-// NewShellInitCommand creates the shell-init command definition
-func NewShellInitCommand() *cli.Command {
-	return &cli.Command{
-		Name:  "shell-init",
-		Usage: "Initialize shell integration for current session",
-		Description: "Generate shell integration scripts for completion and cd command.\n" +
-			"Use --cd flag to enable the 'wtp cd' command functionality.",
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "cd",
-				Usage: "Include cd command integration",
-			},
-		},
-		Action: shellInit,
-	}
-}
-
 func completionBash(_ context.Context, _ *cli.Command) error {
 	fmt.Println(`#!/bin/bash
-# wtp bash completion script
+# wtp bash completion script with cd integration
 # Add this to your ~/.bashrc or ~/.bash_profile:
-# source <(wtp completion bash)
+# eval "$(wtp completion bash)"
 
 _wtp_completion() {
     local cur prev words cword
@@ -287,15 +267,34 @@ _wtp_completion() {
     esac
 }
 
-complete -F _wtp_completion wtp`)
+complete -F _wtp_completion wtp
+
+# wtp cd command integration
+wtp() {
+    if [[ "$1" == "cd" ]]; then
+        if [[ -z "$2" ]]; then
+            command wtp cd
+            return
+        fi
+        local target_dir
+        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
+        if [[ $? -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        else
+            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
+        fi
+    else
+        command wtp "$@"
+    fi
+}`)
 	return nil
 }
 
 func completionZsh(_ context.Context, _ *cli.Command) error {
 	fmt.Println(`#compdef wtp
-# wtp zsh completion script
+# wtp zsh completion script with cd integration
 # Add this to your ~/.zshrc:
-# source <(wtp completion zsh)
+# eval "$(wtp completion zsh)"
 
 _wtp() {
     local context state line
@@ -481,7 +480,26 @@ _wtp_branches_except_first() {
 
 if [ -n "$ZSH_VERSION" ]; then
     compdef _wtp wtp
-fi`)
+fi
+
+# wtp cd command integration
+wtp() {
+    if [[ "$1" == "cd" ]]; then
+        if [[ -z "$2" ]]; then
+            command wtp cd
+            return
+        fi
+        local target_dir
+        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
+        if [[ $? -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        else
+            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
+        fi
+    else
+        command wtp "$@"
+    fi
+}`)
 	return nil
 }
 
@@ -492,51 +510,29 @@ func completionFish(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	fmt.Println(fish)
+	
+	// Add cd command integration
+	fmt.Println(`
+# wtp cd command integration
+function wtp
+    if test "$argv[1]" = "cd"
+        if test -z "$argv[2]"
+            command wtp cd
+            return
+        end
+        set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2] 2>/dev/null)
+        if test $status -eq 0 -a -n "$target_dir"
+            cd $target_dir
+        else
+            env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
+        end
+    else
+        command wtp $argv
+    end
+end`)
 	return nil
 }
 
-// shellInit outputs shell initialization commands for the current shell
-func shellInit(_ context.Context, cmd *cli.Command) error {
-	// Detect current shell
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		return fmt.Errorf("unable to detect shell from $SHELL environment variable")
-	}
-
-	// Extract shell name from path
-	shellName := filepath.Base(shell)
-	includeCd := cmd.Bool("cd")
-	w := cmd.Root().Writer
-
-	switch shellName {
-	case "bash":
-		if includeCd {
-			printBashCdFunction(w)
-		} else {
-			// Output the actual completion script
-			_ = completionBash(context.TODO(), nil)
-		}
-	case "zsh":
-		if includeCd {
-			printZshCdFunction(w)
-		} else {
-			// Output the actual completion script
-			_ = completionZsh(context.TODO(), nil)
-		}
-	case "fish":
-		if includeCd {
-			printFishCdFunction(w)
-		} else {
-			// Output the actual completion script
-			_ = completionFish(context.TODO(), cmd)
-		}
-	default:
-		supportedShells := []string{"bash", "zsh", "fish"}
-		return errors.UnsupportedShell(shellName, supportedShells)
-	}
-
-	return nil
-}
 
 // completeBranches provides branch name completion
 func completeBranches(_ context.Context, _ *cli.Command) {
@@ -625,96 +621,3 @@ func printWorktrees() {
 	}
 }
 
-// printBashCdFunction prints the bash shell function for cd command
-func printBashCdFunction(w io.Writer) {
-	fmt.Fprintln(w, `# wtp cd command integration for bash
-# Add this to your ~/.bashrc or ~/.bash_profile:
-# eval "$(wtp shell-init --cd)"
-
-# Enable completion
-source <(wtp completion bash)
-
-# Define the cd function
-wtp() {
-    if [[ "$1" == "cd" ]]; then
-        if [[ -z "$2" ]]; then
-            command wtp cd
-            return
-        fi
-        local target_dir
-        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
-        if [[ $? -eq 0 && -n "$target_dir" ]]; then
-            cd "$target_dir"
-        else
-            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
-        fi
-    else
-        command wtp "$@"
-    fi
-}
-
-# Preserve completion
-complete -F _wtp_completion wtp`)
-}
-
-// printZshCdFunction prints the zsh shell function for cd command
-func printZshCdFunction(w io.Writer) {
-	fmt.Fprintln(w, `# wtp cd command integration for zsh
-# Add this to your ~/.zshrc:
-# eval "$(wtp shell-init --cd)"
-
-# Enable completion
-source <(wtp completion zsh)
-
-# Define the cd function
-wtp() {
-    if [[ "$1" == "cd" ]]; then
-        if [[ -z "$2" ]]; then
-            command wtp cd
-            return
-        fi
-        local target_dir
-        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
-        if [[ $? -eq 0 && -n "$target_dir" ]]; then
-            cd "$target_dir"
-        else
-            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
-        fi
-    else
-        command wtp "$@"
-    fi
-}
-
-# Ensure completion is set up
-if [ -n "$ZSH_VERSION" ]; then
-    compdef _wtp wtp
-fi`)
-}
-
-// printFishCdFunction prints the fish shell function for cd command
-func printFishCdFunction(w io.Writer) {
-	fmt.Fprintln(w, `# wtp cd command integration for fish
-# Add this to your ~/.config/fish/config.fish:
-# wtp shell-init --cd | source
-
-# Enable completion
-wtp completion fish | source
-
-# Define the cd function
-function wtp
-    if test "$argv[1]" = "cd"
-        if test -z "$argv[2]"
-            command wtp cd
-            return
-        end
-        set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2] 2>/dev/null)
-        if test $status -eq 0 -a -n "$target_dir"
-            cd $target_dir
-        else
-            env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
-        end
-    else
-        command wtp $argv
-    end
-end`)
-}

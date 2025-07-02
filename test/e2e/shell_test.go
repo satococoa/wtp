@@ -71,39 +71,6 @@ func TestShellIntegration(t *testing.T) {
 			"Should show helpful error for non-existent worktree")
 	})
 
-	t.Run("ShellInitCommand", func(t *testing.T) {
-		repo := env.CreateTestRepo("shell-init")
-
-		output, err := repo.RunWTP("shell-init")
-		framework.AssertNoError(t, err)
-
-		// Should output shell functions
-		framework.AssertTrue(t,
-			strings.Contains(output, "function") ||
-				strings.Contains(output, "wtp()") ||
-				strings.Contains(output, "complete") ||
-				strings.Contains(output, "compdef"),
-			"Should output shell integration code")
-	})
-
-	t.Run("ShellInitWithCDFlag", func(t *testing.T) {
-		repo := env.CreateTestRepo("shell-init-cd")
-
-		output, err := repo.RunWTP("shell-init", "--cd")
-		framework.AssertNoError(t, err)
-
-		// Should include cd functionality
-		framework.AssertTrue(t,
-			strings.Contains(output, "cd") ||
-				strings.Contains(output, "WTP_SHELL_INTEGRATION"),
-			"Should include cd functionality with --cd flag")
-
-		// Should include completion
-		framework.AssertTrue(t,
-			strings.Contains(output, "complete") ||
-				strings.Contains(output, "compdef"),
-			"Should include completion functionality")
-	})
 }
 
 func TestShellCompletionCommands(t *testing.T) {
@@ -213,29 +180,6 @@ func TestShellEnvironment(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	t.Run("ShellDetection", func(t *testing.T) {
-		repo := env.CreateTestRepo("shell-detection")
-
-		// Test with different SHELL env vars
-		shells := map[string]string{
-			"/bin/bash":     "bash",
-			"/usr/bin/zsh":  "zsh",
-			"/usr/bin/fish": "fish",
-		}
-
-		for shellPath, shellName := range shells {
-			os.Setenv("SHELL", shellPath)
-			output, err := repo.RunWTP("shell-init")
-			os.Unsetenv("SHELL")
-
-			framework.AssertNoError(t, err)
-			framework.AssertTrue(t,
-				strings.Contains(output, shellName) ||
-					strings.Contains(output, "complete") ||
-					strings.Contains(output, "function"),
-				"Should generate appropriate shell code for "+shellName)
-		}
-	})
 
 	t.Run("PowerShellCompletion", func(t *testing.T) {
 		repo := env.CreateTestRepo("powershell-completion")

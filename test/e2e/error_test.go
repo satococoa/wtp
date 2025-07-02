@@ -158,7 +158,7 @@ func TestErrorMessagesValidation(t *testing.T) {
 		// Should provide setup instructions
 		framework.AssertTrue(t,
 			strings.Contains(output, "eval") ||
-				strings.Contains(output, "shell-init") ||
+				strings.Contains(output, "completion") ||
 				strings.Contains(output, "Setup:"),
 			"Should provide shell integration setup instructions")
 	})

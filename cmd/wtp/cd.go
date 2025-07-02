@@ -19,9 +19,9 @@ func NewCdCommand() *cli.Command {
 		Description: "Change the current working directory to the specified worktree. " +
 			"This command requires shell integration to be set up first.\n\n" +
 			"To enable shell integration, add the following to your shell config:\n" +
-			"  Bash: eval \"$(wtp shell-init --cd)\"\n" +
-			"  Zsh:  eval \"$(wtp shell-init --cd)\"\n" +
-			"  Fish: wtp shell-init --cd | source",
+			"  Bash: eval \"$(wtp completion bash)\"\n" +
+			"  Zsh:  eval \"$(wtp completion zsh)\"\n" +
+			"  Fish: wtp completion fish | source",
 		ArgsUsage: "<worktree-name>",
 		Action:    cdToWorktree,
 	}
