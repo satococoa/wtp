@@ -1,4 +1,4 @@
-.PHONY: build test lint clean install dev release-test
+.PHONY: build test test-coverage test-e2e lint clean install dev release-test release deps fmt verify help
 
 # Build variables
 BINARY_NAME = wtp
@@ -39,6 +39,11 @@ test-coverage: test
 	@echo "Generating coverage report..."
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
+
+# Run E2E tests
+test-e2e: build
+	@echo "Running E2E tests..."
+	WTP_E2E_BINARY=$(PWD)/$(BINARY_NAME) go test -v -race -timeout 10m ./test/e2e/...
 
 # Run linter
 lint:
@@ -96,6 +101,7 @@ help:
 	@echo "  build-all    - Build for all platforms"
 	@echo "  test         - Run tests"
 	@echo "  test-coverage- Run tests with coverage report"
+	@echo "  test-e2e     - Run E2E tests"
 	@echo "  lint         - Run linter"
 	@echo "  clean        - Clean build artifacts"
 	@echo "  install      - Install to GOPATH/bin"
