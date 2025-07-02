@@ -55,8 +55,8 @@ archives:
       - LICENSE
       - CONTRIBUTING.md
       - src: dist/completions/*
-      dst: completions
-      strip_parent: true
+        dst: completions
+        strip_parent: true
 
 checksum:
   name_template: 'checksums.txt'
