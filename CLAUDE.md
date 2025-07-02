@@ -394,6 +394,53 @@ unambiguous behavior.
 
 **Testing**: All tests pass, explicit path logic verified
 
+### 2025-01: E2E Test Fixes and Lint Improvements
+
+**Background**: Several e2e tests were failing and there were multiple lint issues that needed to be resolved without using suppression directives.
+
+**Issues Fixed**:
+
+1. **Shell-init Command Test Failures**:
+   - Tests expected shell-init to output actual completion scripts
+   - Fixed by changing shell-init to output the full completion script instead of just source commands
+   - Added proper `compdef` for zsh to ensure completion functionality
+
+2. **Invalid Branch Name Test**:
+   - Test framework's `validateArg` was blocking `{` and `}` characters
+   - These characters are valid in git branch names (e.g., `branch@{upstream}`)
+   - Updated validation to allow these characters
+
+3. **TrackWithDetach Test**:
+   - Test expected `--track` with `--detach` to work
+   - Git doesn't allow this combination: "fatal: --[no-]track can only be used if a new branch is created"
+   - Updated test to expect an error, matching git's actual behavior
+
+4. **Error Output Capture**:
+   - Changed from `log.Fatal` to `fmt.Fprintf(os.Stderr, ...)` for proper error capture
+   - Ensures test framework can capture error messages via CombinedOutput()
+
+5. **Lint Issues Resolved**:
+   - Fixed nil context warnings by using `context.TODO()`
+   - Resolved gosec G204 warnings by refactoring exec.Command usage
+   - Created `createSafeCommand` helper function to separate validation from execution
+   - All fixes done without using `//nolint` or `#nosec` directives
+
+**Key Learnings**:
+
+- Always test with actual git behavior before making assumptions
+- Error messages must go to stderr for proper test capture
+- Security validations should allow legitimate use cases (like git ref syntax)
+- Lint issues should be fixed properly, not suppressed
+
+**Files Modified**:
+
+- `cmd/wtp/main.go`: Error output handling
+- `cmd/wtp/completion.go`: Shell-init output and context fixes
+- `cmd/wtp/add.go`: Track with detach logic
+- `test/e2e/framework/framework.go`: Validation and command execution
+- `test/e2e/remote_test.go`: TrackWithDetach test expectations
+- `test/e2e/error_test.go`: Debug output for troubleshooting
+
 ---
 
 This document serves as a living record of the project's development. Update as
