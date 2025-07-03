@@ -13,6 +13,9 @@ import (
 
 const configFileMode = 0o600
 
+// Variable to allow mocking in tests
+var osGetwd = os.Getwd
+
 // NewInitCommand creates the init command definition
 func NewInitCommand() *cli.Command {
 	return &cli.Command{
@@ -26,7 +29,7 @@ func NewInitCommand() *cli.Command {
 
 func initCommand(_ context.Context, _ *cli.Command) error {
 	// Get current working directory (should be a git repository)
-	cwd, err := os.Getwd()
+	cwd, err := osGetwd()
 	if err != nil {
 		return errors.DirectoryAccessFailed("access current", ".", err)
 	}

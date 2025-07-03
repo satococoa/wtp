@@ -10,6 +10,9 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// Variable to allow mocking in tests
+var removeGetwd = os.Getwd
+
 // NewRemoveCommand creates the remove command definition
 func NewRemoveCommand() *cli.Command {
 	return &cli.Command{
@@ -57,7 +60,7 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Get current working directory (should be a git repository)
-	cwd, err := os.Getwd()
+	cwd, err := removeGetwd()
 	if err != nil {
 		return errors.DirectoryAccessFailed("access current", ".", err)
 	}

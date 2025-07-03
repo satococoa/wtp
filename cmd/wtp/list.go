@@ -18,6 +18,9 @@ const (
 	headDisplayLength  = 8
 )
 
+// Variable to allow mocking in tests
+var listGetwd = os.Getwd
+
 // NewListCommand creates the list command definition
 func NewListCommand() *cli.Command {
 	return &cli.Command{
@@ -30,7 +33,7 @@ func NewListCommand() *cli.Command {
 
 func listCommand(_ context.Context, _ *cli.Command) error {
 	// Get current working directory (should be a git repository)
-	cwd, err := os.Getwd()
+	cwd, err := listGetwd()
 	if err != nil {
 		return errors.DirectoryAccessFailed("access current", ".", err)
 	}

@@ -3,14 +3,31 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 )
 
-func TestCdCommand(t *testing.T) {
-	// Test that it returns an error without shell integration
+func TestNewCdCommand(t *testing.T) {
+	cmd := NewCdCommand()
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "cd", cmd.Name)
+	assert.Equal(t, "Change directory to worktree (requires shell integration)", cmd.Usage)
+	assert.NotEmpty(t, cmd.Description)
+	assert.Contains(t, cmd.Description, "shell integration")
+	assert.Contains(t, cmd.Description, "Bash:")
+	assert.Contains(t, cmd.Description, "Zsh:")
+	assert.Contains(t, cmd.Description, "Fish:")
+	assert.NotNil(t, cmd.Action)
+	assert.Equal(t, "<worktree-name>", cmd.ArgsUsage)
+}
+
+func TestCdToWorktree_NoShellIntegration(t *testing.T) {
+	// Ensure WTP_SHELL_INTEGRATION is not set
+	os.Unsetenv("WTP_SHELL_INTEGRATION")
+
 	app := &cli.Command{
 		Commands: []*cli.Command{
 			NewCdCommand(),
@@ -19,23 +36,55 @@ func TestCdCommand(t *testing.T) {
 
 	var buf bytes.Buffer
 	app.Writer = &buf
-	err := app.Run(context.Background(), []string{"wtp", "cd", "test"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cd command requires shell integration")
-
-	// Test cd without arguments - it will still show shell integration error
-	buf.Reset()
-	err = app.Run(context.Background(), []string{"wtp", "cd"})
+	
+	ctx := context.Background()
+	err := app.Run(ctx, []string{"wtp", "cd", "test"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cd command requires shell integration")
 }
 
-func TestCdCommandDescription(t *testing.T) {
+func TestCdToWorktree_NoArguments(t *testing.T) {
+	// Set shell integration
+	os.Setenv("WTP_SHELL_INTEGRATION", "1")
+	defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+
+	app := &cli.Command{
+		Commands: []*cli.Command{
+			NewCdCommand(),
+		},
+	}
+
+	ctx := context.Background()
+	err := app.Run(ctx, []string{"wtp", "cd"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree name is required")
+}
+
+func TestCdToWorktree_NotInGitRepo(t *testing.T) {
+	// Set shell integration
+	os.Setenv("WTP_SHELL_INTEGRATION", "1")
+	defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+
+	// Create a temp dir and cd to it
+	tempDir := t.TempDir()
+	oldDir, _ := os.Getwd()
+	defer os.Chdir(oldDir)
+	os.Chdir(tempDir)
+
+	app := &cli.Command{
+		Commands: []*cli.Command{
+			NewCdCommand(),
+		},
+	}
+
+	ctx := context.Background()
+	err := app.Run(ctx, []string{"wtp", "cd", "test"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not in a git repository")
+}
+
+func TestCdCommand_ShellComplete(t *testing.T) {
 	cmd := NewCdCommand()
-	assert.Equal(t, "cd", cmd.Name)
-	assert.Equal(t, "Change directory to worktree (requires shell integration)", cmd.Usage)
-	assert.Contains(t, cmd.Description, "shell integration")
-	assert.Contains(t, cmd.Description, "Bash:")
-	assert.Contains(t, cmd.Description, "Zsh:")
-	assert.Contains(t, cmd.Description, "Fish:")
+	// cd command doesn't have shell completion
+	assert.Nil(t, cmd.ShellComplete)
 }

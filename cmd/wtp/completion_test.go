@@ -1,49 +1,259 @@
 package main
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli/v3"
 )
 
 func TestNewCompletionCommand(t *testing.T) {
 	cmd := NewCompletionCommand()
-	if cmd == nil {
-		t.Fatal("NewCompletionCommand() returned nil")
+	
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "completion", cmd.Name)
+	assert.Equal(t, "Generate shell completion script", cmd.Usage)
+	assert.NotEmpty(t, cmd.Description)
+	
+	// Verify subcommands exist
+	subcommands := make(map[string]*cli.Command)
+	for _, sub := range cmd.Commands {
+		subcommands[sub.Name] = sub
 	}
-	if cmd.Name != "completion" {
-		t.Errorf("Expected command name 'completion', got '%s'", cmd.Name)
-	}
+	
+	// Verify required subcommands exist
+	assert.Contains(t, subcommands, "bash")
+	assert.Contains(t, subcommands, "zsh")
+	assert.Contains(t, subcommands, "fish")
+	assert.Contains(t, subcommands, "powershell")
+	assert.Contains(t, subcommands, "__branches")
+	assert.Contains(t, subcommands, "__worktrees")
+	
+	// Verify each shell subcommand has proper action
+	assert.NotNil(t, subcommands["bash"].Action)
+	assert.NotNil(t, subcommands["zsh"].Action)
+	assert.NotNil(t, subcommands["fish"].Action)
+	assert.NotNil(t, subcommands["powershell"].Action)
+	
+	// Verify internal commands are hidden
+	assert.True(t, subcommands["__branches"].Hidden)
+	assert.True(t, subcommands["__worktrees"].Hidden)
+}
 
-	// Check subcommands
-	expectedSubcommands := []string{"bash", "zsh", "fish", "powershell", "__branches", "__worktrees"}
-	if len(cmd.Commands) != len(expectedSubcommands) {
-		t.Errorf("Expected %d subcommands, got %d", len(expectedSubcommands), len(cmd.Commands))
-	}
+func TestCompletionBash(t *testing.T) {
+	// Skip as this function prints directly to stdout
+	t.Skip("completionBash prints directly to stdout")
+}
 
-	subCommandMap := make(map[string]bool)
-	for _, subcmd := range cmd.Commands {
-		subCommandMap[subcmd.Name] = true
-	}
+func TestCompletionZsh(t *testing.T) {
+	// Skip as this function prints directly to stdout
+	t.Skip("completionZsh prints directly to stdout")
+}
 
-	for _, expected := range expectedSubcommands {
-		if !subCommandMap[expected] {
-			t.Errorf("Expected subcommand '%s' not found", expected)
+func TestCompletionFish(t *testing.T) {
+	// Test that completionFish can be called without error
+	cmd := NewCompletionCommand()
+	fishCmd := findSubcommand(cmd, "fish")
+	
+	assert.NotNil(t, fishCmd)
+	
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	
+	ctx := context.Background()
+	err := fishCmd.Action(ctx, &cli.Command{})
+	
+	w.Close()
+	os.Stdout = oldStdout
+	
+	// Read output
+	buf := make([]byte, 65536)
+	n, _ := r.Read(buf)
+	output := string(buf[:n])
+	
+	assert.NoError(t, err)
+	assert.Contains(t, output, "wtp")
+	assert.Contains(t, output, "fish")  // Fish completion contains "fish" in the output
+}
+
+func TestCompletionPowerShell(t *testing.T) {
+	cmd := NewCompletionCommand()
+	powershellCmd := findSubcommand(cmd, "powershell")
+	
+	assert.NotNil(t, powershellCmd)
+	
+	ctx := context.Background()
+	err := powershellCmd.Action(ctx, &cli.Command{})
+	
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "PowerShell completion is not supported")
+}
+
+func TestCompleteBranches(t *testing.T) {
+	// Create a Git repository
+	tempDir := t.TempDir()
+	gitDir := filepath.Join(tempDir, ".git")
+	err := os.MkdirAll(gitDir, 0755)
+	assert.NoError(t, err)
+	
+	oldDir, _ := os.Getwd()
+	defer os.Chdir(oldDir)
+	err = os.Chdir(tempDir)
+	assert.NoError(t, err)
+	
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Call printBranches directly
+	printBranches()
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	// Read output - should be empty since not a real git repo
+	readBuf := make([]byte, 1024)
+	n, _ := r.Read(readBuf)
+	output := string(readBuf[:n])
+
+	// Should be empty or have no output
+	assert.Empty(t, output)
+}
+
+func TestCompleteWorktrees(t *testing.T) {
+	// Create a Git repository
+	tempDir := t.TempDir()
+	gitDir := filepath.Join(tempDir, ".git")
+	err := os.MkdirAll(gitDir, 0755)
+	assert.NoError(t, err)
+	
+	oldDir, _ := os.Getwd()
+	defer os.Chdir(oldDir)
+	err = os.Chdir(tempDir)
+	assert.NoError(t, err)
+	
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	// Call printWorktrees directly
+	printWorktrees()
+
+	w.Close()
+	os.Stdout = oldStdout
+
+	// Read output - should be empty since not a real git repo
+	readBuf := make([]byte, 1024)
+	n, _ := r.Read(readBuf)
+	output := string(readBuf[:n])
+
+	// Should be empty or have no output
+	assert.Empty(t, output)
+}
+
+func TestPrintBranches(t *testing.T) {
+	// Since printBranches uses git commands, we test it indirectly
+	// through the completion functions
+	t.Run("function exists", func(t *testing.T) {
+		// Ensure the function exists and can be called
+		// Actual output testing requires git setup
+		assert.NotPanics(t, func() {
+			// Redirect stdout to avoid noise
+			oldStdout := os.Stdout
+			os.Stdout = os.NewFile(0, os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+			
+			printBranches()
+		})
+	})
+}
+
+func TestPrintWorktrees(t *testing.T) {
+	// Since printWorktrees uses git commands, we test it indirectly
+	// through the completion functions
+	t.Run("function exists", func(t *testing.T) {
+		// Ensure the function exists and can be called
+		// Actual output testing requires git setup
+		assert.NotPanics(t, func() {
+			// Redirect stdout to avoid noise
+			oldStdout := os.Stdout
+			os.Stdout = os.NewFile(0, os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+			
+			printWorktrees()
+		})
+	})
+}
+
+func TestCompletionScriptIntegration(t *testing.T) {
+	// Verify completion scripts are generated correctly for each shell
+	shells := []string{"bash", "zsh"}
+	
+	for _, shell := range shells {
+		t.Run(shell, func(t *testing.T) {
+			// Capture stdout instead of using Writer
+			oldStdout := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+
+			app := &cli.Command{
+				Commands: []*cli.Command{
+					NewCompletionCommand(),
+				},
+			}
+			
+			ctx := context.Background()
+			err := app.Run(ctx, []string{"wtp", "completion", shell})
+			
+			// Restore stdout and read output
+			w.Close()
+			os.Stdout = oldStdout
+			buf := make([]byte, 65536) // Larger buffer for completion scripts
+			n, _ := r.Read(buf)
+			output := string(buf[:n])
+			
+			assert.NoError(t, err)
+			
+			// Common content that should be included
+			assert.Contains(t, output, "wtp")
+			assert.Contains(t, output, "cd")
+			
+			// Check for shell-specific syntax
+			switch shell {
+			case "bash":
+				assert.Contains(t, output, "complete -F")
+			case "zsh":
+				assert.Contains(t, output, "#compdef wtp")
+			}
+		})
+	}
+}
+
+func TestHiddenCommands(t *testing.T) {
+	cmd := NewCompletionCommand()
+	
+	// __branches and __worktrees should be hidden commands
+	for _, sub := range cmd.Commands {
+		if strings.HasPrefix(sub.Name, "__") {
+			assert.True(t, sub.Hidden, "%s should be hidden", sub.Name)
 		}
 	}
 }
 
-func TestCompletionFunctions(t *testing.T) {
-	t.Run("completionBash", func(t *testing.T) {
-		// This would require capturing output
-		t.Skip("Completion function testing requires output capture")
-	})
-
-	t.Run("completionZsh", func(t *testing.T) {
-		// This would require capturing output
-		t.Skip("Completion function testing requires output capture")
-	})
-
-	t.Run("completionFish", func(t *testing.T) {
-		// This would require a CLI command mock
-		t.Skip("Fish completion testing requires CLI command mock")
-	})
+// Helper function
+func findSubcommand(cmd *cli.Command, name string) *cli.Command {
+	for _, sub := range cmd.Commands {
+		if sub.Name == name {
+			return sub
+		}
+	}
+	return nil
 }
