@@ -181,7 +181,7 @@ version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
   base_dir: "../worktrees"
-  
+
   # Automatically change to the new worktree directory after creation
   cd_after_create: true
 
@@ -215,11 +215,13 @@ hooks:
 
 #### If installed via Homebrew or Package Manager
 
-Shell completions are automatically installed and should work immediately! No manual setup required.
+Shell completions are automatically installed and should work immediately! No
+manual setup required.
 
 #### Manual Setup
 
-If you installed wtp manually, add the following to your shell configuration file:
+If you installed wtp manually, add the following to your shell configuration
+file:
 
 ```bash
 # Bash: Add to ~/.bashrc
@@ -233,6 +235,7 @@ wtp completion fish | source
 ```
 
 This enables:
+
 - Tab completion for all wtp commands, flags, and options
 - Branch name completion for `wtp add` and `wtp remove`
 - Worktree name completion for `wtp cd`
@@ -342,16 +345,14 @@ make build
 ### v1.0.0
 
 - [ ] Stable release
-- [ ] Full test coverage
-- [ ] Package manager support
+- [ ] Full test coverage (current: 24.8%, target: 80%+)
+- [x] Package manager support (Homebrew, apt/yum/apk)
 
 ### Future Ideas
 
 - [ ] `git wtp status` - Show status of all worktrees
 - [ ] `git wtp foreach` - Run command in all worktrees
 - [ ] `git wtp clean` - Remove merged worktrees
-- [ ] VSCode extension
-- [ ] GitHub Actions integration
 
 ## License
 
