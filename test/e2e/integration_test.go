@@ -73,7 +73,7 @@ defaults:
 		repo.WriteConfig(newConfig)
 
 		// Remove should still find the worktree even though config changed
-		output, err := repo.RunWTP("remove", "feature/movable")
+		output, err := repo.RunWTP("remove", "movable")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 		framework.AssertWorktreeCount(t, repo, 1)
@@ -127,8 +127,8 @@ defaults:
 		// Verify worktree was created at explicit path, not config path
 		framework.AssertWorktreeExists(t, repo, explicitPath)
 
-		// Remove using branch name should still work
-		output, err = repo.RunWTP("remove", "feature/explicit")
+		// Remove using worktree name should still work
+		output, err = repo.RunWTP("remove", "explicit-location")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 	})

@@ -114,7 +114,7 @@ func TestWorktreeRemoval(t *testing.T) {
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCount(t, repo, 2)
 
-		output, err := repo.RunWTP("remove", "feature/remove")
+		output, err := repo.RunWTP("remove", "remove")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 		framework.AssertWorktreeCount(t, repo, 1)
@@ -154,7 +154,7 @@ func TestWorktreeRemoval(t *testing.T) {
 			env.WriteFile(worktreePath+"/dirty.txt", "uncommitted changes")
 		}
 
-		output, err := repo.RunWTP("remove", "--force", "feature/force-remove")
+		output, err := repo.RunWTP("remove", "--force", "force-remove")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 	})
@@ -171,7 +171,7 @@ base_dir: custom-location`
 		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
 
 		// Remove should still work because it uses git worktree list
-		output, err := repo.RunWTP("remove", "feature/remove-test")
+		output, err := repo.RunWTP("remove", "remove-test")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 

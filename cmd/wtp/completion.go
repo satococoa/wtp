@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/satococoa/wtp/internal/git"
@@ -682,7 +683,7 @@ func completeWorktrees(_ context.Context, cmd *cli.Command) {
 	printWorktrees(w)
 }
 
-// printWorktrees prints existing worktree branch names for completion
+// printWorktrees prints existing worktree names for completion
 func printWorktrees(w io.Writer) {
 	// Get current directory
 	cwd, err := os.Getwd()
@@ -702,11 +703,9 @@ func printWorktrees(w io.Writer) {
 		return
 	}
 
-	// Extract branch names from worktrees
+	// Extract worktree names (directory names) from worktrees
 	for _, wt := range worktrees {
-		if wt.Branch != "" {
-			// Branch name is already clean (without refs/heads/)
-			fmt.Fprintln(w, wt.Branch)
-		}
+		// Use the directory name as the worktree identifier
+		fmt.Fprintln(w, filepath.Base(wt.Path))
 	}
 }

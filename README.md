@@ -163,13 +163,13 @@ wtp add --path /custom/location foobar/foo
 # List all worktrees
 wtp list
 
-# Remove worktree only
-wtp remove feature/auth
-wtp remove --force feature/auth  # Force removal even if dirty
+# Remove worktree only (by worktree directory name)
+wtp remove auth
+wtp remove --force auth  # Force removal even if dirty
 
 # Remove worktree and its branch
-wtp remove --with-branch feature/auth              # Only if branch is merged
-wtp remove --with-branch --force-branch feature/auth  # Force branch deletion
+wtp remove --with-branch auth              # Only if branch is merged
+wtp remove --with-branch --force-branch auth  # Force branch deletion
 ```
 
 ## Configuration
@@ -237,8 +237,8 @@ wtp completion fish | source
 This enables:
 
 - Tab completion for all wtp commands, flags, and options
-- Branch name completion for `wtp add` and `wtp remove`
-- Worktree name completion for `wtp cd`
+- Branch name completion for `wtp add`
+- Worktree name completion for `wtp remove` and `wtp cd`
 - The `wtp cd` command for quick navigation to worktrees
 
 ### Using the cd Command
@@ -246,8 +246,8 @@ This enables:
 Once shell integration is enabled, you can quickly change to any worktree:
 
 ```bash
-# Change to a worktree by branch name
-wtp cd feature/auth
+# Change to a worktree by its directory name
+wtp cd auth
 
 # Tab completion works!
 wtp cd <TAB>

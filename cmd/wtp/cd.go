@@ -61,8 +61,8 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	// Find the worktree by name
 	var targetPath string
 	for _, wt := range worktrees {
-		// Match by branch name or directory name
-		if wt.Branch == worktreeName || filepath.Base(wt.Path) == worktreeName {
+		// Match by directory name only
+		if filepath.Base(wt.Path) == worktreeName {
 			targetPath = wt.Path
 			break
 		}
@@ -72,11 +72,7 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 		// Get available worktree names for suggestions
 		availableWorktrees := make([]string, 0, len(worktrees))
 		for _, wt := range worktrees {
-			if wt.Branch != "" {
-				availableWorktrees = append(availableWorktrees, wt.Branch)
-			} else {
-				availableWorktrees = append(availableWorktrees, filepath.Base(wt.Path))
-			}
+			availableWorktrees = append(availableWorktrees, filepath.Base(wt.Path))
 		}
 		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}

@@ -17,7 +17,7 @@ func TestNewRemoveCommand(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "remove", cmd.Name)
 	assert.Equal(t, "Remove a worktree", cmd.Usage)
-	assert.Equal(t, "wtp remove <branch-name>", cmd.UsageText)
+	assert.Equal(t, "wtp remove <worktree-name>", cmd.UsageText)
 	assert.NotEmpty(t, cmd.Description)
 	assert.NotNil(t, cmd.Action)
 	assert.NotNil(t, cmd.ShellComplete)

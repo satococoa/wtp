@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
@@ -19,12 +20,12 @@ func NewRemoveCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "remove",
 		Usage:     "Remove a worktree",
-		UsageText: "wtp remove <branch-name>",
-		Description: "Removes the worktree associated with the specified branch.\n\n" +
+		UsageText: "wtp remove <worktree-name>",
+		Description: "Removes the worktree with the specified directory name.\n\n" +
 			"Examples:\n" +
-			"  wtp remove feature/old                  # Remove worktree\n" +
-			"  wtp remove -f feature/dirty             # Force remove dirty worktree\n" +
-			"  wtp remove --with-branch feature/done   # Also delete the branch",
+			"  wtp remove feature-old                  # Remove worktree\n" +
+			"  wtp remove -f feature-dirty             # Force remove dirty worktree\n" +
+			"  wtp remove --with-branch feature-done   # Also delete the associated branch",
 		ShellComplete: completeWorktrees,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
@@ -53,12 +54,12 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Extract and validate inputs
-	branchName := cmd.Args().Get(0)
+	worktreeName := cmd.Args().Get(0)
 	force := cmd.Bool("force")
 	withBranch := cmd.Bool("with-branch")
 	forceBranch := cmd.Bool("force-branch")
 
-	if err := validateRemoveInput(branchName, withBranch, forceBranch); err != nil {
+	if err := validateRemoveInput(worktreeName, withBranch, forceBranch); err != nil {
 		return err
 	}
 
@@ -69,7 +70,7 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Find target worktree
-	targetWorktree, err := findTargetWorktree(repo, branchName)
+	targetWorktree, err := findTargetWorktree(repo, worktreeName)
 	if err != nil {
 		return err
 	}
@@ -78,11 +79,11 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	if err := repo.RemoveWorktree(targetWorktree.Path, force); err != nil {
 		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
 	}
-	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", branchName, targetWorktree.Path)
+	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path)
 
 	// Remove branch if requested
-	if withBranch {
-		if err := removeBranch(w, repo, branchName, forceBranch); err != nil {
+	if withBranch && targetWorktree.Branch != "" {
+		if err := removeBranch(w, repo, targetWorktree.Branch, forceBranch); err != nil {
 			return err
 		}
 	}
@@ -90,9 +91,9 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func validateRemoveInput(branchName string, withBranch, forceBranch bool) error {
-	if branchName == "" {
-		return errors.BranchNameRequired("wtp remove <branch-name>")
+func validateRemoveInput(worktreeName string, withBranch, forceBranch bool) error {
+	if worktreeName == "" {
+		return errors.BranchNameRequired("wtp remove <worktree-name>")
 	}
 	if forceBranch && !withBranch {
 		return fmt.Errorf("--force-branch requires --with-branch")
@@ -112,26 +113,25 @@ func getRepository() (*git.Repository, error) {
 	return repo, nil
 }
 
-func findTargetWorktree(repo *git.Repository, branchName string) (*git.Worktree, error) {
+func findTargetWorktree(repo *git.Repository, worktreeName string) (*git.Worktree, error) {
 	worktrees, err := repo.GetWorktrees()
 	if err != nil {
 		return nil, errors.GitCommandFailed("git worktree list", err.Error())
 	}
 
 	var targetWorktree *git.Worktree
-	var availableBranches []string
+	var availableWorktrees []string
 	for _, wt := range worktrees {
-		if wt.Branch != "" {
-			availableBranches = append(availableBranches, wt.Branch)
-		}
-		if wt.Branch == branchName {
+		wtName := filepath.Base(wt.Path)
+		availableWorktrees = append(availableWorktrees, wtName)
+		if wtName == worktreeName {
 			targetWorktree = &wt
 			break
 		}
 	}
 
 	if targetWorktree == nil {
-		return nil, errors.WorktreeNotFound(branchName, availableBranches)
+		return nil, errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
 	return targetWorktree, nil
 }

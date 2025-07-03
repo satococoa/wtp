@@ -40,7 +40,7 @@ func TestShellIntegration(t *testing.T) {
 		os.Setenv("WTP_SHELL_INTEGRATION", "1")
 		defer os.Unsetenv("WTP_SHELL_INTEGRATION")
 
-		output, err := repo.RunWTP("cd", "feature/test")
+		output, err := repo.RunWTP("cd", "test")
 		framework.AssertNoError(t, err)
 		// Should output the path
 		framework.AssertTrue(t,
