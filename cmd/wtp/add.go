@@ -50,6 +50,14 @@ func NewAddCommand() *cli.Command {
 				Usage:   "Set upstream branch",
 				Aliases: []string{"t"},
 			},
+			&cli.BoolFlag{
+				Name:  "cd",
+				Usage: "Change directory to the new worktree after creation",
+			},
+			&cli.BoolFlag{
+				Name:  "no-cd",
+				Usage: "Do not change directory to the new worktree after creation",
+			},
 		},
 		Action: addCommand,
 	}
@@ -91,6 +99,12 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	// Execute post-create hooks
 	if err := executePostCreateHooks(cfg, mainRepoPath, workTreePath); err != nil {
 		return err
+	}
+
+	// Change directory if requested
+	if shouldChangeDirectory(cmd, cfg) {
+		fmt.Println()
+		changeToWorktree(workTreePath)
 	}
 
 	return nil
@@ -284,4 +298,28 @@ func appendAutoPathArgs(args []string, cmd *cli.Command, branch, track, branchNa
 		args = append(args, cmd.Args().Slice()[1:]...)
 	}
 	return args
+}
+
+func shouldChangeDirectory(cmd *cli.Command, cfg *config.Config) bool {
+	// Check command-line flags first
+	if cmd.Bool("cd") {
+		return true
+	}
+	if cmd.Bool("no-cd") {
+		return false
+	}
+	// Fall back to config setting
+	return cfg.Defaults.CDAfterCreate
+}
+
+func changeToWorktree(workTreePath string) {
+	// Check if shell integration is enabled
+	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
+		fmt.Printf("To change directory, run: cd %s\n", workTreePath)
+		fmt.Println("(Enable shell integration with: eval \"$(wtp completion zsh)\")")
+		return
+	}
+
+	// Output the path for the shell function to use
+	fmt.Print(workTreePath)
 }

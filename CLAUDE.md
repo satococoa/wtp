@@ -172,13 +172,13 @@ This ensures all team members use the same tool versions defined in go.mod.
 3. **Key Design Decisions**:
    - **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
    - **Shell Function Wrapper**: Required because child processes can't change parent's directory
-   - **Unified Setup Command**: `wtp shell-init --cd` generates both completion and cd functionality
+   - **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
    - **Cross-Shell Support**: Bash, Zsh, and Fish implementations
 
 4. **User Experience**:
    ```bash
    # Enable shell integration
-   eval "$(wtp shell-init --cd)"
+   eval "$(wtp completion zsh)"  # or bash/fish
    
    # Use cd command with tab completion
    wtp cd <TAB>           # Shows available worktrees

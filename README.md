@@ -131,6 +131,11 @@ wtp add feature/shared
 
 # Explicitly specify which remote to track
 wtp add --track upstream/feature/shared feature/shared
+
+# Control directory change behavior
+wtp add --cd feature/auth        # Always change to new worktree
+wtp add --no-cd feature/auth      # Never change directory
+# Without flags, uses cd_after_create setting from .wtp.yml
 ```
 
 ### Explicit Path Specification (Full Flexibility)
@@ -176,6 +181,9 @@ version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
   base_dir: "../worktrees"
+  
+  # Automatically change to the new worktree directory after creation
+  cd_after_create: true
 
 hooks:
   post_create:

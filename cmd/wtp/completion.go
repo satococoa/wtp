@@ -108,9 +108,6 @@ _wtp_completion() {
             completion)
                 COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
                 ;;
-            shell-init)
-                COMPREPLY=( $(compgen -W "--cd --help -h" -- "$cur") )
-                ;;
             cd)
                 COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
                 ;;
@@ -152,7 +149,7 @@ _wtp_completion() {
 
     case $cword in
         1)
-            COMPREPLY=( $(compgen -W "add remove list init cd completion shell-init help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "add remove list init cd completion help" -- "$cur") )
             ;;
         *)
             case "${words[1]}" in
@@ -283,6 +280,28 @@ wtp() {
         else
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
+    elif [[ "$1" == "add" ]]; then
+        # Run the add command and capture output
+        local output
+        output=$(WTP_SHELL_INTEGRATION=1 command wtp "$@" 2>&1)
+        local exit_code=$?
+        
+        # Check if we should cd (last line is a path)
+        if [[ $exit_code -eq 0 ]]; then
+            local last_line=$(echo "$output" | tail -n1)
+            if [[ -d "$last_line" ]]; then
+                # Last line is a directory path - cd to it
+                echo "${output%$'\n'*}"  # Print all but last line
+                cd "$last_line"
+            else
+                # Normal output
+                echo "$output"
+            fi
+        else
+            # Error occurred
+            echo "$output" >&2
+            return $exit_code
+        fi
     else
         command wtp "$@"
     fi
@@ -373,11 +392,6 @@ _wtp() {
                         '(--help -h)'{--help,-h}'[Show help]' \
                         '1: :_wtp_shells'
                     ;;
-                shell-init)
-                    _arguments -s \
-                        '--cd[Include cd command integration]' \
-                        '(--help -h)'{--help,-h}'[Show help]'
-                    ;;
                 cd)
                     _arguments -s \
                         '(--help -h)'{--help,-h}'[Show help]' \
@@ -397,7 +411,6 @@ _wtp_commands() {
         'init:Initialize configuration file'
         'cd:Change directory to worktree'
         'completion:Generate shell completion script'
-        'shell-init:Initialize shell integration for current session'
         'help:Show help'
     )
     _describe 'commands' commands
@@ -496,6 +509,28 @@ wtp() {
         else
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
+    elif [[ "$1" == "add" ]]; then
+        # Run the add command and capture output
+        local output
+        output=$(WTP_SHELL_INTEGRATION=1 command wtp "$@" 2>&1)
+        local exit_code=$?
+        
+        # Check if we should cd (last line is a path)
+        if [[ $exit_code -eq 0 ]]; then
+            local last_line=$(echo "$output" | tail -n1)
+            if [[ -d "$last_line" ]]; then
+                # Last line is a directory path - cd to it
+                echo "${output%$'\n'*}"  # Print all but last line
+                cd "$last_line"
+            else
+                # Normal output
+                echo "$output"
+            fi
+        else
+            # Error occurred
+            echo "$output" >&2
+            return $exit_code
+        fi
     else
         command wtp "$@"
     fi
@@ -525,6 +560,27 @@ function wtp
             cd $target_dir
         else
             env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
+        end
+    else if test "$argv[1]" = "add"
+        # Run the add command and capture output
+        set -l output (env WTP_SHELL_INTEGRATION=1 command wtp $argv 2>&1)
+        set -l exit_code $status
+        
+        # Check if we should cd (last line is a path)
+        if test $exit_code -eq 0
+            set -l last_line (echo "$output" | tail -n1)
+            if test -d "$last_line"
+                # Last line is a directory path - cd to it
+                echo "$output" | head -n -1  # Print all but last line
+                cd "$last_line"
+            else
+                # Normal output
+                echo "$output"
+            end
+        else
+            # Error occurred
+            echo "$output" >&2
+            return $exit_code
         end
     else
         command wtp $argv

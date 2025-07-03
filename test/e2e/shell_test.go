@@ -26,7 +26,7 @@ func TestShellIntegration(t *testing.T) {
 		// Should provide setup instructions
 		framework.AssertOutputContains(t, output, "eval")
 		framework.AssertTrue(t,
-			strings.Contains(output, "shell-init") ||
+			strings.Contains(output, "completion") ||
 				strings.Contains(output, "Setup:"),
 			"Should provide shell integration setup instructions")
 	})

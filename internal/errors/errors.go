@@ -248,11 +248,10 @@ func ShellIntegrationRequired() error {
 	msg := `cd command requires shell integration
 
 Setup:
-  • For completion only: eval "$(wtp completion)"
-  • For full integration: eval "$(wtp shell-init --cd)"
+  • Enable shell integration: eval "$(wtp completion <shell>)"
   • Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
 
-Help: Run 'wtp shell-init --help' for more details`
+Help: Run 'wtp completion --help' for more details`
 	return errors.New(msg)
 }
 
