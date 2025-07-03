@@ -27,7 +27,7 @@ func NewInitCommand() *cli.Command {
 	}
 }
 
-func initCommand(_ context.Context, _ *cli.Command) error {
+func initCommand(_ context.Context, cmd *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := osGetwd()
 	if err != nil {
@@ -84,7 +84,13 @@ hooks:
 		return errors.DirectoryAccessFailed("create configuration file", configPath, err)
 	}
 
-	fmt.Printf("Configuration file created: %s\n", configPath)
-	fmt.Println("Edit this file to customize your worktree setup.")
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
+	fmt.Fprintf(w, "Configuration file created: %s\n", configPath)
+	fmt.Fprintln(w, "Edit this file to customize your worktree setup.")
 	return nil
 }

@@ -3,19 +3,19 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
 	"fmt"
-	"path/filepath"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/satococoa/wtp/internal/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 )
 
 func TestNewListCommand(t *testing.T) {
 	cmd := NewListCommand()
-	
+
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "list", cmd.Name)
 	assert.Equal(t, "List all worktrees", cmd.Usage)
@@ -33,7 +33,7 @@ func TestListCommand_NotInGitRepo(t *testing.T) {
 	// Create a temporary directory that is not a git repo
 	tempDir := t.TempDir()
 	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
+	defer func() { _ = os.Chdir(oldDir) }()
 	err := os.Chdir(tempDir)
 	assert.NoError(t, err)
 
@@ -45,7 +45,7 @@ func TestListCommand_NotInGitRepo(t *testing.T) {
 
 	ctx := context.Background()
 	err = app.Run(ctx, []string{"wtp", "list"})
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not in a git repository")
 }
@@ -63,54 +63,56 @@ func TestListCommand_DirectoryAccessError(t *testing.T) {
 	cmd := NewListCommand()
 	ctx := context.Background()
 	err := cmd.Action(ctx, &cli.Command{})
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to access")
 }
 
 func TestListCommand_NoWorktrees(t *testing.T) {
-	// Create a temporary git repository
-	tempDir := t.TempDir()
-	gitDir := filepath.Join(tempDir, ".git")
-	err := os.MkdirAll(gitDir, 0755)
-	assert.NoError(t, err)
-	
-	oldDir, _ := os.Getwd()
-	defer os.Chdir(oldDir)
-	err = os.Chdir(tempDir)
-	assert.NoError(t, err)
+	// Save original functions
+	originalGetwd := listGetwd
+	originalNewRepo := listNewRepository
+	defer func() {
+		listGetwd = originalGetwd
+		listNewRepository = originalNewRepo
+	}()
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	cmd := NewListCommand()
-	ctx := context.Background()
-	err = cmd.Action(ctx, &cli.Command{})
-
-	w.Close()
-	os.Stdout = oldStdout
-	
-	// Read output
-	buf := make([]byte, 1024)
-	n, _ := r.Read(buf)
-	output := string(buf[:n])
-
-	// With minimal git setup, it might show "No worktrees found" or have an error
-	// depending on git configuration
-	if err == nil {
-		assert.Contains(t, output, "No worktrees found")
+	// Mock functions
+	listGetwd = func() (string, error) {
+		return "/test/repo", nil
 	}
+
+	// Create a mock repository that returns empty worktrees
+	listNewRepository = func(_ string) (GitRepository, error) {
+		return &mockRepository{
+			worktrees: []git.Worktree{},
+		}, nil
+	}
+
+	// Create app with Writer
+	var buf bytes.Buffer
+	app := &cli.Command{
+		Writer: &buf,
+		Commands: []*cli.Command{
+			NewListCommand(),
+		},
+	}
+
+	ctx := context.Background()
+	err := app.Run(ctx, []string{"wtp", "list"})
+
+	assert.NoError(t, err)
+	output := buf.String()
+	assert.Contains(t, output, "No worktrees found")
 }
 
 func TestListCommand_OutputFormat(t *testing.T) {
 	// This test verifies the output format logic
 	// Create mock data for testing formatting
-	
+
 	tests := []struct {
-		name       string
-		worktrees  []struct {
+		name      string
+		worktrees []struct {
 			path   string
 			branch string
 			head   string
@@ -146,12 +148,12 @@ func TestListCommand_OutputFormat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// This test primarily verifies that the constants exist and are reasonable
 			// Actual integration testing would require git repository setup
-			
+
 			// Verify headers would be displayed
 			for _, header := range tt.expectedHeaders {
 				assert.NotEmpty(t, header)
 			}
-			
+
 			// Verify head would be truncated
 			for _, wt := range tt.worktrees {
 				if len(wt.head) > headDisplayLength {
@@ -166,31 +168,31 @@ func TestListCommand_OutputFormat(t *testing.T) {
 func TestListCommand_ColumnWidthCalculation(t *testing.T) {
 	// Test the column width calculation logic
 	testCases := []struct {
-		name           string
-		paths          []string
-		branches       []string
-		expectedMinPath int
+		name              string
+		paths             []string
+		branches          []string
+		expectedMinPath   int
 		expectedMinBranch int
 	}{
 		{
-			name:             "minimum widths",
-			paths:            []string{".", "."},
-			branches:         []string{"", ""},
-			expectedMinPath:  4,  // "PATH"
+			name:              "minimum widths",
+			paths:             []string{".", "."},
+			branches:          []string{"", ""},
+			expectedMinPath:   4, // "PATH"
 			expectedMinBranch: 6, // "BRANCH"
 		},
 		{
-			name:             "longer paths",
-			paths:            []string{"/long/path/to/worktree", "/short"},
-			branches:         []string{"main", "dev"},
-			expectedMinPath:  len("/long/path/to/worktree"),
+			name:              "longer paths",
+			paths:             []string{"/long/path/to/worktree", "/short"},
+			branches:          []string{"main", "dev"},
+			expectedMinPath:   len("/long/path/to/worktree"),
 			expectedMinBranch: 6, // "BRANCH"
 		},
 		{
-			name:             "longer branches",
-			paths:            []string{"/path"},
-			branches:         []string{"feature/very-long-branch-name"},
-			expectedMinPath:  len("/path"),
+			name:              "longer branches",
+			paths:             []string{"/path"},
+			branches:          []string{"feature/very-long-branch-name"},
+			expectedMinPath:   len("/path"),
 			expectedMinBranch: len("feature/very-long-branch-name"),
 		},
 	}
@@ -200,19 +202,19 @@ func TestListCommand_ColumnWidthCalculation(t *testing.T) {
 			// Calculate max lengths
 			maxPath := 4   // "PATH"
 			maxBranch := 6 // "BRANCH"
-			
+
 			for _, p := range tc.paths {
 				if len(p) > maxPath {
 					maxPath = len(p)
 				}
 			}
-			
+
 			for _, b := range tc.branches {
 				if len(b) > maxBranch {
 					maxBranch = len(b)
 				}
 			}
-			
+
 			assert.GreaterOrEqual(t, maxPath, tc.expectedMinPath)
 			assert.GreaterOrEqual(t, maxBranch, tc.expectedMinBranch)
 		})
@@ -222,26 +224,146 @@ func TestListCommand_ColumnWidthCalculation(t *testing.T) {
 func TestListCommand_HeaderFormat(t *testing.T) {
 	// Test that header formatting works correctly
 	var buf bytes.Buffer
-	
+
 	// Simulate header output
 	maxPathLen := 20
 	maxBranchLen := 15
-	
+
 	// Format header like the actual command does
 	header := strings.TrimSpace(
 		fmt.Sprintf("%-*s %-*s %s", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD"),
 	)
-	
+
 	buf.WriteString(header + "\n")
-	
+
 	output := buf.String()
-	
+
 	// Verify headers are present and properly spaced
 	assert.Contains(t, output, "PATH")
 	assert.Contains(t, output, "BRANCH")
 	assert.Contains(t, output, "HEAD")
-	
+
 	// Verify spacing
 	assert.True(t, strings.Index(output, "BRANCH") > strings.Index(output, "PATH"))
 	assert.True(t, strings.Index(output, "HEAD") > strings.Index(output, "BRANCH"))
+}
+
+func TestDisplayWorktrees(t *testing.T) {
+	tests := []struct {
+		name      string
+		worktrees []git.Worktree
+		expected  []string
+	}{
+		{
+			name: "simple worktrees",
+			worktrees: []git.Worktree{
+				{Path: ".", Branch: "main", HEAD: "abc12345"},
+				{Path: "../worktrees/feature", Branch: "feature/test", HEAD: "def67890"},
+			},
+			expected: []string{
+				"PATH", "BRANCH", "HEAD",
+				"----", "------", "----",
+				".", "main", "abc12345",
+				"../worktrees/feature", "feature/test", "def67890",
+			},
+		},
+		{
+			name: "long commit hash truncated",
+			worktrees: []git.Worktree{
+				{Path: "/path", Branch: "dev", HEAD: "1234567890abcdef"},
+			},
+			expected: []string{
+				"PATH", "BRANCH", "HEAD",
+				"/path", "dev", "12345678", // Truncated to 8 chars
+			},
+		},
+		{
+			name: "empty branch name",
+			worktrees: []git.Worktree{
+				{Path: "/detached", Branch: "", HEAD: "abcdef12"},
+			},
+			expected: []string{
+				"PATH", "BRANCH", "HEAD",
+				"/detached", "", "abcdef12",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			displayWorktrees(&buf, tt.worktrees)
+
+			output := buf.String()
+
+			// Check all expected strings are present
+			for _, exp := range tt.expected {
+				assert.Contains(t, output, exp)
+			}
+
+			// Verify the output has the correct number of lines
+			lines := strings.Split(strings.TrimSpace(output), "\n")
+			expectedLines := 2 + len(tt.worktrees) // Header + separator + worktrees
+			assert.Equal(t, expectedLines, len(lines))
+		})
+	}
+}
+
+func TestListCommand_WithMockOutput(t *testing.T) {
+	// Save original functions
+	originalGetwd := listGetwd
+	originalNewRepo := listNewRepository
+	defer func() {
+		listGetwd = originalGetwd
+		listNewRepository = originalNewRepo
+	}()
+
+	// Mock functions
+	listGetwd = func() (string, error) {
+		return "/test/repo", nil
+	}
+
+	// Create a mock repository that returns worktrees
+	listNewRepository = func(_ string) (GitRepository, error) {
+		// Return a mock repository with a GetWorktrees method
+		return &mockRepository{
+			worktrees: []git.Worktree{
+				{Path: ".", Branch: "main", HEAD: "abc12345"},
+				{Path: "../worktrees/feature", Branch: "feature/auth", HEAD: "def67890123456"},
+			},
+		}, nil
+	}
+
+	// Create app with Writer
+	var buf bytes.Buffer
+	app := &cli.Command{
+		Writer: &buf,
+		Commands: []*cli.Command{
+			NewListCommand(),
+		},
+	}
+
+	ctx := context.Background()
+	err := app.Run(ctx, []string{"wtp", "list"})
+
+	assert.NoError(t, err)
+	output := buf.String()
+
+	// Verify output contains expected elements
+	assert.Contains(t, output, "PATH")
+	assert.Contains(t, output, "BRANCH")
+	assert.Contains(t, output, "HEAD")
+	assert.Contains(t, output, "main")
+	assert.Contains(t, output, "feature/auth")
+	assert.Contains(t, output, "abc12345")
+	assert.Contains(t, output, "def67890") // Truncated HEAD
+}
+
+// mockRepository is a test mock for GitRepository interface
+type mockRepository struct {
+	worktrees []git.Worktree
+}
+
+func (m *mockRepository) GetWorktrees() ([]git.Worktree, error) {
+	return m.worktrees, nil
 }

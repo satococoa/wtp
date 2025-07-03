@@ -21,7 +21,7 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotEmpty(t, cmd.Description)
 	assert.NotNil(t, cmd.Action)
 	assert.NotNil(t, cmd.ShellComplete)
-	
+
 	// Check flags exist
 	flagNames := []string{"path", "force", "detach", "branch", "track", "cd", "no-cd"}
 	for _, name := range flagNames {
@@ -76,17 +76,17 @@ func TestValidateAddInput(t *testing.T) {
 					return validateAddInput(cmd)
 				},
 			}
-			
+
 			// Build args
 			args := []string{"test"}
 			if tt.branch != "" {
 				args = append(args, "--branch", tt.branch)
 			}
 			args = append(args, tt.args...)
-			
+
 			ctx := context.Background()
 			err := app.Run(ctx, args)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "branch name is required")
@@ -170,7 +170,7 @@ func TestResolveWorktreePath(t *testing.T) {
 					&cli.StringFlag{Name: "branch"},
 				},
 			}
-			
+
 			// Set flags
 			if tt.pathFlag != "" {
 				_ = cmd.Set("path", tt.pathFlag)
@@ -259,10 +259,10 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 					return nil
 				},
 			}
-			
+
 			// Build args
 			args := []string{"test"}
-			
+
 			// Add flags
 			for flag, value := range tt.flags {
 				switch v := value.(type) {
@@ -274,10 +274,10 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 					args = append(args, "--"+flag, v)
 				}
 			}
-			
+
 			// Add CLI args
 			args = append(args, tt.cliArgs...)
-			
+
 			ctx := context.Background()
 			err := app.Run(ctx, args)
 			assert.NoError(t, err)
@@ -287,10 +287,10 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 
 func TestAppendBasicFlags(t *testing.T) {
 	tests := []struct {
-		name  string
-		force bool
+		name   string
+		force  bool
 		detach bool
-		want  []string
+		want   []string
 	}{
 		{
 			name: "no flags",
@@ -329,7 +329,7 @@ func TestAppendBasicFlags(t *testing.T) {
 					return nil
 				},
 			}
-			
+
 			// Build args
 			args := []string{"test"}
 			if tt.force {
@@ -338,7 +338,7 @@ func TestAppendBasicFlags(t *testing.T) {
 			if tt.detach {
 				args = append(args, "--detach")
 			}
-			
+
 			ctx := context.Background()
 			err := app.Run(ctx, args)
 			assert.NoError(t, err)
@@ -393,11 +393,11 @@ func TestAppendBranchAndTrackFlags(t *testing.T) {
 
 func TestShouldChangeDirectory(t *testing.T) {
 	tests := []struct {
-		name      string
-		cdFlag    bool
-		noCdFlag  bool
-		cfgValue  bool
-		want      bool
+		name     string
+		cdFlag   bool
+		noCdFlag bool
+		cfgValue bool
+		want     bool
 	}{
 		{
 			name:     "cd flag set",
@@ -431,7 +431,7 @@ func TestShouldChangeDirectory(t *testing.T) {
 					&cli.BoolFlag{Name: "no-cd"},
 				},
 			}
-			
+
 			if tt.cdFlag {
 				_ = cmd.Set("cd", "true")
 			}
@@ -453,15 +453,16 @@ func TestShouldChangeDirectory(t *testing.T) {
 
 func TestChangeToWorktree(t *testing.T) {
 	tests := []struct {
-		name            string
+		name             string
 		shellIntegration string
-		workTreePath    string
-		wantOutput      string
+		workTreePath     string
+		wantOutput       string
 	}{
 		{
 			name:         "without shell integration",
 			workTreePath: "/path/to/worktree",
-			wantOutput:   "To change directory, run: cd /path/to/worktree\n(Enable shell integration with: eval \"$(wtp completion zsh)\")\n",
+			wantOutput: "To change directory, run: cd /path/to/worktree\n" +
+				"(Enable shell integration with: eval \"$(wtp completion zsh)\")\n",
 		},
 		{
 			name:             "with shell integration",
@@ -473,28 +474,17 @@ func TestChangeToWorktree(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
 			// Set env var
 			if tt.shellIntegration != "" {
 				os.Setenv("WTP_SHELL_INTEGRATION", tt.shellIntegration)
 				defer os.Unsetenv("WTP_SHELL_INTEGRATION")
 			}
 
-			// Call function
-			changeToWorktree(tt.workTreePath)
+			// Call function with buffer
+			var buf bytes.Buffer
+			changeToWorktree(&buf, tt.workTreePath)
 
-			// Restore stdout and read output
-			w.Close()
-			os.Stdout = oldStdout
-			buf := make([]byte, 1024)
-			n, _ := r.Read(buf)
-			output := string(buf[:n])
-
-			assert.Equal(t, tt.wantOutput, output)
+			assert.Equal(t, tt.wantOutput, buf.String())
 		})
 	}
 }
@@ -522,24 +512,12 @@ func TestDisplaySuccessMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Capture stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-
-			displaySuccessMessage(tt.branchName, tt.workTreePath)
-
-			w.Close()
-			os.Stdout = oldStdout
-			buf := make([]byte, 1024)
-			n, _ := r.Read(buf)
-			output := string(buf[:n])
-
-			assert.Equal(t, tt.wantOutput, output)
+			var buf bytes.Buffer
+			displaySuccessMessage(&buf, tt.branchName, tt.workTreePath)
+			assert.Equal(t, tt.wantOutput, buf.String())
 		})
 	}
 }
-
 
 func TestExecutePostCreateHooks(t *testing.T) {
 	tests := []struct {
@@ -571,21 +549,9 @@ func TestExecutePostCreateHooks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Capture output
 			var buf bytes.Buffer
-			oldStdout := os.Stdout
-			oldStderr := os.Stderr
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-			os.Stderr = w
-
-			err := executePostCreateHooks(tt.cfg, "/repo", "/worktree")
+			err := executePostCreateHooks(&buf, tt.cfg, "/repo", "/worktree")
 			assert.NoError(t, err)
-
-			w.Close()
-			os.Stdout = oldStdout
-			os.Stderr = oldStderr
-			buf.ReadFrom(r)
 
 			if tt.expectOutput {
 				assert.Contains(t, buf.String(), "Executing post-create hooks...")
@@ -595,7 +561,6 @@ func TestExecutePostCreateHooks(t *testing.T) {
 		})
 	}
 }
-
 
 func TestAppendPositionalArgs(t *testing.T) {
 	tests := []struct {
@@ -661,14 +626,14 @@ func TestAppendPositionalArgs(t *testing.T) {
 					return nil
 				},
 			}
-			
+
 			// Build args
 			args := []string{"test"}
 			if tt.pathFlag != "" {
 				args = append(args, "--path", tt.pathFlag)
 			}
 			args = append(args, tt.cliArgs...)
-			
+
 			ctx := context.Background()
 			err := app.Run(ctx, args)
 			assert.NoError(t, err)
@@ -725,11 +690,11 @@ func TestAppendExplicitPathArgs(t *testing.T) {
 					return nil
 				},
 			}
-			
+
 			// Build args
 			args := []string{"test"}
 			args = append(args, tt.cliArgs...)
-			
+
 			ctx := context.Background()
 			err := app.Run(ctx, args)
 			assert.NoError(t, err)
@@ -803,14 +768,14 @@ func TestAppendAutoPathArgs(t *testing.T) {
 					return nil
 				},
 			}
-			
+
 			// Build args
 			args := []string{"test"}
 			if tt.detach {
 				args = append(args, "--detach")
 			}
 			args = append(args, tt.cliArgs...)
-			
+
 			ctx := context.Background()
 			err := app.Run(ctx, args)
 			assert.NoError(t, err)
@@ -822,11 +787,11 @@ func TestAppendAutoPathArgs(t *testing.T) {
 func TestAddCommand_ShellComplete(t *testing.T) {
 	cmd := NewAddCommand()
 	assert.NotNil(t, cmd.ShellComplete)
-	
+
 	// Test that shell complete function exists and can be called
 	ctx := context.Background()
 	cliCmd := &cli.Command{}
-	
+
 	// ShellComplete returns nothing, just test it doesn't panic
 	assert.NotPanics(t, func() {
 		cmd.ShellComplete(ctx, cliCmd)
@@ -873,12 +838,12 @@ func TestBuildGitWorktreeArgsLogic(t *testing.T) {
 			expectedArgs: []string{"worktree", "add", "--track", "-b", "feature", "/worktree", "origin/feature"},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate the logic of buildGitWorktreeArgs
 			args := []string{"worktree", "add"}
-			
+
 			// Add basic flags
 			if tt.hasForce {
 				args = append(args, "--force")
@@ -886,17 +851,17 @@ func TestBuildGitWorktreeArgsLogic(t *testing.T) {
 			if tt.hasDetach {
 				args = append(args, "--detach")
 			}
-			
+
 			// Add branch and track flags
 			if tt.hasBranch != "" {
 				args = append(args, "-b", tt.hasBranch)
 			} else if tt.hasTrack != "" {
 				args = append(args, "--track", "-b", tt.branchName)
 			}
-			
+
 			// Add path
 			args = append(args, tt.workTreePath)
-			
+
 			// Add positional args
 			if tt.hasBranch == "" {
 				if tt.hasTrack != "" {
@@ -905,11 +870,8 @@ func TestBuildGitWorktreeArgsLogic(t *testing.T) {
 					args = append(args, tt.branchName)
 				}
 			}
-			
+
 			assert.Equal(t, tt.expectedArgs, args)
 		})
 	}
 }
-
-
-

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/satococoa/wtp/internal/config"
@@ -64,6 +65,11 @@ func NewAddCommand() *cli.Command {
 }
 
 func addCommand(_ context.Context, cmd *cli.Command) error {
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
 	// Validate inputs
 	if err := validateAddInput(cmd); err != nil {
 		return err
@@ -94,17 +100,17 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Display success message
-	displaySuccessMessage(branchName, workTreePath)
+	displaySuccessMessage(w, branchName, workTreePath)
 
 	// Execute post-create hooks
-	if err := executePostCreateHooks(cfg, mainRepoPath, workTreePath); err != nil {
+	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
 		return err
 	}
 
 	// Change directory if requested
 	if shouldChangeDirectory(cmd, cfg) {
-		fmt.Println()
-		changeToWorktree(workTreePath)
+		fmt.Fprintln(w)
+		changeToWorktree(w, workTreePath)
 	}
 
 	return nil
@@ -157,22 +163,22 @@ func handleBranchResolution(cmd *cli.Command, repo *git.Repository, branchName s
 	return nil
 }
 
-func displaySuccessMessage(branchName, workTreePath string) {
+func displaySuccessMessage(w io.Writer, branchName, workTreePath string) {
 	if branchName != "" {
-		fmt.Printf("Created worktree '%s' at %s\n", branchName, workTreePath)
+		fmt.Fprintf(w, "Created worktree '%s' at %s\n", branchName, workTreePath)
 	} else {
-		fmt.Printf("Created worktree at %s\n", workTreePath)
+		fmt.Fprintf(w, "Created worktree at %s\n", workTreePath)
 	}
 }
 
-func executePostCreateHooks(cfg *config.Config, repoPath, workTreePath string) error {
+func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
 	if cfg.HasHooks() {
-		fmt.Println("\nExecuting post-create hooks...")
+		fmt.Fprintln(w, "\nExecuting post-create hooks...")
 		executor := hooks.NewExecutor(cfg, repoPath)
 		if err := executor.ExecutePostCreateHooks(workTreePath); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Hook execution failed: %v\n", err)
+			fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
 		} else {
-			fmt.Println("✓ All hooks executed successfully")
+			fmt.Fprintln(w, "✓ All hooks executed successfully")
 		}
 	}
 	return nil
@@ -312,14 +318,14 @@ func shouldChangeDirectory(cmd *cli.Command, cfg *config.Config) bool {
 	return cfg.Defaults.CDAfterCreate
 }
 
-func changeToWorktree(workTreePath string) {
+func changeToWorktree(w io.Writer, workTreePath string) {
 	// Check if shell integration is enabled
 	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
-		fmt.Printf("To change directory, run: cd %s\n", workTreePath)
-		fmt.Println("(Enable shell integration with: eval \"$(wtp completion zsh)\")")
+		fmt.Fprintf(w, "To change directory, run: cd %s\n", workTreePath)
+		fmt.Fprintln(w, "(Enable shell integration with: eval \"$(wtp completion zsh)\")")
 		return
 	}
 
 	// Output the path for the shell function to use
-	fmt.Print(workTreePath)
+	fmt.Fprint(w, workTreePath)
 }

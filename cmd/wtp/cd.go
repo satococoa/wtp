@@ -81,7 +81,13 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
 
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
 	// Output the path for the shell function to cd to
-	fmt.Println(targetPath)
+	fmt.Fprintln(w, targetPath)
 	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -18,8 +19,18 @@ const (
 	headDisplayLength  = 8
 )
 
-// Variable to allow mocking in tests
-var listGetwd = os.Getwd
+// GitRepository interface for mocking
+type GitRepository interface {
+	GetWorktrees() ([]git.Worktree, error)
+}
+
+// Variables to allow mocking in tests
+var (
+	listGetwd         = os.Getwd
+	listNewRepository = func(path string) (GitRepository, error) {
+		return git.NewRepository(path)
+	}
+)
 
 // NewListCommand creates the list command definition
 func NewListCommand() *cli.Command {
@@ -31,7 +42,7 @@ func NewListCommand() *cli.Command {
 	}
 }
 
-func listCommand(_ context.Context, _ *cli.Command) error {
+func listCommand(_ context.Context, cmd *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := listGetwd()
 	if err != nil {
@@ -39,7 +50,7 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 	}
 
 	// Initialize repository
-	repo, err := git.NewRepository(cwd)
+	repo, err := listNewRepository(cwd)
 	if err != nil {
 		return errors.NotInGitRepository()
 	}
@@ -50,11 +61,24 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 		return errors.GitCommandFailed("git worktree list", err.Error())
 	}
 
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
 	if len(worktrees) == 0 {
-		fmt.Println("No worktrees found")
+		fmt.Fprintln(w, "No worktrees found")
 		return nil
 	}
 
+	// Display worktrees
+	displayWorktrees(w, worktrees)
+	return nil
+}
+
+// displayWorktrees formats and displays worktree information
+func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 	// Calculate column widths dynamically
 	maxPathLen := 4   // "PATH"
 	maxBranchLen := 6 // "BRANCH"
@@ -73,8 +97,8 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 	maxBranchLen += 2
 
 	// Print header
-	fmt.Printf("%-*s %-*s %s\n", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD")
-	fmt.Printf("%-*s %-*s %s\n",
+	fmt.Fprintf(w, "%-*s %-*s %s\n", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD")
+	fmt.Fprintf(w, "%-*s %-*s %s\n",
 		maxPathLen, strings.Repeat("-", pathHeaderDashes),
 		maxBranchLen, strings.Repeat("-", branchHeaderDashes),
 		"----")
@@ -85,8 +109,6 @@ func listCommand(_ context.Context, _ *cli.Command) error {
 		if len(headShort) > headDisplayLength {
 			headShort = headShort[:headDisplayLength]
 		}
-		fmt.Printf("%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, wt.Branch, headShort)
+		fmt.Fprintf(w, "%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, wt.Branch, headShort)
 	}
-
-	return nil
 }

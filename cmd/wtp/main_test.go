@@ -20,18 +20,18 @@ func TestMain(t *testing.T) {
 		assert.Equal(t, "Enhanced Git worktree management", app.Usage)
 		assert.NotEmpty(t, app.Description)
 		assert.True(t, app.EnableShellCompletion)
-		
+
 		// Check commands exist
 		commandNames := make(map[string]bool)
 		for _, cmd := range app.Commands {
 			commandNames[cmd.Name] = true
 		}
-		
+
 		expectedCommands := []string{"add", "list", "remove", "init", "cd", "completion"}
 		for _, expected := range expectedCommands {
 			assert.True(t, commandNames[expected], "Command %s should exist", expected)
 		}
-		
+
 		// Check version flag exists
 		hasVersionFlag := false
 		for _, flag := range app.Flags {
@@ -58,10 +58,10 @@ func TestAppRun_Version(t *testing.T) {
 	var buf bytes.Buffer
 	app := createApp()
 	app.Writer = &buf
-	
+
 	ctx := context.Background()
 	err := app.Run(ctx, []string{"wtp", "--version"})
-	
+
 	assert.NoError(t, err)
 	output := buf.String()
 	assert.Contains(t, output, "wtp version")
@@ -71,13 +71,13 @@ func TestAppRun_Help(t *testing.T) {
 	var buf bytes.Buffer
 	app := createApp()
 	app.Writer = &buf
-	
+
 	ctx := context.Background()
 	err := app.Run(ctx, []string{"wtp", "--help"})
-	
+
 	assert.NoError(t, err)
 	output := buf.String()
-	
+
 	// Check help output contains expected information
 	assert.Contains(t, output, "wtp")
 	assert.Contains(t, output, "Enhanced Git worktree management")
@@ -99,17 +99,17 @@ func TestAppRun_NoArgs(t *testing.T) {
 	var buf bytes.Buffer
 	app := createApp()
 	app.Writer = &buf
-	
+
 	ctx := context.Background()
 	err := app.Run(ctx, []string{"wtp"})
-	
+
 	// Should show help when no arguments
 	assert.NoError(t, err)
 	output := buf.String()
 	assert.Contains(t, output, "COMMANDS:")
 }
 
-func TestMainExitCode(t *testing.T) {
+func TestMainExitCode(_ *testing.T) {
 	// Test that main exits with non-zero on error
 	if os.Getenv("BE_CRASHER") == "1" {
 		// This will cause an error
@@ -117,7 +117,7 @@ func TestMainExitCode(t *testing.T) {
 		main()
 		return
 	}
-	
+
 	// This test is mainly to ensure main() is covered
 	// Actual exit code testing would require process execution
 }

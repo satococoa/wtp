@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -49,8 +50,12 @@ func NewCompletionCommand() *cli.Command {
 				Name:   "__branches",
 				Hidden: true,
 				Usage:  "List branches for completion",
-				Action: func(_ context.Context, _ *cli.Command) error {
-					printBranches()
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					w := cmd.Root().Writer
+					if w == nil {
+						w = os.Stdout
+					}
+					printBranches(w)
 					return nil
 				},
 			},
@@ -58,8 +63,12 @@ func NewCompletionCommand() *cli.Command {
 				Name:   "__worktrees",
 				Hidden: true,
 				Usage:  "List worktrees for completion",
-				Action: func(_ context.Context, _ *cli.Command) error {
-					printWorktrees()
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					w := cmd.Root().Writer
+					if w == nil {
+						w = os.Stdout
+					}
+					printWorktrees(w)
 					return nil
 				},
 			},
@@ -67,8 +76,14 @@ func NewCompletionCommand() *cli.Command {
 	}
 }
 
-func completionBash(_ context.Context, _ *cli.Command) error {
-	fmt.Println(`#!/bin/bash
+func completionBash(_ context.Context, cmd *cli.Command) error {
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
+	fmt.Fprintln(w, `#!/bin/bash
 # wtp bash completion script with cd integration
 # Add this to your ~/.bashrc or ~/.bash_profile:
 # eval "$(wtp completion bash)"
@@ -309,8 +324,14 @@ wtp() {
 	return nil
 }
 
-func completionZsh(_ context.Context, _ *cli.Command) error {
-	fmt.Println(`#compdef wtp
+func completionZsh(_ context.Context, cmd *cli.Command) error {
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
+	fmt.Fprintln(w, `#compdef wtp
 # wtp zsh completion script with cd integration
 # Add this to your ~/.zshrc:
 # eval "$(wtp completion zsh)"
@@ -539,15 +560,21 @@ wtp() {
 }
 
 func completionFish(_ context.Context, cmd *cli.Command) error {
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
 	// Use the built-in fish completion generation
 	fish, err := cmd.Root().ToFishCompletion()
 	if err != nil {
 		return err
 	}
-	fmt.Println(fish)
+	fmt.Fprintln(w, fish)
 
 	// Add cd command integration
-	fmt.Println(`
+	fmt.Fprintln(w, `
 # wtp cd command integration
 function wtp
     if test "$argv[1]" = "cd"
@@ -590,12 +617,16 @@ end`)
 }
 
 // completeBranches provides branch name completion
-func completeBranches(_ context.Context, _ *cli.Command) {
-	printBranches()
+func completeBranches(_ context.Context, cmd *cli.Command) {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	printBranches(w)
 }
 
 // printBranches prints available branch names for completion
-func printBranches() {
+func printBranches(w io.Writer) {
 	// Get current directory
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -638,17 +669,21 @@ func printBranches() {
 		}
 
 		seen[displayName] = true
-		fmt.Println(displayName)
+		fmt.Fprintln(w, displayName)
 	}
 }
 
 // completeWorktrees provides worktree path completion for remove command
-func completeWorktrees(_ context.Context, _ *cli.Command) {
-	printWorktrees()
+func completeWorktrees(_ context.Context, cmd *cli.Command) {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	printWorktrees(w)
 }
 
 // printWorktrees prints existing worktree branch names for completion
-func printWorktrees() {
+func printWorktrees(w io.Writer) {
 	// Get current directory
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -671,7 +706,7 @@ func printWorktrees() {
 	for _, wt := range worktrees {
 		if wt.Branch != "" {
 			// Branch name is already clean (without refs/heads/)
-			fmt.Println(wt.Branch)
+			fmt.Fprintln(w, wt.Branch)
 		}
 	}
 }
