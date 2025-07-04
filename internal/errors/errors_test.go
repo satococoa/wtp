@@ -10,7 +10,7 @@ import (
 
 func TestNotInGitRepository(t *testing.T) {
 	err := NotInGitRepository()
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not in a git repository")
 	assert.Contains(t, err.Error(), "git init")
@@ -59,7 +59,7 @@ func TestGitCommandFailed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := GitCommandFailed(tt.command, tt.output)
-			
+
 			assert.Error(t, err)
 			for _, expected := range tt.expected {
 				assert.Contains(t, err.Error(), expected)
@@ -71,7 +71,7 @@ func TestGitCommandFailed(t *testing.T) {
 func TestBranchNameRequired(t *testing.T) {
 	commandExample := "wtp add <branch-name>"
 	err := BranchNameRequired(commandExample)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "branch name is required")
 	assert.Contains(t, err.Error(), commandExample)
@@ -81,7 +81,7 @@ func TestBranchNameRequired(t *testing.T) {
 
 func TestWorktreeNameRequired(t *testing.T) {
 	err := WorktreeNameRequired()
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree name is required")
 	assert.Contains(t, err.Error(), "wtp cd")
@@ -91,7 +91,7 @@ func TestWorktreeNameRequired(t *testing.T) {
 func TestInvalidBranchName(t *testing.T) {
 	branchName := "invalid..branch"
 	err := InvalidBranchName(branchName)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid branch name")
 	assert.Contains(t, err.Error(), branchName)
@@ -113,7 +113,7 @@ func TestWorktreeNotFound(t *testing.T) {
 				"worktree 'feature/missing' not found",
 				"Available worktrees:",
 				"main",
-				"develop", 
+				"develop",
 				"feature/auth",
 				"wtp list",
 			},
@@ -133,7 +133,7 @@ func TestWorktreeNotFound(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := WorktreeNotFound(tt.worktreeName, tt.availableWorktrees)
-			
+
 			assert.Error(t, err)
 			for _, expected := range tt.expected {
 				assert.Contains(t, err.Error(), expected)
@@ -144,11 +144,11 @@ func TestWorktreeNotFound(t *testing.T) {
 
 func TestWorktreeCreationFailed(t *testing.T) {
 	tests := []struct {
-		name       string
-		path       string
-		branch     string
-		gitError   error
-		expected   []string
+		name     string
+		path     string
+		branch   string
+		gitError error
+		expected []string
 	}{
 		{
 			name:     "already checked out",
@@ -180,7 +180,7 @@ func TestWorktreeCreationFailed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := WorktreeCreationFailed(tt.path, tt.branch, tt.gitError)
-			
+
 			assert.Error(t, err)
 			for _, expected := range tt.expected {
 				assert.Contains(t, err.Error(), expected)
@@ -193,7 +193,7 @@ func TestWorktreeRemovalFailed(t *testing.T) {
 	path := "/path/to/worktree"
 	gitError := fmt.Errorf("fatal: working tree is dirty")
 	err := WorktreeRemovalFailed(path, gitError)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove worktree")
 	assert.Contains(t, err.Error(), path)
@@ -223,7 +223,7 @@ func TestBranchRemovalFailed(t *testing.T) {
 		},
 		{
 			name:       "forced deletion failed",
-			branchName: "main", 
+			branchName: "main",
 			gitError:   fmt.Errorf("error: cannot delete currently checked out branch 'main'"),
 			forced:     true,
 			expected: []string{
@@ -237,7 +237,7 @@ func TestBranchRemovalFailed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := BranchRemovalFailed(tt.branchName, tt.gitError, tt.forced)
-			
+
 			assert.Error(t, err)
 			for _, expected := range tt.expected {
 				assert.Contains(t, err.Error(), expected)
@@ -279,7 +279,7 @@ func TestConfigLoadFailed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ConfigLoadFailed(tt.path, tt.reason)
-			
+
 			assert.Error(t, err)
 			for _, expected := range tt.expected {
 				assert.Contains(t, err.Error(), expected)
@@ -291,7 +291,7 @@ func TestConfigLoadFailed(t *testing.T) {
 func TestConfigAlreadyExists(t *testing.T) {
 	path := ".wtp.yml"
 	err := ConfigAlreadyExists(path)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "configuration file already exists")
 	assert.Contains(t, err.Error(), path)
@@ -335,7 +335,7 @@ func TestDirectoryAccessFailed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := DirectoryAccessFailed(tt.operation, tt.path, tt.reason)
-			
+
 			assert.Error(t, err)
 			for _, expected := range tt.expected {
 				assert.Contains(t, err.Error(), expected)
@@ -346,7 +346,7 @@ func TestDirectoryAccessFailed(t *testing.T) {
 
 func TestShellIntegrationRequired(t *testing.T) {
 	err := ShellIntegrationRequired()
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "shell integration")
 	assert.Contains(t, err.Error(), "eval")
@@ -358,7 +358,7 @@ func TestUnsupportedShell(t *testing.T) {
 	shell := "tcsh"
 	supportedShells := []string{"bash", "zsh", "fish"}
 	err := UnsupportedShell(shell, supportedShells)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported shell")
 	assert.Contains(t, err.Error(), shell)
@@ -370,7 +370,7 @@ func TestUnsupportedShell(t *testing.T) {
 func TestBranchNotFound(t *testing.T) {
 	branchName := "feature/missing"
 	err := BranchNotFound(branchName)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "branch 'feature/missing' not found")
 	assert.Contains(t, err.Error(), "local or remote branches")
@@ -381,7 +381,7 @@ func TestMultipleBranchesFound(t *testing.T) {
 	branchName := "feature"
 	remotes := []string{"origin", "upstream"}
 	err := MultipleBranchesFound(branchName, remotes)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "branch 'feature' exists in multiple remotes")
 	assert.Contains(t, err.Error(), "origin")
@@ -394,7 +394,7 @@ func TestHookExecutionFailed(t *testing.T) {
 	hookType := "copy"
 	originalError := fmt.Errorf("permission denied")
 	err := HookExecutionFailed(hookIndex, hookType, originalError)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to execute copy hook")
 	assert.Contains(t, err.Error(), hookType)
@@ -415,7 +415,7 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 			keywords: []string{"Solutions:", "git init", "Navigate"},
 		},
 		{
-			name:     "WorktreeNameRequired contains examples", 
+			name:     "WorktreeNameRequired contains examples",
 			errorFn:  func() error { return WorktreeNameRequired() },
 			keywords: []string{"wtp cd", "wtp list"},
 		},
@@ -430,11 +430,11 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.errorFn()
 			assert.Error(t, err)
-			
+
 			// Check that error messages are helpful and contain guidance
 			errMsg := err.Error()
 			assert.True(t, len(errMsg) > 50, "Error message should be detailed")
-			
+
 			for _, keyword := range tt.keywords {
 				assert.Contains(t, errMsg, keyword)
 			}
@@ -455,15 +455,15 @@ func TestErrorMessages_Format(t *testing.T) {
 		t.Run(fmt.Sprintf("error_%d_format", i), func(t *testing.T) {
 			err := errorFn()
 			assert.Error(t, err)
-			
+
 			errMsg := err.Error()
-			
+
 			// Error messages should not be empty
 			assert.NotEmpty(t, errMsg)
-			
+
 			// Error messages should not start or end with whitespace
 			assert.Equal(t, strings.TrimSpace(errMsg), errMsg)
-			
+
 			// Error messages should contain newlines for readability
 			assert.Contains(t, errMsg, "\n")
 		})

@@ -53,8 +53,59 @@ Multiple tests use "Integration" suffix which describes the test type rather tha
 - All tests express clear user value
 - No coverage-driven tests remain
 
+## Unit Test Strategy Implementation
+
+### New Testing Architecture
+Following the user's feedback, we've implemented a mock-based unit testing strategy for `cmd/wtp`:
+
+**Unit Tests (`cmd/wtp/*_test.go`)**:
+- Use `GitExecutor` interface to mock git command execution
+- Verify correct git command arguments are generated
+- Test business logic without actual git operations
+- Fast, isolated, environment-independent
+
+**E2E Tests (`test/e2e/*.go`)**:
+- Test actual git command execution and integration
+- Verify real-world behavior and user scenarios
+- Test cross-platform compatibility
+
+### Implementation Details
+
+1. **GitExecutor Interface** (`cmd/wtp/git_executor.go`):
+   - Abstracts git operations: `ExecuteGitCommand`, `ResolveBranch`, etc.
+   - Production implementation wraps `git.Repository`
+   - Mock implementation for testing with configurable responses
+
+2. **Add Command Refactoring**:
+   - Split `addCommand` into testable `addCommandWithExecutor`
+   - Created comprehensive unit tests for git command argument generation
+   - Tests cover flag combinations, branch resolution, error handling
+
+3. **Test Examples**:
+   ```go
+   func TestAddCommandWithExecutor_GitCommandExecution(t *testing.T) {
+       mockExec := newMockGitExecutor()
+       // ... setup test case ...
+       err := addCommandWithExecutor(cmd, &buf, mockExec, cfg, mainRepoPath)
+       
+       // Verify git command called with correct arguments
+       commands := mockExec.GetExecutedCommands()
+       assert.Equal(t, expectedArgs, commands[0])
+   }
+   ```
+
+### Benefits Achieved
+- **Faster Tests**: No git command execution in unit tests
+- **Better Coverage**: Can test error conditions easily
+- **Clear Separation**: Unit tests verify wtp logic, E2E tests verify git integration
+- **Maintainable**: Mock responses allow testing complex scenarios
+
+### Remaining Work
+Other commands (remove, cd, list) can be refactored similarly, but the foundation and pattern are now established.
+
 ## Next Steps
 1. Rename tests with "Integration" suffix (Phase 2 - Issue #5)
 2. Structure tests in Given-When-Then format (Phase 2 - Issue #5)
 3. Add meaningful edge case tests (Phase 3 - Issue #6)
 4. Create testing guidelines (Phase 4 - Issue #7)
+5. Apply mock-based testing to remaining commands (future improvement)

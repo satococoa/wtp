@@ -81,6 +81,13 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	// Create git executor
+	gitExec := newRepositoryExecutor(repo)
+
+	return addCommandWithExecutor(cmd, w, gitExec, cfg, mainRepoPath)
+}
+
+func addCommandWithExecutor(cmd *cli.Command, w io.Writer, gitExec GitExecutor, cfg *config.Config, mainRepoPath string) error {
 	// Resolve worktree path and branch name
 	var firstArg string
 	if cmd.Args().Len() > 0 {
@@ -89,13 +96,13 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	workTreePath, branchName := resolveWorktreePath(cfg, mainRepoPath, firstArg, cmd)
 
 	// Handle branch resolution if needed
-	if err := handleBranchResolution(cmd, repo, branchName); err != nil {
+	if err := handleBranchResolutionWithExecutor(cmd, gitExec, branchName); err != nil {
 		return err
 	}
 
 	// Build and execute git worktree command
 	args := buildGitWorktreeArgs(cmd, workTreePath, branchName)
-	if err := repo.ExecuteGitCommand(args...); err != nil {
+	if err := gitExec.ExecuteGitCommand(args...); err != nil {
 		return errors.WorktreeCreationFailed(workTreePath, branchName, err)
 	}
 
@@ -148,9 +155,9 @@ func setupRepoAndConfig() (*git.Repository, *config.Config, string, error) {
 	return repo, cfg, mainRepoPath, nil
 }
 
-func handleBranchResolution(cmd *cli.Command, repo *git.Repository, branchName string) error {
+func handleBranchResolutionWithExecutor(cmd *cli.Command, gitExec GitExecutor, branchName string) error {
 	if cmd.String("branch") == "" && cmd.String("track") == "" && branchName != "" && !cmd.Bool("detach") {
-		resolvedBranch, isRemoteBranch, err := repo.ResolveBranch(branchName)
+		resolvedBranch, isRemoteBranch, err := gitExec.ResolveBranch(branchName)
 		if err != nil {
 			return err
 		}
