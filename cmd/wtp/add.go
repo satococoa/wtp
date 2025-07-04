@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
@@ -85,6 +86,68 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	gitExec := newRepositoryExecutor(repo)
 
 	return addCommandWithExecutor(cmd, w, gitExec, cfg, mainRepoPath)
+}
+
+// addCommandWithCommandExecutor is the new implementation using CommandExecutor
+func addCommandWithCommandExecutor(
+	cmd *cli.Command, w io.Writer, cmdExec command.CommandExecutor, cfg *config.Config, mainRepoPath string,
+) error {
+	// Resolve worktree path and branch name
+	var firstArg string
+	if cmd.Args().Len() > 0 {
+		firstArg = cmd.Args().Get(0)
+	}
+	workTreePath, branchName := resolveWorktreePath(cfg, mainRepoPath, firstArg, cmd)
+
+	// Build git worktree command using the new command builder
+	worktreeCmd := buildWorktreeCommand(cmd, workTreePath, branchName)
+	
+	// Execute the command
+	result, err := cmdExec.Execute([]command.Command{worktreeCmd})
+	if err != nil {
+		return err
+	}
+
+	// Check if command succeeded
+	if len(result.Results) > 0 && result.Results[0].Error != nil {
+		return errors.WorktreeCreationFailed(workTreePath, branchName, result.Results[0].Error)
+	}
+
+	// Display success message
+	displaySuccessMessage(w, branchName, workTreePath)
+
+	// Execute post-create hooks (for now, skip this in the new implementation)
+	// TODO: Implement hooks with CommandExecutor
+
+	// Change directory if requested
+	if shouldChangeDirectory(cmd, cfg) {
+		fmt.Fprintln(w)
+		changeToWorktree(w, workTreePath)
+	}
+
+	return nil
+}
+
+// buildWorktreeCommand builds a git worktree command using the new command package
+func buildWorktreeCommand(cmd *cli.Command, workTreePath, branchName string) command.Command {
+	opts := command.GitWorktreeAddOptions{
+		Force:  cmd.Bool("force"),
+		Detach: cmd.Bool("detach"),
+		Branch: cmd.String("branch"),
+		Track:  cmd.String("track"),
+	}
+
+	var commitish string
+	if cmd.Args().Len() > 0 {
+		commitish = cmd.Args().Get(0)
+	}
+
+	// If branch creation, don't use the first arg as commitish
+	if opts.Branch != "" && cmd.Args().Len() > 1 {
+		commitish = cmd.Args().Get(1)
+	}
+
+	return command.GitWorktreeAdd(workTreePath, commitish, opts)
 }
 
 func addCommandWithExecutor(
