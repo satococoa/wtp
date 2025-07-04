@@ -87,7 +87,9 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	return addCommandWithExecutor(cmd, w, gitExec, cfg, mainRepoPath)
 }
 
-func addCommandWithExecutor(cmd *cli.Command, w io.Writer, gitExec GitExecutor, cfg *config.Config, mainRepoPath string) error {
+func addCommandWithExecutor(
+	cmd *cli.Command, w io.Writer, gitExec GitExecutor, cfg *config.Config, mainRepoPath string,
+) error {
 	// Resolve worktree path and branch name
 	var firstArg string
 	if cmd.Args().Len() > 0 {

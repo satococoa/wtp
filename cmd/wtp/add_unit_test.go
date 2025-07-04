@@ -17,36 +17,36 @@ import (
 
 func TestAddCommandWithExecutor_GitCommandExecution(t *testing.T) {
 	tests := []struct {
-		name           string
-		flags          map[string]interface{}
-		args           []string
-		expectedArgs   []string
-		expectError    bool
-		mockError      error
+		name         string
+		flags        map[string]interface{}
+		args         []string
+		expectedArgs []string
+		expectError  bool
+		mockError    error
 	}{
 		{
-			name: "successful worktree creation",
-			flags: map[string]interface{}{},
-			args: []string{"feature/test"},
+			name:         "successful worktree creation",
+			flags:        map[string]interface{}{},
+			args:         []string{"feature/test"},
 			expectedArgs: []string{"worktree", "add", "/test/worktrees/feature/test", "feature/test"},
-			expectError: false,
+			expectError:  false,
 		},
 		{
 			name: "worktree creation with force",
 			flags: map[string]interface{}{
 				"force": true,
 			},
-			args: []string{"feature/test"},
+			args:         []string{"feature/test"},
 			expectedArgs: []string{"worktree", "add", "--force", "/test/worktrees/feature/test", "feature/test"},
-			expectError: false,
+			expectError:  false,
 		},
 		{
-			name: "git command failure",
-			flags: map[string]interface{}{},
-			args: []string{"feature/test"},
+			name:         "git command failure",
+			flags:        map[string]interface{}{},
+			args:         []string{"feature/test"},
 			expectedArgs: []string{"worktree", "add", "/test/worktrees/feature/test", "feature/test"},
-			expectError: true,
-			mockError: errors.GitCommandFailed("git worktree add", "fatal: already exists"),
+			expectError:  true,
+			mockError:    errors.GitCommandFailed("git worktree add", "fatal: already exists"),
 		},
 	}
 
@@ -56,7 +56,7 @@ func TestAddCommandWithExecutor_GitCommandExecution(t *testing.T) {
 			cmd := createTestCommand(tt.flags, tt.args)
 			var buf bytes.Buffer
 			mockExec := newMockGitExecutor()
-			
+
 			if tt.mockError != nil {
 				mockExec.SetExecuteError(tt.mockError)
 			}
@@ -150,7 +150,7 @@ func TestHandleBranchResolutionWithExecutor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test command
 			cmd := createTestCommand(tt.flags, []string{tt.branchName})
-			
+
 			// Create mock executor
 			mockExec := newMockGitExecutor()
 			mockExec.SetResolveBranch(tt.resolvedBranch, tt.isRemoteBranch, tt.resolveBranchErr)
@@ -163,7 +163,7 @@ func TestHandleBranchResolutionWithExecutor(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				
+
 				// Check if track flag was set correctly
 				if tt.expectedTrack != "" {
 					assert.Equal(t, tt.expectedTrack, cmd.String("track"))
@@ -198,7 +198,7 @@ func createTestCommand(flags map[string]interface{}, args []string) *cli.Command
 					&cli.BoolFlag{Name: "cd"},
 					&cli.BoolFlag{Name: "no-cd"},
 				},
-				Action: func(_ context.Context, cmd *cli.Command) error {
+				Action: func(_ context.Context, _ *cli.Command) error {
 					return nil
 				},
 			},
@@ -222,7 +222,7 @@ func createTestCommand(flags map[string]interface{}, args []string) *cli.Command
 	// Run the app to populate flags
 	ctx := context.Background()
 	_ = app.Run(ctx, cmdArgs)
-	
+
 	// Return the add subcommand
 	return app.Commands[0]
 }

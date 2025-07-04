@@ -301,8 +301,8 @@ func TestBranchResolution(t *testing.T) {
 	}
 }
 
-func runCmd(t *testing.T, dir, name string, args ...string) {
-	cmd := exec.Command(name, args...)
+func runCmd(t *testing.T, dir, _ string, args ...string) {
+	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("command failed: %s\nOutput: %s", err, output)

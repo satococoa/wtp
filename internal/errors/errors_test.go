@@ -411,17 +411,17 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 	}{
 		{
 			name:     "NotInGitRepository contains solutions",
-			errorFn:  func() error { return NotInGitRepository() },
+			errorFn:  NotInGitRepository,
 			keywords: []string{"Solutions:", "git init", "Navigate"},
 		},
 		{
 			name:     "WorktreeNameRequired contains examples",
-			errorFn:  func() error { return WorktreeNameRequired() },
+			errorFn:  WorktreeNameRequired,
 			keywords: []string{"wtp cd", "wtp list"},
 		},
 		{
 			name:     "ShellIntegrationRequired contains setup",
-			errorFn:  func() error { return ShellIntegrationRequired() },
+			errorFn:  ShellIntegrationRequired,
 			keywords: []string{"Setup:", "eval", "completion"},
 		},
 	}
@@ -445,10 +445,10 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 func TestErrorMessages_Format(t *testing.T) {
 	// Test that error messages are well-formatted
 	tests := []func() error{
-		func() error { return NotInGitRepository() },
+		NotInGitRepository,
 		func() error { return BranchNameRequired("example") },
-		func() error { return WorktreeNameRequired() },
-		func() error { return ShellIntegrationRequired() },
+		WorktreeNameRequired,
+		ShellIntegrationRequired,
 	}
 
 	for i, errorFn := range tests {

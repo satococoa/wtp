@@ -71,7 +71,7 @@ func TestGetWorktrees_WithWorktrees(t *testing.T) {
 	runCmd(t, tempDir, "git", "checkout", "main")
 
 	// Create worktrees
-	worktreesDir := filepath.Join(tempDir, "../worktrees")
+	worktreesDir := filepath.Join(filepath.Dir(tempDir), "worktrees")
 	err = os.MkdirAll(worktreesDir, 0755)
 	assert.NoError(t, err)
 

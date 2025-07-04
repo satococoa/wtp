@@ -34,7 +34,7 @@ func setupTestGitRepoForAdd(t *testing.T) string {
 	return tempDir
 }
 
-func createConfigFile(t *testing.T, repoPath string, content string) {
+func createConfigFile(t *testing.T, repoPath, content string) {
 	configPath := filepath.Join(repoPath, ".wtp.yml")
 	err := os.WriteFile(configPath, []byte(content), 0644)
 	assert.NoError(t, err)
@@ -146,6 +146,7 @@ func TestSetupRepoAndConfig_NotInGitRepo(t *testing.T) {
 	err := os.Chdir(tempDir)
 	assert.NoError(t, err)
 
+	//nolint:dogsled
 	_, _, _, err = setupRepoAndConfig()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not in a git repository")
@@ -358,7 +359,7 @@ hooks:
 	assert.Contains(t, output, "Created worktree")
 
 	// Check if hook was executed
-	worktreePath := filepath.Join(testRepo, "../worktrees/hook-test")
+	worktreePath := filepath.Join(filepath.Dir(testRepo), "worktrees", "hook-test")
 	copiedFile := filepath.Join(worktreePath, "copied_readme.md")
 	assert.FileExists(t, copiedFile)
 }

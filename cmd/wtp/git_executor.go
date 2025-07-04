@@ -23,7 +23,7 @@ func (r *repositoryExecutor) ExecuteGitCommand(args ...string) error {
 	return r.repo.ExecuteGitCommand(args...)
 }
 
-func (r *repositoryExecutor) ResolveBranch(branch string) (string, bool, error) {
+func (r *repositoryExecutor) ResolveBranch(branch string) (resolvedBranch string, isRemote bool, err error) {
 	return r.repo.ResolveBranch(branch)
 }
 
@@ -63,7 +63,7 @@ func (m *mockGitExecutor) ExecuteGitCommand(args ...string) error {
 	return m.executeErr
 }
 
-func (m *mockGitExecutor) ResolveBranch(branch string) (string, bool, error) {
+func (m *mockGitExecutor) ResolveBranch(branch string) (resolvedBranch string, isRemote bool, err error) {
 	if m.resolveBranchErr != nil {
 		return "", false, m.resolveBranchErr
 	}
