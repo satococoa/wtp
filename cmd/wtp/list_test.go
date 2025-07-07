@@ -395,7 +395,7 @@ func (m *mockListExecutor) Execute(commands []command.Command) (*command.Executi
 	if m.err != nil {
 		return nil, m.err
 	}
-	
+
 	return &command.ExecutionResult{
 		Results: []command.Result{
 			{
