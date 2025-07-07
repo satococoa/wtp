@@ -123,9 +123,9 @@ func (m *mockCommandExecutor) Execute(commands []command.Command) (*command.Exec
 	}
 
 	// Default successful result
-	results := make([]command.CommandResult, len(commands))
+	results := make([]command.Result, len(commands))
 	for i, cmd := range commands {
-		results[i] = command.CommandResult{
+		results[i] = command.Result{
 			Command: cmd,
 			Output:  "success",
 			Error:   nil,

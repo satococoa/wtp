@@ -2,10 +2,10 @@ package command
 
 // GitWorktreeAddOptions represents options for git worktree add command
 type GitWorktreeAddOptions struct {
-	Force   bool
-	Detach  bool
-	Branch  string
-	Track   string
+	Force  bool
+	Detach bool
+	Branch string
+	Track  string
 }
 
 // GitWorktreeAdd builds a git worktree add command
@@ -47,13 +47,13 @@ func GitWorktreeAdd(path, commitish string, opts GitWorktreeAddOptions) Command 
 // GitBranchDelete builds a git branch delete command
 func GitBranchDelete(branchName string, force bool) Command {
 	args := []string{"branch"}
-	
+
 	if force {
 		args = append(args, "-D")
 	} else {
 		args = append(args, "-d")
 	}
-	
+
 	args = append(args, branchName)
 
 	return Command{
@@ -65,11 +65,11 @@ func GitBranchDelete(branchName string, force bool) Command {
 // GitWorktreeRemove builds a git worktree remove command
 func GitWorktreeRemove(path string, force bool) Command {
 	args := []string{"worktree", "remove"}
-	
+
 	if force {
 		args = append(args, "--force")
 	}
-	
+
 	args = append(args, path)
 
 	return Command{
@@ -82,16 +82,16 @@ func GitWorktreeRemove(path string, force bool) Command {
 // e.g., "origin/feature" -> "feature"
 func extractBranchName(ref string) string {
 	// Simple implementation - in real code this might be more sophisticated
-	if len(ref) == 0 {
+	if ref == "" {
 		return ref
 	}
-	
+
 	// If it contains a slash, take the last part
 	for i := len(ref) - 1; i >= 0; i-- {
 		if ref[i] == '/' {
 			return ref[i+1:]
 		}
 	}
-	
+
 	return ref
 }

@@ -11,7 +11,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 	t.Run("should execute single command", func(t *testing.T) {
 		// Given: a command executor with mock shell executor
 		mockShell := &mockShellExecutor{}
-		executor := NewCommandExecutor(mockShell)
+		executor := NewExecutor(mockShell)
 
 		// When: executing a single git command
 		cmd := Command{
@@ -31,7 +31,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 	t.Run("should execute multiple commands in sequence", func(t *testing.T) {
 		// Given: a command executor
 		mockShell := &mockShellExecutor{}
-		executor := NewCommandExecutor(mockShell)
+		executor := NewExecutor(mockShell)
 
 		// When: executing multiple commands
 		commands := []Command{
@@ -53,7 +53,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 			shouldFail: true,
 			failOutput: "fatal: branch not found",
 		}
-		executor := NewCommandExecutor(mockShell)
+		executor := NewExecutor(mockShell)
 
 		// When: executing a command that fails
 		cmd := Command{
@@ -72,7 +72,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 	t.Run("should support working directory", func(t *testing.T) {
 		// Given: a command with specific working directory
 		mockShell := &mockShellExecutor{}
-		executor := NewCommandExecutor(mockShell)
+		executor := NewExecutor(mockShell)
 
 		// When: executing command with WorkDir
 		cmd := Command{
@@ -91,7 +91,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 	t.Run("should handle empty command list", func(t *testing.T) {
 		// Given: a command executor
 		mockShell := &mockShellExecutor{}
-		executor := NewCommandExecutor(mockShell)
+		executor := NewExecutor(mockShell)
 
 		// When: executing empty command list
 		result, err := executor.Execute([]Command{})

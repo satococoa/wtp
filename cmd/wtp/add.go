@@ -90,7 +90,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 
 // addCommandWithCommandExecutor is the new implementation using CommandExecutor
 func addCommandWithCommandExecutor(
-	cmd *cli.Command, w io.Writer, cmdExec command.CommandExecutor, cfg *config.Config, mainRepoPath string,
+	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string,
 ) error {
 	// Resolve worktree path and branch name
 	var firstArg string
@@ -101,7 +101,7 @@ func addCommandWithCommandExecutor(
 
 	// Build git worktree command using the new command builder
 	worktreeCmd := buildWorktreeCommand(cmd, workTreePath, branchName)
-	
+
 	// Execute the command
 	result, err := cmdExec.Execute([]command.Command{worktreeCmd})
 	if err != nil {
@@ -129,7 +129,7 @@ func addCommandWithCommandExecutor(
 }
 
 // buildWorktreeCommand builds a git worktree command using the new command package
-func buildWorktreeCommand(cmd *cli.Command, workTreePath, branchName string) command.Command {
+func buildWorktreeCommand(cmd *cli.Command, workTreePath, _ string) command.Command {
 	opts := command.GitWorktreeAddOptions{
 		Force:  cmd.Bool("force"),
 		Detach: cmd.Bool("detach"),

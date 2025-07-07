@@ -5,8 +5,8 @@ type executor struct {
 	shell ShellExecutor
 }
 
-// NewCommandExecutor creates a new command executor with the given shell executor
-func NewCommandExecutor(shell ShellExecutor) CommandExecutor {
+// NewExecutor creates a new command executor with the given shell executor
+func NewExecutor(shell ShellExecutor) Executor {
 	return &executor{
 		shell: shell,
 	}
@@ -15,18 +15,18 @@ func NewCommandExecutor(shell ShellExecutor) CommandExecutor {
 // Execute executes the given commands in sequence and returns the results
 func (e *executor) Execute(commands []Command) (*ExecutionResult, error) {
 	result := &ExecutionResult{
-		Results: make([]CommandResult, 0, len(commands)),
+		Results: make([]Result, 0, len(commands)),
 	}
 
 	for _, cmd := range commands {
 		output, err := e.shell.Execute(cmd.Name, cmd.Args, cmd.WorkDir)
-		
-		commandResult := CommandResult{
+
+		commandResult := Result{
 			Command: cmd,
 			Output:  output,
 			Error:   err,
 		}
-		
+
 		result.Results = append(result.Results, commandResult)
 	}
 
