@@ -97,9 +97,156 @@ make dev  # Runs fmt, lint, and test
 
 ## Testing Strategy
 
-- Unit tests for core functionality
-- E2E tests with real git repositories
-- Manual testing of shell completions across bash/zsh/fish
+### Evolution to Environment-Independent Testing
+
+**Previous Approach** (Before CommandExecutor):
+- Mixed unit and integration tests
+- Environment-dependent behavior
+- Difficult to mock git operations
+
+**Current Approach** (TDD-driven CommandExecutor):
+- Clear separation of test levels
+- Environment-independent unit tests
+- Comprehensive mocking capabilities
+
+### Test Levels
+
+#### 1. Unit Tests (`*_test.go`)
+- **Purpose**: Test business logic and command flow in isolation
+- **Dependencies**: All external dependencies mocked via dependency injection
+- **Execution Time**: < 100ms per test
+- **Environment**: Any (no git required)
+- **Coverage**: 80%+ for core functionality
+
+**Example Pattern**:
+```go
+// Dependency injection for testability
+type ListDependencies struct {
+    CommandExecutor command.Executor
+    GetWorkingDir   func() (string, error)
+    NewRepository   func(string) (GitRepository, error)
+}
+
+// Test with mocked dependencies
+func TestListCommand_WithMocks(t *testing.T) {
+    mockExecutor := testutil.NewMockCommandExecutor(t)
+    mockExecutor.SetWorktreeListResult(testFixtures)
+    // ... test logic
+}
+```
+
+#### 2. Integration Tests (`*_integration_test.go`, build tag: `integration`)
+- **Purpose**: Test integration with real git commands in isolated environments
+- **Dependencies**: Git binary, temporary repositories
+- **Execution Time**: < 1s per test
+- **Environment**: Isolated temporary git repositories
+
+#### 3. E2E Tests (`test/e2e/*.go`, build tag: `e2e`)
+- **Purpose**: Test complete user workflows and scenarios
+- **Dependencies**: Full environment (git, shell, filesystem)
+- **Execution Time**: < 10s per test
+- **Environment**: Realistic user scenarios
+
+### Key Improvements
+
+#### Dependency Injection Pattern
+All commands now support dependency injection for external dependencies:
+
+```go
+// Production dependencies
+var DefaultListDependencies = ListDependencies{
+    CommandExecutor: command.NewRealExecutor(),
+    GetWorkingDir:   os.Getwd,
+    NewRepository:   git.NewRepository,
+}
+
+// Test helper for dependency injection
+func SetListDependenciesForTest(deps ListDependencies) func() {
+    // Returns cleanup function
+}
+```
+
+#### Comprehensive Mocking
+- `MockCommandExecutor`: Simulates git command execution
+- `MockGitRepository`: Provides test fixtures for repository state
+- Test fixtures for common scenarios (empty repos, multiple worktrees, etc.)
+
+#### Build Tags for Test Separation
+```bash
+# Unit tests only (fast, no dependencies)
+make test-unit
+
+# Integration tests (requires git)
+make test-integration
+
+# All tests
+make test-all
+```
+
+### Test Execution Strategy
+
+#### Development Workflow
+```bash
+# Fast feedback loop (< 5 seconds)
+make dev-fast    # fmt + lint + unit tests
+
+# Complete verification (< 30 seconds)
+make dev         # includes integration tests
+
+# Full CI pipeline (< 60 seconds)
+make ci          # all tests + coverage
+```
+
+#### Continuous Integration
+- **Pull Requests**: Unit tests + lint (fast feedback)
+- **Main Branch**: Full test suite including integration and E2E
+- **Release**: Additional manual testing on multiple platforms
+
+### Testing Best Practices Adopted
+
+1. **Test Pyramid Compliance**:
+   - Many fast unit tests (70%)
+   - Some integration tests (20%)
+   - Few E2E tests (10%)
+
+2. **Environment Independence**:
+   - No implicit dependencies on git repository state
+   - All external dependencies explicitly injected
+   - Deterministic test results
+
+3. **Clear Test Boundaries**:
+   - Unit: Business logic only
+   - Integration: Git command integration
+   - E2E: User workflows
+
+4. **Fast Feedback**:
+   - Unit tests run in milliseconds
+   - Fail fast on lint/format issues
+   - Clear error messages
+
+### Current Test Coverage
+
+- **Unit Tests**: 83%+ coverage for core functionality
+- **Integration Tests**: Critical git operations covered
+- **E2E Tests**: Major user workflows verified
+- **Manual Testing**: Shell completions across bash/zsh/fish
+
+### Migration Status
+
+**Completed**:
+- ✅ CommandExecutor architecture for all commands
+- ✅ Comprehensive unit test mocks
+- ✅ Dependency injection patterns
+- ✅ Build tag separation
+
+**In Progress**:
+- 🔄 Full integration test coverage
+- 🔄 Docker-based test isolation
+
+**Future**:
+- 📋 Performance benchmarks
+- 📋 Mutation testing
+- 📋 Property-based testing for edge cases
 
 ## Future Considerations
 

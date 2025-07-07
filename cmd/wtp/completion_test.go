@@ -219,7 +219,7 @@ func TestPrintWorktrees(t *testing.T) {
 	})
 }
 
-func TestCompletionScriptIntegration(t *testing.T) {
+func TestCompletionScriptGeneration(t *testing.T) {
 	// Verify completion scripts are generated correctly for each shell
 	shells := []string{"bash", "zsh"}
 
