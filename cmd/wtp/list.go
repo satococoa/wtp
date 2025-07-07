@@ -31,6 +31,7 @@ var (
 	listNewRepository = func(path string) (GitRepository, error) {
 		return git.NewRepository(path)
 	}
+	listNewExecutor = command.NewRealExecutor // Add this for mocking
 )
 
 // NewListCommand creates the list command definition
@@ -63,7 +64,7 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Use CommandExecutor-based implementation
-	executor := command.NewRealExecutor()
+	executor := listNewExecutor()
 	return listCommandWithCommandExecutor(cmd, w, executor, cwd)
 }
 

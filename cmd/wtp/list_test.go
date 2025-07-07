@@ -73,9 +73,11 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 	// Save original functions
 	originalGetwd := listGetwd
 	originalNewRepo := listNewRepository
+	originalNewExecutor := listNewExecutor
 	defer func() {
 		listGetwd = originalGetwd
 		listNewRepository = originalNewRepo
+		listNewExecutor = originalNewExecutor
 	}()
 
 	// Mock functions
@@ -88,6 +90,11 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 		return &mockRepository{
 			worktrees: []git.Worktree{},
 		}, nil
+	}
+
+	// Mock executor to return empty worktree output
+	listNewExecutor = func() command.Executor {
+		return &mockListExecutor{output: ""} // Empty output = no worktrees
 	}
 
 	// Create app with Writer
@@ -314,9 +321,11 @@ func TestListCommand_WithMockOutput(t *testing.T) {
 	// Save original functions
 	originalGetwd := listGetwd
 	originalNewRepo := listNewRepository
+	originalNewExecutor := listNewExecutor
 	defer func() {
 		listGetwd = originalGetwd
 		listNewRepository = originalNewRepo
+		listNewExecutor = originalNewExecutor
 	}()
 
 	// Mock functions
@@ -333,6 +342,13 @@ func TestListCommand_WithMockOutput(t *testing.T) {
 				{Path: "../worktrees/feature", Branch: "feature/auth", HEAD: "def67890123456"},
 			},
 		}, nil
+	}
+
+	// Mock executor to return specific worktree output
+	mockOutput := "worktree .\nHEAD abc12345\nbranch refs/heads/main\n\n" +
+		"worktree ../worktrees/feature\nHEAD def67890123456\nbranch refs/heads/feature/auth\n\n"
+	listNewExecutor = func() command.Executor {
+		return &mockListExecutor{output: mockOutput}
 	}
 
 	// Create app with Writer
@@ -367,6 +383,28 @@ type mockRepository struct {
 
 func (m *mockRepository) GetWorktrees() ([]git.Worktree, error) {
 	return m.worktrees, nil
+}
+
+// Simple mock executor for unit tests (t-wada approach)
+type mockListExecutor struct {
+	output string
+	err    error
+}
+
+func (m *mockListExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	
+	return &command.ExecutionResult{
+		Results: []command.Result{
+			{
+				Command: commands[0],
+				Output:  m.output,
+				Error:   nil,
+			},
+		},
+	}, nil
 }
 
 // Test with CommandExecutor architecture
