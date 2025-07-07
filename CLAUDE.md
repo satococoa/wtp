@@ -138,7 +138,7 @@ tool (
 
 This ensures all team members use the same tool versions defined in go.mod.
 
-### Project Renaming (2024-12)
+### Project Renaming
 
 - **Command**: `git-wtp` → `wtp` (easier typing, follows patterns like
   gh/ghq/tig)
@@ -146,7 +146,7 @@ This ensures all team members use the same tool versions defined in go.mod.
 
 ## Major Design Changes
 
-### 2025-01: Shell Integration (cd command) Implementation
+### Shell Integration (cd command) Implementation
 
 **Background**: v0.3.0 milestone included implementing the `wtp cd` command to
 quickly change directories to worktrees.
@@ -208,7 +208,7 @@ quickly change directories to worktrees.
 **Testing**: All tests pass, shell integration tested manually across
 bash/zsh/fish
 
-### 2025-01: Simplify add Command by Removing Rarely Used Options
+### Simplify add Command by Removing Rarely Used Options
 
 **Background**: The add command was supporting all git worktree options, making
 it complex to maintain and understand. Following the 80/20 principle, we
@@ -244,7 +244,7 @@ simplified it by keeping only the commonly used options.
 
 **Testing**: All existing tests pass; no tests were using the removed options
 
-### 2024-12: Explicit Path Flag Implementation
+### Explicit Path Flag Implementation
 
 **Background**: User feedback identified ambiguity issue with automatic path
 detection - `foobar/foo` could be interpreted as either a path or branch name,
@@ -289,7 +289,7 @@ unambiguous behavior.
 
 **Testing**: All tests pass, explicit path logic verified
 
-### 2025-01: TDD-Driven Command Architecture & Test Strategy Revolution
+### TDD-Driven Command Architecture & Test Strategy Revolution
 
 **Background**: Following Issue #3 (Test Quality Improvement) and user feedback
 about testable command design, we implemented a revolutionary new command
