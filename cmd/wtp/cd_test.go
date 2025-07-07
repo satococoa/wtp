@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 )
@@ -193,4 +194,89 @@ func TestCdCommand_ShellComplete(t *testing.T) {
 	cmd := NewCdCommand()
 	// cd command doesn't have shell completion
 	assert.Nil(t, cmd.ShellComplete)
+}
+
+// Test with CommandExecutor architecture
+func TestCdCommandWithCommandExecutor_Success(t *testing.T) {
+	mockExec := &mockCdCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /path/to/worktrees/feature-branch\nHEAD abc123\nbranch refs/heads/feature-branch\n\n",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-branch")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "/path/to/worktrees/feature-branch\n", buf.String())
+	assert.Len(t, mockExec.executedCommands, 1)
+	assert.Equal(t, []string{"worktree", "list", "--porcelain"}, mockExec.executedCommands[0].Args)
+}
+
+func TestCdCommandWithCommandExecutor_WorktreeNotFound(t *testing.T) {
+	mockExec := &mockCdCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /path/to/worktrees/main\nHEAD abc123\nbranch refs/heads/main\n\n",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-branch")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
+}
+
+func TestCdCommandWithCommandExecutor_NoWorktrees(t *testing.T) {
+	mockExec := &mockCdCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-branch")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
+}
+
+// Mock command executor for cd testing
+type mockCdCommandExecutor struct {
+	executedCommands []command.Command
+	results          []command.Result
+}
+
+func (m *mockCdCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	m.executedCommands = append(m.executedCommands, commands...)
+
+	results := make([]command.Result, len(commands))
+	for i, cmd := range commands {
+		if i < len(m.results) {
+			results[i] = m.results[i]
+		} else {
+			results[i] = command.Result{
+				Command: cmd,
+				Output:  "",
+				Error:   nil,
+			}
+		}
+	}
+
+	return &command.ExecutionResult{Results: results}, nil
 }

@@ -12,6 +12,13 @@ func NewExecutor(shell ShellExecutor) Executor {
 	}
 }
 
+// NewRealExecutor creates a new command executor with real shell execution
+func NewRealExecutor() Executor {
+	return &executor{
+		shell: NewRealShellExecutor(),
+	}
+}
+
 // Execute executes the given commands in sequence and returns the results
 func (e *executor) Execute(commands []Command) (*ExecutionResult, error) {
 	result := &ExecutionResult{

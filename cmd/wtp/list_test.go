@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
@@ -366,4 +367,78 @@ type mockRepository struct {
 
 func (m *mockRepository) GetWorktrees() ([]git.Worktree, error) {
 	return m.worktrees, nil
+}
+
+// Test with CommandExecutor architecture
+func TestListCommandWithCommandExecutor_Success(t *testing.T) {
+	mockExec := &mockListCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
+					"worktree /path/to/feature\nHEAD def456\nbranch refs/heads/feature/auth\n\n",
+				Error: nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+
+	assert.NoError(t, err)
+	output := buf.String()
+	assert.Contains(t, output, "PATH")
+	assert.Contains(t, output, "BRANCH")
+	assert.Contains(t, output, "HEAD")
+	assert.Contains(t, output, "/path/to/main")
+	assert.Contains(t, output, "/path/to/feature")
+	assert.Contains(t, output, "main")
+	assert.Contains(t, output, "feature/auth")
+	assert.Len(t, mockExec.executedCommands, 1)
+	assert.Equal(t, []string{"worktree", "list", "--porcelain"}, mockExec.executedCommands[0].Args)
+}
+
+func TestListCommandWithCommandExecutor_NoWorktrees(t *testing.T) {
+	mockExec := &mockListCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "No worktrees found")
+}
+
+// Mock command executor for list testing
+type mockListCommandExecutor struct {
+	executedCommands []command.Command
+	results          []command.Result
+}
+
+func (m *mockListCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	m.executedCommands = append(m.executedCommands, commands...)
+
+	results := make([]command.Result, len(commands))
+	for i, cmd := range commands {
+		if i < len(m.results) {
+			results[i] = m.results[i]
+		} else {
+			results[i] = command.Result{
+				Command: cmd,
+				Output:  "",
+				Error:   nil,
+			}
+		}
+	}
+
+	return &command.ExecutionResult{Results: results}, nil
 }

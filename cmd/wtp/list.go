@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -49,16 +50,10 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
-	// Initialize repository
-	repo, err := listNewRepository(cwd)
+	// Initialize repository to check if we're in a git repo
+	_, err = listNewRepository(cwd)
 	if err != nil {
 		return errors.NotInGitRepository()
-	}
-
-	// Get worktrees
-	worktrees, err := repo.GetWorktrees()
-	if err != nil {
-		return errors.GitCommandFailed("git worktree list", err.Error())
 	}
 
 	// Get the writer from cli.Command
@@ -66,6 +61,22 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
+
+	// Use CommandExecutor-based implementation
+	executor := command.NewRealExecutor()
+	return listCommandWithCommandExecutor(cmd, w, executor, cwd)
+}
+
+func listCommandWithCommandExecutor(_ *cli.Command, w io.Writer, executor command.Executor, _ string) error {
+	// Get worktrees using CommandExecutor
+	listCmd := command.GitWorktreeList()
+	result, err := executor.Execute([]command.Command{listCmd})
+	if err != nil {
+		return errors.GitCommandFailed("git worktree list", err.Error())
+	}
+
+	// Parse worktrees from command output
+	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
 	if len(worktrees) == 0 {
 		fmt.Fprintln(w, "No worktrees found")
@@ -75,6 +86,36 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	// Display worktrees
 	displayWorktrees(w, worktrees)
 	return nil
+}
+
+func parseWorktreesFromOutput(output string) []git.Worktree {
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	var worktrees []git.Worktree
+	var currentWorktree git.Worktree
+
+	for _, line := range lines {
+		if line == "" {
+			if currentWorktree.Path != "" {
+				worktrees = append(worktrees, currentWorktree)
+				currentWorktree = git.Worktree{}
+			}
+			continue
+		}
+
+		if strings.HasPrefix(line, "worktree ") {
+			currentWorktree.Path = strings.TrimPrefix(line, "worktree ")
+		} else if strings.HasPrefix(line, "HEAD ") {
+			currentWorktree.HEAD = strings.TrimPrefix(line, "HEAD ")
+		} else if strings.HasPrefix(line, "branch ") {
+			currentWorktree.Branch = strings.TrimPrefix(line, "branch refs/heads/")
+		}
+	}
+
+	if currentWorktree.Path != "" {
+		worktrees = append(worktrees, currentWorktree)
+	}
+
+	return worktrees
 }
 
 // displayWorktrees formats and displays worktree information

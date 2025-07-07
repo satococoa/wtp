@@ -284,10 +284,13 @@ func TestAddCommand_WithGitExecutor(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:           "remote branch auto-tracking",
-			flags:          map[string]interface{}{},
-			args:           []string{"feature/remote"},
-			expectedArgs:   []string{"worktree", "add", "--track", "origin/feature/remote", "/test/worktrees/feature/remote", "origin/feature/remote"},
+			name:  "remote branch auto-tracking",
+			flags: map[string]interface{}{},
+			args:  []string{"feature/remote"},
+			expectedArgs: []string{
+				"worktree", "add", "--track", "-b", "feature/remote",
+				"/test/worktrees/feature/remote", "origin/feature/remote",
+			},
 			resolvedBranch: "origin/feature/remote",
 			isRemoteBranch: true,
 			expectError:    false,

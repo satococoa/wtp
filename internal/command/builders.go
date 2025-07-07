@@ -78,6 +78,14 @@ func GitWorktreeRemove(path string, force bool) Command {
 	}
 }
 
+// GitWorktreeList builds a git worktree list command
+func GitWorktreeList() Command {
+	return Command{
+		Name: "git",
+		Args: []string{"worktree", "list", "--porcelain"},
+	}
+}
+
 // extractBranchName extracts branch name from a remote reference
 // e.g., "origin/feature" -> "feature"
 func extractBranchName(ref string) string {

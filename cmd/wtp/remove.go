@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -63,27 +64,58 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	// Get repository
-	repo, err := getRepository()
+	// Get current working directory
+	cwd, err := removeGetwd()
 	if err != nil {
-		return err
+		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
+
+	// Initialize repository to check if we're in a git repo
+	_, err = git.NewRepository(cwd)
+	if err != nil {
+		return errors.NotInGitRepository()
+	}
+
+	// Use CommandExecutor-based implementation
+	executor := command.NewRealExecutor()
+	return removeCommandWithCommandExecutor(cmd, w, executor, cwd, worktreeName, force, withBranch, forceBranch)
+}
+
+func removeCommandWithCommandExecutor(
+	_ *cli.Command,
+	w io.Writer,
+	executor command.Executor,
+	_ string,
+	worktreeName string,
+	force, withBranch, forceBranch bool,
+) error {
+	// Get worktrees using CommandExecutor
+	listCmd := command.GitWorktreeList()
+	result, err := executor.Execute([]command.Command{listCmd})
+	if err != nil {
+		return errors.GitCommandFailed("git worktree list", err.Error())
+	}
+
+	// Parse worktrees from command output
+	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
 	// Find target worktree
-	targetWorktree, err := findTargetWorktree(repo, worktreeName)
+	targetWorktree, err := findTargetWorktreeFromList(worktrees, worktreeName)
 	if err != nil {
 		return err
 	}
 
-	// Remove worktree
-	if err := repo.RemoveWorktree(targetWorktree.Path, force); err != nil {
+	// Remove worktree using CommandExecutor
+	removeCmd := command.GitWorktreeRemove(targetWorktree.Path, force)
+	_, err = executor.Execute([]command.Command{removeCmd})
+	if err != nil {
 		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
 	}
 	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path)
 
 	// Remove branch if requested
 	if withBranch && targetWorktree.Branch != "" {
-		if err := removeBranch(w, repo, targetWorktree.Branch, forceBranch); err != nil {
+		if err := removeBranchWithCommandExecutor(w, executor, targetWorktree.Branch, forceBranch); err != nil {
 			return err
 		}
 	}
@@ -101,26 +133,25 @@ func validateRemoveInput(worktreeName string, withBranch, forceBranch bool) erro
 	return nil
 }
 
-func getRepository() (*git.Repository, error) {
-	cwd, err := removeGetwd()
+func removeBranchWithCommandExecutor(
+	w io.Writer,
+	executor command.Executor,
+	branchName string,
+	forceBranch bool,
+) error {
+	branchCmd := command.GitBranchDelete(branchName, forceBranch)
+	_, err := executor.Execute([]command.Command{branchCmd})
 	if err != nil {
-		return nil, errors.DirectoryAccessFailed("access current", ".", err)
+		return errors.BranchRemovalFailed(branchName, err, forceBranch)
 	}
-	repo, err := git.NewRepository(cwd)
-	if err != nil {
-		return nil, errors.NotInGitRepository()
-	}
-	return repo, nil
+	fmt.Fprintf(w, "Removed branch '%s'\n", branchName)
+	return nil
 }
 
-func findTargetWorktree(repo *git.Repository, worktreeName string) (*git.Worktree, error) {
-	worktrees, err := repo.GetWorktrees()
-	if err != nil {
-		return nil, errors.GitCommandFailed("git worktree list", err.Error())
-	}
-
+func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (*git.Worktree, error) {
 	var targetWorktree *git.Worktree
 	var availableWorktrees []string
+
 	for _, wt := range worktrees {
 		wtName := filepath.Base(wt.Path)
 		availableWorktrees = append(availableWorktrees, wtName)
@@ -134,20 +165,4 @@ func findTargetWorktree(repo *git.Repository, worktreeName string) (*git.Worktre
 		return nil, errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
 	return targetWorktree, nil
-}
-
-func removeBranch(w io.Writer, repo *git.Repository, branchName string, forceBranch bool) error {
-	args := []string{"branch"}
-	if forceBranch {
-		args = append(args, "-D")
-	} else {
-		args = append(args, "-d")
-	}
-	args = append(args, branchName)
-
-	if err := repo.ExecuteGitCommand(args...); err != nil {
-		return errors.BranchRemovalFailed(branchName, err, forceBranch)
-	}
-	fmt.Fprintf(w, "Removed branch '%s'\n", branchName)
-	return nil
 }

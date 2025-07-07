@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -46,17 +48,39 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 		return errors.DirectoryAccessFailed("access current", ".", err)
 	}
 
-	// Initialize repository
-	repo, err := git.NewRepository(cwd)
+	// Initialize repository to check if we're in a git repo
+	_, err = git.NewRepository(cwd)
 	if err != nil {
 		return errors.NotInGitRepository()
 	}
 
-	// Get all worktrees
-	worktrees, err := repo.GetWorktrees()
+	// Get the writer from cli.Command
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
+	// Use CommandExecutor-based implementation
+	executor := command.NewRealExecutor()
+	return cdCommandWithCommandExecutor(cmd, w, executor, cwd, worktreeName)
+}
+
+func cdCommandWithCommandExecutor(
+	_ *cli.Command,
+	w io.Writer,
+	executor command.Executor,
+	_ string,
+	worktreeName string,
+) error {
+	// Get worktrees using CommandExecutor
+	listCmd := command.GitWorktreeList()
+	result, err := executor.Execute([]command.Command{listCmd})
 	if err != nil {
 		return fmt.Errorf("failed to get worktrees: %w", err)
 	}
+
+	// Parse worktrees from command output
+	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
 	// Find the worktree by name
 	var targetPath string
@@ -75,12 +99,6 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 			availableWorktrees = append(availableWorktrees, filepath.Base(wt.Path))
 		}
 		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
-	}
-
-	// Get the writer from cli.Command
-	w := cmd.Root().Writer
-	if w == nil {
-		w = os.Stdout
 	}
 
 	// Output the path for the shell function to cd to
