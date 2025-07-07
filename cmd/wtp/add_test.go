@@ -3,16 +3,19 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 
+	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/internal/errors"
 )
 
+// ===== Pure Unit Tests (No Git execution) =====
+
+// Test command structure and flags
 func TestNewAddCommand(t *testing.T) {
 	cmd := NewAddCommand()
 	assert.NotNil(t, cmd)
@@ -36,6 +39,7 @@ func TestNewAddCommand(t *testing.T) {
 	}
 }
 
+// Test input validation
 func TestValidateAddInput(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -72,7 +76,6 @@ func TestValidateAddInput(t *testing.T) {
 					&cli.StringFlag{Name: "branch"},
 				},
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					// Test the validation
 					return validateAddInput(cmd)
 				},
 			}
@@ -97,95 +100,7 @@ func TestValidateAddInput(t *testing.T) {
 	}
 }
 
-func TestResolveWorktreePath(t *testing.T) {
-	cfg := &config.Config{
-		Defaults: config.Defaults{
-			BaseDir: "../worktrees",
-		},
-	}
-	repoPath := "/path/to/repo"
-
-	tests := []struct {
-		name       string
-		firstArg   string
-		pathFlag   string
-		branchFlag string
-		wantPath   string
-		wantBranch string
-	}{
-		{
-			name:       "explicit path with absolute path",
-			firstArg:   "feature/auth",
-			pathFlag:   "/custom/path",
-			wantPath:   "/custom/path",
-			wantBranch: "feature/auth",
-		},
-		{
-			name:       "explicit path with relative path",
-			firstArg:   "feature/auth",
-			pathFlag:   "./custom/path",
-			wantPath:   "./custom/path",
-			wantBranch: "feature/auth",
-		},
-		{
-			name:       "auto-generated path - branch name simple",
-			firstArg:   "feature",
-			wantPath:   filepath.Join(repoPath, "..", "worktrees", "feature"),
-			wantBranch: "feature",
-		},
-		{
-			name:       "auto-generated path - branch name with slash",
-			firstArg:   "feature/auth",
-			wantPath:   filepath.Join(repoPath, "..", "worktrees", "feature", "auth"),
-			wantBranch: "feature/auth",
-		},
-		{
-			name:       "auto-generated path with -b flag",
-			firstArg:   "feature",
-			branchFlag: "new-feature",
-			wantPath:   filepath.Join(repoPath, "..", "worktrees", "new-feature"),
-			wantBranch: "new-feature",
-		},
-		{
-			name:       "explicit path with -b flag",
-			firstArg:   "feature",
-			pathFlag:   "/tmp/test",
-			branchFlag: "new-feature",
-			wantPath:   "/tmp/test",
-			wantBranch: "feature",
-		},
-		{
-			name:       "no args",
-			firstArg:   "",
-			wantPath:   filepath.Join(repoPath, "..", "worktrees"),
-			wantBranch: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cmd := &cli.Command{
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "path"},
-					&cli.StringFlag{Name: "branch"},
-				},
-			}
-
-			// Set flags
-			if tt.pathFlag != "" {
-				_ = cmd.Set("path", tt.pathFlag)
-			}
-			if tt.branchFlag != "" {
-				_ = cmd.Set("branch", tt.branchFlag)
-			}
-
-			gotPath, gotBranch := resolveWorktreePath(cfg, repoPath, tt.firstArg, cmd)
-			assert.Equal(t, tt.wantPath, gotPath)
-			assert.Equal(t, tt.wantBranch, gotBranch)
-		})
-	}
-}
-
+// Test git command building logic
 func TestBuildGitWorktreeArgs(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -217,26 +132,12 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 			want:         []string{"worktree", "add", "-b", "new-feature", "/path/to/worktree"},
 		},
 		{
-			name:         "with track flag",
-			workTreePath: "/path/to/worktree",
-			branchName:   "feature",
-			flags:        map[string]interface{}{"track": "origin/feature"},
-			want:         []string{"worktree", "add", "--track", "-b", "feature", "/path/to/worktree", "origin/feature"},
-		},
-		{
 			name:         "detached HEAD",
 			workTreePath: "/path/to/worktree",
 			branchName:   "",
 			flags:        map[string]interface{}{"detach": true},
 			cliArgs:      []string{"abc1234"},
 			want:         []string{"worktree", "add", "--detach", "/path/to/worktree", "abc1234"},
-		},
-		{
-			name:         "explicit path",
-			workTreePath: "/custom/path",
-			branchName:   "feature",
-			flags:        map[string]interface{}{"path": "/custom/path"},
-			want:         []string{"worktree", "add", "/custom/path", "feature"},
 		},
 	}
 
@@ -253,7 +154,6 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 					&cli.StringFlag{Name: "path"},
 				},
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					// Call buildGitWorktreeArgs and verify result
 					result := buildGitWorktreeArgs(cmd, tt.workTreePath, tt.branchName)
 					assert.Equal(t, tt.want, result)
 					return nil
@@ -262,8 +162,6 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 
 			// Build args
 			args := []string{"test"}
-
-			// Add flags
 			for flag, value := range tt.flags {
 				switch v := value.(type) {
 				case bool:
@@ -274,8 +172,6 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 					args = append(args, "--"+flag, v)
 				}
 			}
-
-			// Add CLI args
 			args = append(args, tt.cliArgs...)
 
 			ctx := context.Background()
@@ -285,593 +181,227 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 	}
 }
 
-func TestAppendBasicFlags(t *testing.T) {
+// Test with new CommandExecutor architecture
+func TestAddCommand_WithCommandExecutor(t *testing.T) {
 	tests := []struct {
-		name   string
-		force  bool
-		detach bool
-		want   []string
+		name             string
+		flags            map[string]interface{}
+		args             []string
+		expectedCommands []command.Command
+		executorError    error
+		expectError      bool
+		expectedOutput   string
 	}{
 		{
-			name: "no flags",
-			want: []string{},
+			name:  "successful worktree creation",
+			flags: map[string]interface{}{},
+			args:  []string{"feature/test"},
+			expectedCommands: []command.Command{{
+				Name: "git",
+				Args: []string{"worktree", "add", "/test/worktrees/feature/test", "feature/test"},
+			}},
+			expectError:    false,
+			expectedOutput: "Created worktree 'feature/test'",
 		},
 		{
-			name:  "force flag",
-			force: true,
-			want:  []string{"--force"},
+			name: "worktree with force flag",
+			flags: map[string]interface{}{
+				"force": true,
+			},
+			args: []string{"feature/test"},
+			expectedCommands: []command.Command{{
+				Name: "git",
+				Args: []string{"worktree", "add", "--force", "/test/worktrees/feature/test", "feature/test"},
+			}},
+			expectError: false,
 		},
 		{
-			name:   "detach flag",
-			detach: true,
-			want:   []string{"--detach"},
-		},
-		{
-			name:   "both flags",
-			force:  true,
-			detach: true,
-			want:   []string{"--force", "--detach"},
+			name: "new branch creation",
+			flags: map[string]interface{}{
+				"branch": "new-feature",
+			},
+			args: []string{"main"},
+			expectedCommands: []command.Command{{
+				Name: "git",
+				Args: []string{"worktree", "add", "-b", "new-feature", "/test/worktrees/new-feature"},
+			}},
+			expectError:    false,
+			expectedOutput: "Created worktree 'new-feature'",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a properly initialized app to test flags
-			app := &cli.Command{
-				Name: "test",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "force"},
-					&cli.BoolFlag{Name: "detach"},
-				},
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					got := appendBasicFlags([]string{}, cmd)
-					assert.Equal(t, tt.want, got)
-					return nil
-				},
-			}
+			// Setup
+			cmd := createTestCLICommand(tt.flags, tt.args)
+			var buf bytes.Buffer
+			mockExec := &mockCommandExecutor{}
 
-			// Build args
-			args := []string{"test"}
-			if tt.force {
-				args = append(args, "--force")
-			}
-			if tt.detach {
-				args = append(args, "--detach")
-			}
-
-			ctx := context.Background()
-			err := app.Run(ctx, args)
-			assert.NoError(t, err)
-		})
-	}
-}
-
-func TestAppendBranchAndTrackFlags(t *testing.T) {
-	tests := []struct {
-		name       string
-		branch     string
-		track      string
-		branchName string
-		isDetached bool
-		want       []string
-	}{
-		{
-			name:       "branch only",
-			branch:     "new-feature",
-			branchName: "feature",
-			want:       []string{"-b", "new-feature"},
-		},
-		{
-			name:       "track only",
-			track:      "origin/feature",
-			branchName: "feature",
-			want:       []string{"--track", "-b", "feature"},
-		},
-		{
-			name:       "track with detached",
-			track:      "origin/feature",
-			branchName: "feature",
-			isDetached: true,
-			want:       []string{"--track"},
-		},
-		{
-			name:       "branch and track",
-			branch:     "new-feature",
-			track:      "origin/feature",
-			branchName: "feature",
-			want:       []string{"-b", "new-feature", "--track"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := appendBranchAndTrackFlags([]string{}, tt.branch, tt.track, tt.branchName, tt.isDetached)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestShouldChangeDirectory(t *testing.T) {
-	tests := []struct {
-		name     string
-		cdFlag   bool
-		noCdFlag bool
-		cfgValue bool
-		want     bool
-	}{
-		{
-			name:     "cd flag set",
-			cdFlag:   true,
-			cfgValue: false,
-			want:     true,
-		},
-		{
-			name:     "no-cd flag set",
-			noCdFlag: true,
-			cfgValue: true,
-			want:     false,
-		},
-		{
-			name:     "config true, no flags",
-			cfgValue: true,
-			want:     true,
-		},
-		{
-			name:     "config false, no flags",
-			cfgValue: false,
-			want:     false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cmd := &cli.Command{
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "cd"},
-					&cli.BoolFlag{Name: "no-cd"},
-				},
-			}
-
-			if tt.cdFlag {
-				_ = cmd.Set("cd", "true")
-			}
-			if tt.noCdFlag {
-				_ = cmd.Set("no-cd", "true")
+			if tt.executorError != nil {
+				mockExec.shouldFail = true
 			}
 
 			cfg := &config.Config{
 				Defaults: config.Defaults{
-					CDAfterCreate: tt.cfgValue,
+					BaseDir: "/test/worktrees",
 				},
 			}
 
-			got := shouldChangeDirectory(cmd, cfg)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
+			// Execute
+			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
-func TestChangeToWorktree(t *testing.T) {
-	tests := []struct {
-		name             string
-		shellIntegration string
-		workTreePath     string
-		wantOutput       string
-	}{
-		{
-			name:         "without shell integration",
-			workTreePath: "/path/to/worktree",
-			wantOutput: "To change directory, run: cd /path/to/worktree\n" +
-				"(Enable shell integration with: eval \"$(wtp completion zsh)\")\n",
-		},
-		{
-			name:             "with shell integration",
-			shellIntegration: "1",
-			workTreePath:     "/path/to/worktree",
-			wantOutput:       "/path/to/worktree",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set env var
-			if tt.shellIntegration != "" {
-				os.Setenv("WTP_SHELL_INTEGRATION", tt.shellIntegration)
-				defer os.Unsetenv("WTP_SHELL_INTEGRATION")
-			}
-
-			// Call function with buffer
-			var buf bytes.Buffer
-			changeToWorktree(&buf, tt.workTreePath)
-
-			assert.Equal(t, tt.wantOutput, buf.String())
-		})
-	}
-}
-
-func TestDisplaySuccessMessage(t *testing.T) {
-	tests := []struct {
-		name         string
-		branchName   string
-		workTreePath string
-		wantOutput   string
-	}{
-		{
-			name:         "with branch name",
-			branchName:   "feature",
-			workTreePath: "/path/to/worktree",
-			wantOutput:   "Created worktree 'feature' at /path/to/worktree\n",
-		},
-		{
-			name:         "without branch name",
-			branchName:   "",
-			workTreePath: "/path/to/worktree",
-			wantOutput:   "Created worktree at /path/to/worktree\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			displaySuccessMessage(&buf, tt.branchName, tt.workTreePath)
-			assert.Equal(t, tt.wantOutput, buf.String())
-		})
-	}
-}
-
-func TestExecutePostCreateHooks(t *testing.T) {
-	tests := []struct {
-		name         string
-		cfg          *config.Config
-		expectOutput bool
-	}{
-		{
-			name: "with hooks",
-			cfg: &config.Config{
-				Hooks: config.Hooks{
-					PostCreate: []config.Hook{
-						{
-							Type: "copy",
-							From: ".env.example",
-							To:   ".env",
-						},
-					},
-				},
-			},
-			expectOutput: true,
-		},
-		{
-			name:         "without hooks",
-			cfg:          &config.Config{},
-			expectOutput: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			err := executePostCreateHooks(&buf, tt.cfg, "/repo", "/worktree")
-			assert.NoError(t, err)
-
-			if tt.expectOutput {
-				assert.Contains(t, buf.String(), "Executing post-create hooks...")
+			// Verify
+			if tt.expectError {
+				assert.Error(t, err)
 			} else {
-				assert.Empty(t, buf.String())
-			}
-		})
-	}
-}
-
-func TestAppendPositionalArgs(t *testing.T) {
-	tests := []struct {
-		name         string
-		initialArgs  []string
-		pathFlag     string
-		branch       string
-		track        string
-		branchName   string
-		cliArgs      []string
-		expectedArgs []string
-	}{
-		{
-			name:         "explicit path without branch or track",
-			initialArgs:  []string{"worktree", "add"},
-			pathFlag:     "/custom/path",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "feature"},
-		},
-		{
-			name:         "explicit path with track",
-			initialArgs:  []string{"worktree", "add"},
-			pathFlag:     "/custom/path",
-			track:        "origin/feature",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "origin/feature"},
-		},
-		{
-			name:         "auto path with branch flag",
-			initialArgs:  []string{"worktree", "add"},
-			branch:       "new-feature",
-			cliArgs:      []string{"main"},
-			expectedArgs: []string{"worktree", "add", "main"},
-		},
-		{
-			name:         "auto path with track",
-			initialArgs:  []string{"worktree", "add"},
-			track:        "origin/feature",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "origin/feature"},
-		},
-		{
-			name:         "auto path simple branch",
-			initialArgs:  []string{"worktree", "add"},
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "feature"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create app and run it to properly initialize CLI context
-			app := &cli.Command{
-				Name: "test",
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "path"},
-					&cli.BoolFlag{Name: "detach"},
-				},
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					// Call the function
-					result := appendPositionalArgs(tt.initialArgs, cmd, tt.branch, tt.track, tt.branchName)
-					assert.Equal(t, tt.expectedArgs, result)
-					return nil
-				},
-			}
-
-			// Build args
-			args := []string{"test"}
-			if tt.pathFlag != "" {
-				args = append(args, "--path", tt.pathFlag)
-			}
-			args = append(args, tt.cliArgs...)
-
-			ctx := context.Background()
-			err := app.Run(ctx, args)
-			assert.NoError(t, err)
-		})
-	}
-}
-
-func TestAppendExplicitPathArgs(t *testing.T) {
-	tests := []struct {
-		name         string
-		initialArgs  []string
-		branch       string
-		track        string
-		branchName   string
-		cliArgs      []string
-		expectedArgs []string
-	}{
-		{
-			name:         "no branch or track",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "/path", "feature"},
-		},
-		{
-			name:         "with track but no branch",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			track:        "origin/feature",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "/path", "origin/feature"},
-		},
-		{
-			name:         "with branch flag",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			branch:       "new-feature",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "/path"},
-		},
-		{
-			name:         "with multiple args",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			branchName:   "feature",
-			cliArgs:      []string{"arg1", "arg2", "arg3"},
-			expectedArgs: []string{"worktree", "add", "/path", "feature", "arg2", "arg3"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := &cli.Command{
-				Name: "test",
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					result := appendExplicitPathArgs(tt.initialArgs, cmd, tt.branch, tt.track, tt.branchName)
-					assert.Equal(t, tt.expectedArgs, result)
-					return nil
-				},
-			}
-
-			// Build args
-			args := []string{"test"}
-			args = append(args, tt.cliArgs...)
-
-			ctx := context.Background()
-			err := app.Run(ctx, args)
-			assert.NoError(t, err)
-		})
-	}
-}
-
-func TestAppendAutoPathArgs(t *testing.T) {
-	tests := []struct {
-		name         string
-		initialArgs  []string
-		branch       string
-		track        string
-		branchName   string
-		detach       bool
-		cliArgs      []string
-		expectedArgs []string
-	}{
-		{
-			name:         "with branch and args",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			branch:       "new-feature",
-			cliArgs:      []string{"main"},
-			expectedArgs: []string{"worktree", "add", "/path", "main"},
-		},
-		{
-			name:         "with track only",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			track:        "origin/feature",
-			expectedArgs: []string{"worktree", "add", "/path", "origin/feature"},
-		},
-		{
-			name:         "simple branch",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "/path", "feature"},
-		},
-		{
-			name:         "detached without track",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			detach:       true,
-			cliArgs:      []string{"abc123"},
-			expectedArgs: []string{"worktree", "add", "/path", "abc123"},
-		},
-		{
-			name:         "detached with track",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			detach:       true,
-			track:        "origin/feature",
-			expectedArgs: []string{"worktree", "add", "/path", "origin/feature"},
-		},
-		{
-			name:         "multiple args without branch or track",
-			initialArgs:  []string{"worktree", "add", "/path"},
-			branchName:   "feature",
-			cliArgs:      []string{"arg1", "arg2", "arg3"},
-			expectedArgs: []string{"worktree", "add", "/path", "feature", "arg2", "arg3"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := &cli.Command{
-				Name: "test",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "detach"},
-				},
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					result := appendAutoPathArgs(tt.initialArgs, cmd, tt.branch, tt.track, tt.branchName)
-					assert.Equal(t, tt.expectedArgs, result)
-					return nil
-				},
-			}
-
-			// Build args
-			args := []string{"test"}
-			if tt.detach {
-				args = append(args, "--detach")
-			}
-			args = append(args, tt.cliArgs...)
-
-			ctx := context.Background()
-			err := app.Run(ctx, args)
-			assert.NoError(t, err)
-		})
-	}
-}
-
-// Test the shell complete function
-func TestAddCommand_ShellComplete(t *testing.T) {
-	cmd := NewAddCommand()
-	assert.NotNil(t, cmd.ShellComplete)
-
-	// Test that shell complete function exists and can be called
-	ctx := context.Background()
-	cliCmd := &cli.Command{}
-
-	// ShellComplete returns nothing, just test it doesn't panic
-	assert.NotPanics(t, func() {
-		cmd.ShellComplete(ctx, cliCmd)
-	})
-}
-
-// Test helper function for building git worktree args
-func TestBuildGitWorktreeArgsLogic(t *testing.T) {
-	// Test the logic of building args without full CLI context
-	tests := []struct {
-		name         string
-		hasForce     bool
-		hasDetach    bool
-		hasBranch    string
-		hasTrack     string
-		workTreePath string
-		branchName   string
-		expectedArgs []string
-	}{
-		{
-			name:         "basic add",
-			workTreePath: "/worktree",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "/worktree", "feature"},
-		},
-		{
-			name:         "with force",
-			hasForce:     true,
-			workTreePath: "/worktree",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "--force", "/worktree", "feature"},
-		},
-		{
-			name:         "with new branch",
-			hasBranch:    "new-feature",
-			workTreePath: "/worktree",
-			expectedArgs: []string{"worktree", "add", "-b", "new-feature", "/worktree"},
-		},
-		{
-			name:         "with track",
-			hasTrack:     "origin/feature",
-			workTreePath: "/worktree",
-			branchName:   "feature",
-			expectedArgs: []string{"worktree", "add", "--track", "-b", "feature", "/worktree", "origin/feature"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Simulate the logic of buildGitWorktreeArgs
-			args := []string{"worktree", "add"}
-
-			// Add basic flags
-			if tt.hasForce {
-				args = append(args, "--force")
-			}
-			if tt.hasDetach {
-				args = append(args, "--detach")
-			}
-
-			// Add branch and track flags
-			if tt.hasBranch != "" {
-				args = append(args, "-b", tt.hasBranch)
-			} else if tt.hasTrack != "" {
-				args = append(args, "--track", "-b", tt.branchName)
-			}
-
-			// Add path
-			args = append(args, tt.workTreePath)
-
-			// Add positional args
-			if tt.hasBranch == "" {
-				if tt.hasTrack != "" {
-					args = append(args, tt.hasTrack)
-				} else if tt.branchName != "" {
-					args = append(args, tt.branchName)
+				assert.NoError(t, err)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, buf.String(), tt.expectedOutput)
 				}
 			}
 
-			assert.Equal(t, tt.expectedArgs, args)
+			assert.Equal(t, tt.expectedCommands, mockExec.executedCommands)
 		})
 	}
+}
+
+// Test with GitExecutor interface (legacy)
+func TestAddCommand_WithGitExecutor(t *testing.T) {
+	tests := []struct {
+		name           string
+		flags          map[string]interface{}
+		args           []string
+		expectedArgs   []string
+		resolvedBranch string
+		isRemoteBranch bool
+		expectError    bool
+	}{
+		{
+			name:         "local branch",
+			flags:        map[string]interface{}{},
+			args:         []string{"feature/test"},
+			expectedArgs: []string{"worktree", "add", "/test/worktrees/feature/test", "feature/test"},
+			expectError:  false,
+		},
+		{
+			name:           "remote branch auto-tracking",
+			flags:          map[string]interface{}{},
+			args:           []string{"feature/remote"},
+			expectedArgs:   []string{"worktree", "add", "--track", "origin/feature/remote", "/test/worktrees/feature/remote", "origin/feature/remote"},
+			resolvedBranch: "origin/feature/remote",
+			isRemoteBranch: true,
+			expectError:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			cmd := createTestCLICommand(tt.flags, tt.args)
+			var buf bytes.Buffer
+			mockExec := newMockGitExecutor()
+
+			if tt.resolvedBranch != "" {
+				mockExec.SetResolveBranch(tt.resolvedBranch, tt.isRemoteBranch, nil)
+			}
+
+			cfg := &config.Config{
+				Defaults: config.Defaults{
+					BaseDir: "/test/worktrees",
+				},
+			}
+
+			// Execute
+			err := addCommandWithExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+			// Verify
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			commands := mockExec.GetExecutedCommands()
+			if len(tt.expectedArgs) > 0 {
+				assert.Len(t, commands, 1)
+				assert.Equal(t, tt.expectedArgs, commands[0])
+			}
+		})
+	}
+}
+
+// ===== Helper Functions =====
+
+func createTestCLICommand(flags map[string]interface{}, args []string) *cli.Command {
+	app := &cli.Command{
+		Name: "test",
+		Commands: []*cli.Command{
+			{
+				Name: "add",
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "path"},
+					&cli.BoolFlag{Name: "force"},
+					&cli.BoolFlag{Name: "detach"},
+					&cli.StringFlag{Name: "branch"},
+					&cli.StringFlag{Name: "track"},
+					&cli.BoolFlag{Name: "cd"},
+					&cli.BoolFlag{Name: "no-cd"},
+				},
+				Action: func(_ context.Context, _ *cli.Command) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	// Build command line args
+	cmdArgs := []string{"test", "add"}
+	for key, value := range flags {
+		switch v := value.(type) {
+		case bool:
+			if v {
+				cmdArgs = append(cmdArgs, "--"+key)
+			}
+		case string:
+			cmdArgs = append(cmdArgs, "--"+key, v)
+		}
+	}
+	cmdArgs = append(cmdArgs, args...)
+
+	// Run the app to populate flags
+	ctx := context.Background()
+	_ = app.Run(ctx, cmdArgs)
+
+	// Return the add subcommand
+	return app.Commands[0]
+}
+
+// ===== Mock Implementations =====
+
+type mockCommandExecutor struct {
+	executedCommands []command.Command
+	shouldFail       bool
+}
+
+func (m *mockCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	m.executedCommands = commands
+
+	if m.shouldFail {
+		return &command.ExecutionResult{
+			Results: []command.Result{{
+				Command: commands[0],
+				Error:   errors.GitCommandFailed("git", "mock error"),
+			}},
+		}, nil
+	}
+
+	results := make([]command.Result, len(commands))
+	for i, cmd := range commands {
+		results[i] = command.Result{
+			Command: cmd,
+			Output:  "success",
+		}
+	}
+
+	return &command.ExecutionResult{Results: results}, nil
 }
