@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -302,4 +303,134 @@ func TestRemoveCommand_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree 'feature-auth' not found")
+}
+
+// ===== Real-World Edge Cases =====
+
+func TestRemoveCommand_InternationalCharacters(t *testing.T) {
+	tests := []struct {
+		name         string
+		branchName   string
+		worktreePath string
+		shouldWork   bool
+	}{
+		{
+			name:         "Japanese characters",
+			branchName:   "機能/ログイン",
+			worktreePath: "/path/to/worktrees/機能/ログイン",
+			shouldWork:   true,
+		},
+		{
+			name:         "Spanish accents",
+			branchName:   "función/añadir",
+			worktreePath: "/path/to/worktrees/función/añadir",
+			shouldWork:   true,
+		},
+		{
+			name:         "Emoji characters",
+			branchName:   "feature/🚀-rocket",
+			worktreePath: "/path/to/worktrees/feature/🚀-rocket",
+			shouldWork:   true,
+		},
+		{
+			name:         "Chinese characters",
+			branchName:   "特性/用户认证",
+			worktreePath: "/path/to/worktrees/特性/用户认证",
+			shouldWork:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n",
+				tt.worktreePath, tt.branchName)
+			mockExec := &mockRemoveCommandExecutor{
+				results: []command.Result{
+					{Output: output, Error: nil}, // list
+					{Output: "", Error: nil},     // remove
+				},
+			}
+
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo",
+				filepath.Base(tt.worktreePath), false, false, false)
+
+			if tt.shouldWork {
+				assert.NoError(t, err)
+				assert.Contains(t, buf.String(), fmt.Sprintf("Removed worktree '%s'", filepath.Base(tt.worktreePath)))
+				assert.Len(t, mockExec.executedCommands, 2)
+				assert.Equal(t, []string{"worktree", "remove", tt.worktreePath},
+					mockExec.executedCommands[1].Args)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestRemoveCommand_SpecialPaths(t *testing.T) {
+	tests := []struct {
+		name           string
+		branchName     string
+		worktreePath   string
+		withBranch     bool
+		expectCommands int
+		description    string
+	}{
+		{
+			name:           "spaces in branch name",
+			branchName:     "feature/with spaces",
+			worktreePath:   "/path/to/worktrees/feature/with spaces",
+			withBranch:     false,
+			expectCommands: 2,
+			description:    "Should handle spaces correctly",
+		},
+		{
+			name:           "deeply nested path",
+			branchName:     "team/backend/feature/auth/oauth2",
+			worktreePath:   "/path/to/worktrees/team/backend/feature/auth/oauth2",
+			withBranch:     false,
+			expectCommands: 2,
+			description:    "Should handle deep nesting",
+		},
+		{
+			name:           "remove with branch deletion",
+			branchName:     "feature/to-delete",
+			worktreePath:   "/path/to/worktrees/feature/to-delete",
+			withBranch:     true,
+			expectCommands: 3,
+			description:    "Should remove both worktree and branch",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n",
+				tt.worktreePath, tt.branchName)
+
+			results := []command.Result{
+				{Output: output, Error: nil}, // list
+				{Output: "", Error: nil},     // remove worktree
+			}
+			if tt.withBranch {
+				results = append(results, command.Result{Output: "", Error: nil}) // remove branch
+			}
+
+			mockExec := &mockRemoveCommandExecutor{results: results}
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo",
+				filepath.Base(tt.worktreePath), false, tt.withBranch, false)
+
+			assert.NoError(t, err, tt.description)
+			assert.Len(t, mockExec.executedCommands, tt.expectCommands)
+			assert.Contains(t, buf.String(), fmt.Sprintf("Removed worktree '%s'", filepath.Base(tt.worktreePath)))
+			if tt.withBranch {
+				assert.Contains(t, buf.String(), fmt.Sprintf("Removed branch '%s'", tt.branchName))
+			}
+		})
+	}
 }

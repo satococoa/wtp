@@ -90,7 +90,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 
 // addCommandWithCommandExecutor is the new implementation using CommandExecutor
 func addCommandWithCommandExecutor(
-	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string,
+	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string, //nolint:unparam
 ) error {
 	// Resolve worktree path and branch name
 	var firstArg string

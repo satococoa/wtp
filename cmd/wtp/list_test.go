@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/git"
@@ -405,6 +406,182 @@ func (m *mockListExecutor) Execute(commands []command.Command) (*command.Executi
 			},
 		},
 	}, nil
+}
+
+// ===== Real-World Edge Cases =====
+
+func TestListCommand_InternationalCharacters(t *testing.T) {
+	tests := []struct {
+		name      string
+		worktrees []struct {
+			path   string
+			branch string
+			head   string
+		}
+		expectedDisplay []string
+	}{
+		{
+			name: "Japanese and Chinese characters",
+			worktrees: []struct {
+				path   string
+				branch string
+				head   string
+			}{
+				{".", "main", "abc12345"},
+				{"../worktrees/機能/ログイン", "機能/ログイン", "def67890"},
+				{"../worktrees/特性/用户认证", "特性/用户认证", "hij23456"},
+			},
+			expectedDisplay: []string{
+				"機能/ログイン",
+				"特性/用户认证",
+			},
+		},
+		{
+			name: "Emoji and special characters",
+			worktrees: []struct {
+				path   string
+				branch string
+				head   string
+			}{
+				{".", "main", "abc12345"},
+				{"../worktrees/feature/🚀-rocket", "feature/🚀-rocket", "def67890"},
+				{"../worktrees/función/añadir", "función/añadir", "hij23456"},
+			},
+			expectedDisplay: []string{
+				"feature/🚀-rocket",
+				"función/añadir",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock output from git worktree list --porcelain
+			var mockOutput string
+			for _, wt := range tt.worktrees {
+				mockOutput += fmt.Sprintf("worktree %s\nHEAD %s\nbranch refs/heads/%s\n\n",
+					wt.path, wt.head, wt.branch)
+			}
+
+			mockExec := &mockListExecutor{output: mockOutput}
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			// Test with CommandExecutor
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+
+			assert.NoError(t, err)
+			output := buf.String()
+
+			// Check headers
+			assert.Contains(t, output, "PATH")
+			assert.Contains(t, output, "BRANCH")
+			assert.Contains(t, output, "HEAD")
+
+			// Check all worktrees are displayed correctly
+			for _, display := range tt.expectedDisplay {
+				assert.Contains(t, output, display)
+			}
+		})
+	}
+}
+
+func TestListCommand_ColumnAlignment(t *testing.T) {
+	tests := []struct {
+		name      string
+		worktrees []git.Worktree
+		testCase  string
+	}{
+		{
+			name: "very long paths and branches",
+			worktrees: []git.Worktree{
+				{Path: ".", Branch: "main", HEAD: "abc12345"},
+				{Path: "../worktrees/team/backend/feature/authentication/oauth2/implementation",
+					Branch: "team/backend/feature/authentication/oauth2/implementation",
+					HEAD:   "def67890"},
+				{Path: "../worktrees/x", Branch: "x", HEAD: "hij23456"},
+			},
+			testCase: "Should align columns properly with long paths",
+		},
+		{
+			name: "mixed character widths",
+			worktrees: []git.Worktree{
+				{Path: ".", Branch: "main", HEAD: "abc12345"},
+				{Path: "../worktrees/機能機能機能", Branch: "機能機能機能", HEAD: "def67890"},
+				{Path: "../worktrees/abc", Branch: "abc", HEAD: "hij23456"},
+			},
+			testCase: "Should handle mixed single/double-width characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			displayWorktrees(&buf, tt.worktrees)
+
+			output := buf.String()
+			lines := strings.Split(strings.TrimSpace(output), "\n")
+
+			// Check that we have header + separator + worktrees
+			assert.GreaterOrEqual(t, len(lines), 2+len(tt.worktrees), tt.testCase)
+
+			// Verify header alignment
+			headerLine := lines[0]
+			assert.Contains(t, headerLine, "PATH")
+			assert.Contains(t, headerLine, "BRANCH")
+			assert.Contains(t, headerLine, "HEAD")
+
+			// Verify separator line exists
+			separatorLine := lines[1]
+			assert.Contains(t, separatorLine, "----")
+			assert.Contains(t, separatorLine, "------")
+		})
+	}
+}
+
+func TestListCommand_PerformanceWithManyWorktrees(t *testing.T) {
+	testCases := []struct {
+		name          string
+		worktreeCount int
+		maxDuration   time.Duration
+	}{
+		{"10 worktrees", 10, 100 * time.Millisecond},
+		{"50 worktrees", 50, 200 * time.Millisecond},
+		{"100 worktrees", 100, 500 * time.Millisecond},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Generate mock output for many worktrees
+			var mockOutput string
+			for i := 0; i < tc.worktreeCount; i++ {
+				branch := fmt.Sprintf("feature/branch-%d", i)
+				path := fmt.Sprintf("../worktrees/%s", branch)
+				mockOutput += fmt.Sprintf("worktree %s\nHEAD abc%05d\nbranch refs/heads/%s\n\n",
+					path, i, branch)
+			}
+
+			mockExec := &mockListExecutor{output: mockOutput}
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			// Measure execution time
+			start := time.Now()
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+			duration := time.Since(start)
+
+			assert.NoError(t, err)
+			assert.Less(t, duration, tc.maxDuration,
+				"List command took %v, expected less than %v for %d worktrees",
+				duration, tc.maxDuration, tc.worktreeCount)
+
+			// Verify output contains expected number of branches
+			output := buf.String()
+			for i := 0; i < tc.worktreeCount; i++ {
+				assert.Contains(t, output, fmt.Sprintf("feature/branch-%d", i))
+			}
+		})
+	}
 }
 
 // Test with CommandExecutor architecture

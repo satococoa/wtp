@@ -540,7 +540,7 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 			if tt.shouldWork {
 				assert.NoError(t, err)
 				assert.Len(t, mockExec.executedCommands, 1)
-				assert.Equal(t, []string{"worktree", "add", tt.expectedPath, tt.branchName}, 
+				assert.Equal(t, []string{"worktree", "add", tt.expectedPath, tt.branchName},
 					mockExec.executedCommands[0].Args)
 			} else {
 				assert.Error(t, err)
@@ -610,8 +610,9 @@ func TestAddCommand_PathLengthLimits(t *testing.T) {
 		reason     string
 	}{
 		{
-			name:       "very long branch name",
-			branchName: "feature/this-is-a-very-long-branch-name-that-might-cause-issues-with-filesystem-path-limits-in-some-operating-systems-especially-windows",
+			name: "very long branch name",
+			branchName: "feature/this-is-a-very-long-branch-name-that-might-cause-issues-" +
+				"with-filesystem-path-limits-in-some-operating-systems-especially-windows",
 			shouldWork: true,
 			reason:     "Modern filesystems should handle long paths",
 		},
@@ -645,7 +646,7 @@ func TestAddCommand_PathLengthLimits(t *testing.T) {
 				assert.Len(t, mockExec.executedCommands, 1)
 				// Verify the path is constructed correctly
 				expectedPath := "/test/worktrees/" + tt.branchName
-				assert.Equal(t, []string{"worktree", "add", expectedPath, tt.branchName}, 
+				assert.Equal(t, []string{"worktree", "add", expectedPath, tt.branchName},
 					mockExec.executedCommands[0].Args)
 			} else {
 				assert.Error(t, err, tt.reason)
