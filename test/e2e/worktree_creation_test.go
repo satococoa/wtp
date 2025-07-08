@@ -1,0 +1,156 @@
+package e2e
+
+// TODO: Implement E2E framework and uncomment these tests
+// These tests represent the Living Specifications that should be implemented
+// at the E2E level with real git operations and user workflows.
+
+/*
+import (
+	"testing"
+
+	"github.com/satococoa/wtp/test/e2e/framework"
+	"github.com/stretchr/testify/assert"
+)
+
+// Living Specifications for Worktree Creation Workflows
+// These tests serve as executable documentation of user behavior
+
+// TestUserCreatesWorktree_WithExistingLocalBranch_ShouldCreateWorktreeAtDefaultPath tests
+// the most common user workflow: creating a worktree for an existing local branch.
+//
+// User Story: As a developer working on a feature branch, I want to create a worktree
+// for an existing branch so I can quickly switch to working on that feature in isolation.
+//
+// Business Value: This eliminates the need to stash changes or commit incomplete work
+// when switching between features, improving developer productivity.
+func TestUserCreatesWorktree_WithExistingLocalBranch_ShouldCreateWorktreeAtDefaultPath(t *testing.T) {
+	// Given: User has an existing local branch named "feature/auth"
+	// And: User is in a git repository
+	// And: No worktree conflicts exist
+	env := framework.SetupTestEnvironment(t)
+	defer env.Cleanup()
+
+	// Create the feature branch
+	env.CreateBranch("feature/auth")
+
+	// When: User runs "wtp add feature/auth"
+	output := env.RunWTP("add", "feature/auth")
+
+	// Then: Worktree should be created successfully
+	assert.Contains(t, output, "Created worktree 'feature/auth'")
+
+	// And: Worktree directory should exist
+	assert.DirExists(t, env.WorktreePath("feature/auth"))
+
+	// And: User can work in the new worktree
+	assert.True(t, env.IsValidWorktree("feature/auth"))
+}
+
+// TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree tests
+// creating a new branch and worktree simultaneously.
+//
+// User Story: As a developer starting a new feature, I want to create both a new branch
+// and its worktree in one command so I can immediately start working on the feature.
+//
+// Business Value: Streamlines the workflow of starting new features by combining
+// branch creation and worktree setup into a single operation.
+func TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree(t *testing.T) {
+	// Given: User wants to create a new branch "feature/payment"
+	// And: User is in a git repository
+	// And: Branch does not exist yet
+	env := framework.SetupTestEnvironment(t)
+	defer env.Cleanup()
+
+	// When: User runs "wtp add --branch feature/payment"
+	output := env.RunWTP("add", "--branch", "feature/payment")
+
+	// Then: New branch and worktree should be created
+	assert.Contains(t, output, "Created worktree 'feature/payment'")
+
+	// And: Branch should exist
+	assert.True(t, env.BranchExists("feature/payment"))
+
+	// And: Worktree directory should exist
+	assert.DirExists(t, env.WorktreePath("feature/payment"))
+}
+
+// TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation tests
+// the flexibility to specify custom worktree locations.
+//
+// User Story: As a developer with specific project organization needs, I want to
+// specify exactly where my worktree should be created so it fits my workflow.
+//
+// Business Value: Provides flexibility for different team workflows and project
+// structures, accommodating various developer preferences and constraints.
+func TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation(t *testing.T) {
+	// Given: User wants to create worktree at a specific path
+	// And: User specifies both path and branch
+	env := framework.SetupTestEnvironment(t)
+	defer env.Cleanup()
+
+	// Create the feature branch
+	env.CreateBranch("feature/auth")
+
+	customPath := env.TempPath("custom-location")
+
+	// When: User runs "wtp add --path /custom/path feature/auth"
+	output := env.RunWTP("add", "--path", customPath, "feature/auth")
+
+	// Then: Worktree should be created at the specified path
+	assert.Contains(t, output, "Created worktree 'feature/auth'")
+
+	// And: Custom path should exist
+	assert.DirExists(t, customPath)
+}
+
+// TestUserCreatesWorktree_WithoutBranchName_ShouldShowBranchRequiredError tests
+// input validation from the user's perspective.
+//
+// User Story: As a developer, when I forget to specify a branch name, I want to
+// receive a clear error message so I understand what's required.
+//
+// Business Value: Clear error messages reduce frustration and improve the user
+// experience by guiding users toward correct usage.
+func TestUserCreatesWorktree_WithoutBranchName_ShouldShowBranchRequiredError(t *testing.T) {
+	// Given: User is in a git repository
+	// And: User doesn't specify a branch name or --branch flag
+	env := framework.SetupTestEnvironment(t)
+	defer env.Cleanup()
+
+	// When: User runs "wtp add" with no arguments
+	output, err := env.RunWTPWithError("add")
+
+	// Then: User should receive a clear error message
+	assert.Error(t, err)
+	assert.Contains(t, output, "branch name is required")
+}
+
+// TestUserCreatesWorktree_WhenPathAlreadyExists_ShouldRequireForceFlag tests
+// conflict resolution from the user's perspective.
+//
+// User Story: As a developer, when I try to create a worktree where a directory
+// already exists, I want to be warned and given the option to force overwrite.
+//
+// Business Value: Prevents accidental data loss while providing flexibility for
+// experienced users who want to overwrite existing directories.
+func TestUserCreatesWorktree_WhenPathAlreadyExists_ShouldRequireForceFlag(t *testing.T) {
+	// Given: Directory already exists at the target path
+	// And: User tries to create worktree without force flag
+	env := framework.SetupTestEnvironment(t)
+	defer env.Cleanup()
+
+	// Create the feature branch
+	env.CreateBranch("feature/auth")
+
+	// Create a conflicting directory
+	worktreePath := env.WorktreePath("feature/auth")
+	env.CreateDir(worktreePath)
+
+	// When: User runs "wtp add feature/auth" and path exists
+	output, err := env.RunWTPWithError("add", "feature/auth")
+
+	// Then: User should receive guidance about the conflict
+	assert.Error(t, err)
+	assert.Contains(t, output, "already exists")
+}
+*/

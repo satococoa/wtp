@@ -202,27 +202,37 @@ make ci          # all tests + coverage
 - **Main Branch**: Full test suite including integration and E2E
 - **Release**: Additional manual testing on multiple platforms
 
-### Testing Best Practices Adopted
+### Testing Best Practices Adopted (t-wada Principles)
 
-1. **Test Pyramid Compliance**:
-   - Many fast unit tests (70%)
-   - Some integration tests (20%)
-   - Few E2E tests (10%)
+1. **Test Pyramid with Appropriate Abstraction Levels**:
+   - **Unit Tests (70%)**: Simple, fast, focused on What not How
+   - **Integration Tests**: Removed - eliminated problematic middle layer
+   - **E2E Tests (30%)**: Real user workflows with Living Specifications
 
-2. **Environment Independence**:
+2. **Simplicity Over Complexity**:
+   - Unit tests kept simple and maintainable
+   - No over-abstraction in test code
+   - Clear, concise test names expressing intent
+
+3. **Living Specifications at the Right Level**:
+   - **E2E Tests**: User Stories, Business Value, Given-When-Then
+   - **Unit Tests**: Simple What testing, minimal documentation
+   - **Separation**: Avoid mixing specification concerns with unit testing
+
+4. **Test Naming Strategy**:
+   - **Unit Tests**: `TestFunction_Condition` (simple, direct)
+   - **E2E Tests**: `TestUserAction_WhenCondition_ShouldOutcome` (specification style)
+   - Avoid over-long names that obscure intent
+
+5. **Environment Independence**:
    - No implicit dependencies on git repository state
    - All external dependencies explicitly injected
    - Deterministic test results
 
-3. **Clear Test Boundaries**:
-   - Unit: Business logic only
-   - Integration: Git command integration
-   - E2E: User workflows
-
-4. **Fast Feedback**:
+6. **Fast Feedback**:
    - Unit tests run in milliseconds
    - Fail fast on lint/format issues
-   - Clear error messages
+   - Clear error messages without excessive verbosity
 
 ### Current Test Coverage
 
