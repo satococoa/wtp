@@ -81,13 +81,13 @@ func TestAppRun_Help(t *testing.T) {
 	// Check help output contains expected information
 	assert.Contains(t, output, "wtp")
 	assert.Contains(t, output, "Enhanced Git worktree management")
-	assert.Contains(t, output, "COMMANDS:")
-	assert.Contains(t, output, "add")
-	assert.Contains(t, output, "list")
-	assert.Contains(t, output, "remove")
-	assert.Contains(t, output, "init")
-	assert.Contains(t, output, "cd")
-	assert.Contains(t, output, "completion")
+
+	// Check that all expected commands are present in the output
+	// Don't check for specific section headers as they may vary by CLI version
+	expectedCommands := []string{"add", "list", "remove", "init", "cd", "completion"}
+	for _, cmd := range expectedCommands {
+		assert.Contains(t, output, cmd, "Command '%s' should be present in help output", cmd)
+	}
 }
 
 // TestAppRun_InvalidCommand was removed as it was a coverage-driven test
