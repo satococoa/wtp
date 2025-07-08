@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -387,16 +389,21 @@ func createTestCLICommand(flags map[string]interface{}, args []string) *cli.Comm
 type mockCommandExecutor struct {
 	executedCommands []command.Command
 	shouldFail       bool
+	errorMsg         string
 }
 
 func (m *mockCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
 	m.executedCommands = commands
 
 	if m.shouldFail {
+		errorMsg := m.errorMsg
+		if errorMsg == "" {
+			errorMsg = "mock error"
+		}
 		return &command.ExecutionResult{
 			Results: []command.Result{{
 				Command: commands[0],
-				Error:   errors.GitCommandFailed("git", "mock error"),
+				Error:   errors.GitCommandFailed("git", errorMsg),
 			}},
 		}, nil
 	}
@@ -701,6 +708,148 @@ func TestAddCommand_FlagCombinations(t *testing.T) {
 				assert.Error(t, err, tt.description)
 			} else {
 				assert.NoError(t, err, tt.description)
+			}
+		})
+	}
+}
+
+// ===== Cross-Platform and Locale Tests =====
+
+func TestAddCommand_CrossPlatformPaths(t *testing.T) {
+	tests := []struct {
+		name           string
+		branchName     string
+		baseDirUnix    string
+		baseDirWindows string
+		expectedUnix   string
+		expectedWin    string
+		description    string
+	}{
+		{
+			name:           "standard branch with unix separators",
+			branchName:     "feature/auth",
+			baseDirUnix:    "/home/user/worktrees",
+			baseDirWindows: "C:\\Users\\user\\worktrees",
+			expectedUnix:   "/home/user/worktrees/feature/auth",
+			expectedWin:    "C:\\Users\\user\\worktrees\\feature\\auth",
+			description:    "Should handle path separators correctly on different platforms",
+		},
+		{
+			name:           "deeply nested branch structure",
+			branchName:     "team/backend/feature/auth",
+			baseDirUnix:    "/tmp/worktrees",
+			baseDirWindows: "C:\\temp\\worktrees",
+			expectedUnix:   "/tmp/worktrees/team/backend/feature/auth",
+			expectedWin:    "C:\\temp\\worktrees\\team\\backend\\feature\\auth",
+			description:    "Should handle deep nesting across platforms",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test Unix-style paths
+			t.Run("unix_paths", func(t *testing.T) {
+				mockExec := &mockCommandExecutor{shouldFail: false}
+				var buf bytes.Buffer
+				cmd := createTestCLICommand(map[string]interface{}{}, []string{tt.branchName})
+				cfg := &config.Config{
+					Defaults: config.Defaults{BaseDir: tt.baseDirUnix},
+				}
+
+				err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+				assert.NoError(t, err)
+				assert.Contains(t, buf.String(), fmt.Sprintf("Created worktree '%s'", tt.branchName))
+				assert.Equal(t, []string{"worktree", "add", tt.expectedUnix, tt.branchName},
+					mockExec.executedCommands[0].Args)
+			})
+
+			// Test Windows-style paths (simulated)
+			t.Run("windows_paths", func(t *testing.T) {
+				mockExec := &mockCommandExecutor{shouldFail: false}
+				var buf bytes.Buffer
+				cmd := createTestCLICommand(map[string]interface{}{}, []string{tt.branchName})
+				cfg := &config.Config{
+					Defaults: config.Defaults{BaseDir: tt.baseDirWindows},
+				}
+
+				err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+				assert.NoError(t, err)
+				assert.Contains(t, buf.String(), fmt.Sprintf("Created worktree '%s'", tt.branchName))
+				// Note: On Unix systems, Windows-style paths are treated as relative paths
+				// and will be resolved relative to the repo path
+				expectedPath := fmt.Sprintf("/test/repo/%s/%s", tt.baseDirWindows, tt.branchName)
+				assert.Equal(t, []string{"worktree", "add", expectedPath, tt.branchName},
+					mockExec.executedCommands[0].Args)
+			})
+		})
+	}
+}
+
+func TestAddCommand_ErrorMessageQuality(t *testing.T) {
+	tests := []struct {
+		name              string
+		branchName        string
+		flags             map[string]interface{}
+		mockError         string
+		expectedInMessage []string
+		description       string
+	}{
+		{
+			name:       "branch already exists error",
+			branchName: "feature/existing",
+			flags:      map[string]interface{}{},
+			mockError:  "fatal: a branch named 'feature/existing' already exists",
+			expectedInMessage: []string{
+				"branch", "existing", "feature/existing",
+			},
+			description: "Error should include the problematic branch name",
+		},
+		{
+			name:       "invalid path characters",
+			branchName: "feature/invalid:path",
+			flags:      map[string]interface{}{},
+			mockError:  "fatal: invalid path 'feature/invalid:path'",
+			expectedInMessage: []string{
+				"invalid", "path", "feature/invalid:path",
+			},
+			description: "Error should highlight the invalid characters",
+		},
+		{
+			name:       "permission denied",
+			branchName: "feature/auth",
+			flags:      map[string]interface{}{},
+			mockError:  "fatal: could not create work tree dir '/restricted/path'",
+			expectedInMessage: []string{
+				"could not create", "work tree", "restricted",
+			},
+			description: "Error should indicate permission issues clearly",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockCommandExecutor{
+				shouldFail: true,
+				errorMsg:   tt.mockError,
+			}
+			var buf bytes.Buffer
+			cmd := createTestCLICommand(tt.flags, []string{tt.branchName})
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			}
+
+			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+			assert.Error(t, err)
+			errorOutput := err.Error() + buf.String()
+			
+			// Check that error message contains relevant information
+			for _, expectedText := range tt.expectedInMessage {
+				assert.Contains(t, strings.ToLower(errorOutput), 
+					strings.ToLower(expectedText),
+					"Error message should contain '%s' for better user guidance", expectedText)
 			}
 		})
 	}
