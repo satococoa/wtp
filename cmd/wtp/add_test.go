@@ -484,3 +484,223 @@ func TestAddCommand_GitError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Len(t, mockExec.executedCommands, 1)
 }
+
+// ===== Real-World Edge Cases =====
+
+func TestAddCommand_InternationalCharacters(t *testing.T) {
+	tests := []struct {
+		name         string
+		branchName   string
+		expectedPath string
+		shouldWork   bool
+	}{
+		{
+			name:         "Japanese characters",
+			branchName:   "機能/ログイン",
+			expectedPath: "/test/worktrees/機能/ログイン",
+			shouldWork:   true,
+		},
+		{
+			name:         "Spanish accents",
+			branchName:   "función/añadir",
+			expectedPath: "/test/worktrees/función/añadir",
+			shouldWork:   true,
+		},
+		{
+			name:         "Emoji characters",
+			branchName:   "feature/🚀-rocket",
+			expectedPath: "/test/worktrees/feature/🚀-rocket",
+			shouldWork:   true,
+		},
+		{
+			name:         "Chinese characters",
+			branchName:   "特性/用户认证",
+			expectedPath: "/test/worktrees/特性/用户认证",
+			shouldWork:   true,
+		},
+		{
+			name:         "Arabic characters",
+			branchName:   "ميزة/تسجيل-الدخول",
+			expectedPath: "/test/worktrees/ميزة/تسجيل-الدخول",
+			shouldWork:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockCommandExecutor{shouldFail: !tt.shouldWork}
+			var buf bytes.Buffer
+			cmd := createTestCLICommand(map[string]interface{}{}, []string{tt.branchName})
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			}
+
+			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+			if tt.shouldWork {
+				assert.NoError(t, err)
+				assert.Len(t, mockExec.executedCommands, 1)
+				assert.Equal(t, []string{"worktree", "add", tt.expectedPath, tt.branchName}, 
+					mockExec.executedCommands[0].Args)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
+func TestAddCommand_SpecialCharacters(t *testing.T) {
+	tests := []struct {
+		name       string
+		branchName string
+		shouldWork bool
+		reason     string
+	}{
+		{
+			name:       "spaces in branch name",
+			branchName: "feature/with spaces",
+			shouldWork: true,
+			reason:     "Git supports spaces in branch names",
+		},
+		{
+			name:       "hyphens and underscores",
+			branchName: "feature/test-branch_name",
+			shouldWork: true,
+			reason:     "Common valid characters",
+		},
+		{
+			name:       "dots in branch name",
+			branchName: "release/v1.0.0",
+			shouldWork: true,
+			reason:     "Version branches commonly use dots",
+		},
+		{
+			name:       "numbers and mixed case",
+			branchName: "Feature123/TestBranch",
+			shouldWork: true,
+			reason:     "Mixed case and numbers are valid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockCommandExecutor{shouldFail: !tt.shouldWork}
+			var buf bytes.Buffer
+			cmd := createTestCLICommand(map[string]interface{}{}, []string{tt.branchName})
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			}
+
+			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+			if tt.shouldWork {
+				assert.NoError(t, err, tt.reason)
+			} else {
+				assert.Error(t, err, tt.reason)
+			}
+		})
+	}
+}
+
+func TestAddCommand_PathLengthLimits(t *testing.T) {
+	tests := []struct {
+		name       string
+		branchName string
+		shouldWork bool
+		reason     string
+	}{
+		{
+			name:       "very long branch name",
+			branchName: "feature/this-is-a-very-long-branch-name-that-might-cause-issues-with-filesystem-path-limits-in-some-operating-systems-especially-windows",
+			shouldWork: true,
+			reason:     "Modern filesystems should handle long paths",
+		},
+		{
+			name:       "nested branch structure",
+			branchName: "team/backend/feature/authentication/oauth2/implementation",
+			shouldWork: true,
+			reason:     "Deep nesting should be supported",
+		},
+		{
+			name:       "extremely deep nesting",
+			branchName: "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z",
+			shouldWork: true,
+			reason:     "Test filesystem path depth limits",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockCommandExecutor{shouldFail: !tt.shouldWork}
+			var buf bytes.Buffer
+			cmd := createTestCLICommand(map[string]interface{}{}, []string{tt.branchName})
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			}
+
+			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+			if tt.shouldWork {
+				assert.NoError(t, err, tt.reason)
+				assert.Len(t, mockExec.executedCommands, 1)
+				// Verify the path is constructed correctly
+				expectedPath := "/test/worktrees/" + tt.branchName
+				assert.Equal(t, []string{"worktree", "add", expectedPath, tt.branchName}, 
+					mockExec.executedCommands[0].Args)
+			} else {
+				assert.Error(t, err, tt.reason)
+			}
+		})
+	}
+}
+
+func TestAddCommand_FlagCombinations(t *testing.T) {
+	tests := []struct {
+		name        string
+		flags       map[string]interface{}
+		args        []string
+		expectError bool
+		description string
+	}{
+		{
+			name:        "branch and path combination",
+			flags:       map[string]interface{}{"branch": "new-feature", "path": "/custom/path"},
+			args:        []string{},
+			expectError: false,
+			description: "Valid: creating new branch at custom path",
+		},
+		{
+			name:        "detach with commit hash",
+			flags:       map[string]interface{}{"detach": true},
+			args:        []string{"abc123"},
+			expectError: false,
+			description: "Valid: detached HEAD at specific commit",
+		},
+		{
+			name:        "force flag with existing path",
+			flags:       map[string]interface{}{"force": true},
+			args:        []string{"feature/existing"},
+			expectError: false,
+			description: "Valid: force creation even if path exists",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockCommandExecutor{shouldFail: false}
+			var buf bytes.Buffer
+			cmd := createTestCLICommand(tt.flags, tt.args)
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			}
+
+			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+
+			if tt.expectError {
+				assert.Error(t, err, tt.description)
+			} else {
+				assert.NoError(t, err, tt.description)
+			}
+		})
+	}
+}
