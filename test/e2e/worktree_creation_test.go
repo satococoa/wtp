@@ -1,15 +1,9 @@
 package e2e
 
-// TODO: Implement E2E framework and uncomment these tests
-// These tests represent the Living Specifications that should be implemented
-// at the E2E level with real git operations and user workflows.
-
-/*
 import (
 	"testing"
 
 	"github.com/satococoa/wtp/test/e2e/framework"
-	"github.com/stretchr/testify/assert"
 )
 
 // Living Specifications for Worktree Creation Workflows
@@ -27,23 +21,21 @@ func TestUserCreatesWorktree_WithExistingLocalBranch_ShouldCreateWorktreeAtDefau
 	// Given: User has an existing local branch named "feature/auth"
 	// And: User is in a git repository
 	// And: No worktree conflicts exist
-	env := framework.SetupTestEnvironment(t)
+	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	// Create the feature branch
-	env.CreateBranch("feature/auth")
+	repo := env.CreateTestRepo("user-creates-worktree")
+	repo.CreateBranch("feature/auth")
 
 	// When: User runs "wtp add feature/auth"
-	output := env.RunWTP("add", "feature/auth")
+	output, err := repo.RunWTP("add", "feature/auth")
 
 	// Then: Worktree should be created successfully
-	assert.Contains(t, output, "Created worktree 'feature/auth'")
+	framework.AssertNoError(t, err)
+	framework.AssertWorktreeCreated(t, output, "feature/auth")
 
 	// And: Worktree directory should exist
-	assert.DirExists(t, env.WorktreePath("feature/auth"))
-
-	// And: User can work in the new worktree
-	assert.True(t, env.IsValidWorktree("feature/auth"))
+	framework.AssertWorktreeExists(t, repo, "feature/auth")
 }
 
 // TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree tests
@@ -58,20 +50,20 @@ func TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree(t *
 	// Given: User wants to create a new branch "feature/payment"
 	// And: User is in a git repository
 	// And: Branch does not exist yet
-	env := framework.SetupTestEnvironment(t)
+	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
+	repo := env.CreateTestRepo("user-creates-new-branch")
+
 	// When: User runs "wtp add --branch feature/payment"
-	output := env.RunWTP("add", "--branch", "feature/payment")
+	output, err := repo.RunWTP("add", "--branch", "feature/payment")
 
 	// Then: New branch and worktree should be created
-	assert.Contains(t, output, "Created worktree 'feature/payment'")
-
-	// And: Branch should exist
-	assert.True(t, env.BranchExists("feature/payment"))
+	framework.AssertNoError(t, err)
+	framework.AssertWorktreeCreated(t, output, "feature/payment")
 
 	// And: Worktree directory should exist
-	assert.DirExists(t, env.WorktreePath("feature/payment"))
+	framework.AssertWorktreeExists(t, repo, "feature/payment")
 }
 
 // TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation tests
@@ -85,22 +77,24 @@ func TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree(t *
 func TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation(t *testing.T) {
 	// Given: User wants to create worktree at a specific path
 	// And: User specifies both path and branch
-	env := framework.SetupTestEnvironment(t)
+	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
+	repo := env.CreateTestRepo("user-custom-path")
 	// Create the feature branch
-	env.CreateBranch("feature/auth")
+	repo.CreateBranch("feature/auth")
 
-	customPath := env.TempPath("custom-location")
+	customPath := env.TmpDir() + "/custom-location"
 
 	// When: User runs "wtp add --path /custom/path feature/auth"
-	output := env.RunWTP("add", "--path", customPath, "feature/auth")
+	output, err := repo.RunWTP("add", "--path", customPath, "feature/auth")
 
 	// Then: Worktree should be created at the specified path
-	assert.Contains(t, output, "Created worktree 'feature/auth'")
+	framework.AssertNoError(t, err)
+	framework.AssertWorktreeCreated(t, output, "feature/auth")
 
 	// And: Custom path should exist
-	assert.DirExists(t, customPath)
+	framework.AssertWorktreeExists(t, repo, customPath)
 }
 
 // TestUserCreatesWorktree_WithoutBranchName_ShouldShowBranchRequiredError tests
@@ -114,15 +108,17 @@ func TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation(t *t
 func TestUserCreatesWorktree_WithoutBranchName_ShouldShowBranchRequiredError(t *testing.T) {
 	// Given: User is in a git repository
 	// And: User doesn't specify a branch name or --branch flag
-	env := framework.SetupTestEnvironment(t)
+	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
+	repo := env.CreateTestRepo("user-no-branch")
+
 	// When: User runs "wtp add" with no arguments
-	output, err := env.RunWTPWithError("add")
+	output, err := repo.RunWTP("add")
 
 	// Then: User should receive a clear error message
-	assert.Error(t, err)
-	assert.Contains(t, output, "branch name is required")
+	framework.AssertError(t, err)
+	framework.AssertOutputContains(t, output, "branch name is required")
 }
 
 // TestUserCreatesWorktree_WhenPathAlreadyExists_ShouldRequireForceFlag tests
@@ -136,21 +132,21 @@ func TestUserCreatesWorktree_WithoutBranchName_ShouldShowBranchRequiredError(t *
 func TestUserCreatesWorktree_WhenPathAlreadyExists_ShouldRequireForceFlag(t *testing.T) {
 	// Given: Directory already exists at the target path
 	// And: User tries to create worktree without force flag
-	env := framework.SetupTestEnvironment(t)
+	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
+	repo := env.CreateTestRepo("user-path-exists")
 	// Create the feature branch
-	env.CreateBranch("feature/auth")
+	repo.CreateBranch("feature/auth")
 
-	// Create a conflicting directory
-	worktreePath := env.WorktreePath("feature/auth")
-	env.CreateDir(worktreePath)
+	// Create a conflicting directory first
+	_, err := repo.RunWTP("add", "feature/auth")
+	framework.AssertNoError(t, err)
 
-	// When: User runs "wtp add feature/auth" and path exists
-	output, err := env.RunWTPWithError("add", "feature/auth")
+	// When: User tries to run "wtp add feature/auth" again
+	output, err := repo.RunWTP("add", "feature/auth")
 
 	// Then: User should receive guidance about the conflict
-	assert.Error(t, err)
-	assert.Contains(t, output, "already exists")
+	framework.AssertError(t, err)
+	framework.AssertOutputContains(t, output, "already exists")
 }
-*/
