@@ -18,6 +18,11 @@ func setupTestRepo(t *testing.T) string {
 		t.Fatalf("Failed to init git repo: %v", err)
 	}
 
+	// Set default branch to main (works with older git versions too)
+	cmd = exec.Command("git", "config", "init.defaultBranch", "main")
+	cmd.Dir = tempDir
+	_ = cmd.Run() // Ignore error if git version is too old
+
 	// Configure git user
 	cmd = exec.Command("git", "config", "user.name", "Test User")
 	cmd.Dir = tempDir
@@ -47,6 +52,25 @@ func setupTestRepo(t *testing.T) string {
 	cmd.Dir = tempDir
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	// Ensure the default branch is named 'main'
+	// Check current branch name
+	cmd = exec.Command("git", "branch", "--show-current")
+	cmd.Dir = tempDir
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Failed to get current branch: %v", err)
+	}
+
+	currentBranch := strings.TrimSpace(string(output))
+	if currentBranch == "master" {
+		// Rename master to main
+		cmd = exec.Command("git", "branch", "-m", "master", "main")
+		cmd.Dir = tempDir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to rename branch to main: %v", err)
+		}
 	}
 
 	return tempDir

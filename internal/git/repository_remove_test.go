@@ -18,18 +18,13 @@ func runGitCommand(t *testing.T, dir string, args ...string) {
 	}
 }
 
-// checkoutMainBranch tries to checkout main or master branch
+// checkoutMainBranch checks out the main branch
 func checkoutMainBranch(t *testing.T, repoDir string) {
 	t.Helper()
 	cmd := exec.Command("git", "checkout", "main")
 	cmd.Dir = repoDir
 	if err := cmd.Run(); err != nil {
-		// Try master if main doesn't exist
-		cmd = exec.Command("git", "checkout", "master")
-		cmd.Dir = repoDir
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("Failed to checkout main/master: %v", err)
-		}
+		t.Fatalf("Failed to checkout main: %v", err)
 	}
 }
 
@@ -47,6 +42,20 @@ func initializeTestRepo(t *testing.T, repoDir string) {
 	}
 	runGitCommand(t, repoDir, "add", "README.md")
 	runGitCommand(t, repoDir, "commit", "-m", "Initial commit")
+
+	// Ensure the default branch is named 'main'
+	cmd := exec.Command("git", "branch", "--show-current")
+	cmd.Dir = repoDir
+	output, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("Failed to get current branch: %v", err)
+	}
+
+	currentBranch := strings.TrimSpace(string(output))
+	if currentBranch == "master" {
+		// Rename master to main
+		runGitCommand(t, repoDir, "branch", "-m", "master", "main")
+	}
 }
 
 // createMergedBranch creates and merges a branch
