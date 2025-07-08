@@ -100,11 +100,13 @@ make dev  # Runs fmt, lint, and test
 ### Evolution to Environment-Independent Testing
 
 **Previous Approach** (Before CommandExecutor):
+
 - Mixed unit and integration tests
 - Environment-dependent behavior
 - Difficult to mock git operations
 
 **Current Approach** (TDD-driven CommandExecutor):
+
 - Clear separation of test levels
 - Environment-independent unit tests
 - Comprehensive mocking capabilities
@@ -112,6 +114,7 @@ make dev  # Runs fmt, lint, and test
 ### Test Levels
 
 #### 1. Unit Tests (`*_test.go`)
+
 - **Purpose**: Test business logic and command flow in isolation
 - **Dependencies**: All external dependencies mocked via dependency injection
 - **Execution Time**: < 100ms per test
@@ -119,6 +122,7 @@ make dev  # Runs fmt, lint, and test
 - **Coverage**: 80%+ for core functionality
 
 **Example Pattern**:
+
 ```go
 // Dependency injection for testability
 type ListDependencies struct {
@@ -136,12 +140,14 @@ func TestListCommand_WithMocks(t *testing.T) {
 ```
 
 #### 2. Integration Tests (`*_integration_test.go`, build tag: `integration`)
+
 - **Purpose**: Test integration with real git commands in isolated environments
 - **Dependencies**: Git binary, temporary repositories
 - **Execution Time**: < 1s per test
 - **Environment**: Isolated temporary git repositories
 
 #### 3. E2E Tests (`test/e2e/*.go`, build tag: `e2e`)
+
 - **Purpose**: Test complete user workflows and scenarios
 - **Dependencies**: Full environment (git, shell, filesystem)
 - **Execution Time**: < 10s per test
@@ -150,6 +156,7 @@ func TestListCommand_WithMocks(t *testing.T) {
 ### Key Improvements
 
 #### Dependency Injection Pattern
+
 All commands now support dependency injection for external dependencies:
 
 ```go
@@ -167,11 +174,13 @@ func SetListDependenciesForTest(deps ListDependencies) func() {
 ```
 
 #### Comprehensive Mocking
+
 - `MockCommandExecutor`: Simulates git command execution
 - `MockGitRepository`: Provides test fixtures for repository state
 - Test fixtures for common scenarios (empty repos, multiple worktrees, etc.)
 
 #### Build Tags for Test Separation
+
 ```bash
 # Unit tests only (fast, no dependencies)
 make test-unit
@@ -186,6 +195,7 @@ make test-all
 ### Test Execution Strategy
 
 #### Development Workflow
+
 ```bash
 # Fast feedback loop (< 5 seconds)
 make dev-fast    # fmt + lint + unit tests
@@ -198,11 +208,12 @@ make ci          # all tests + coverage
 ```
 
 #### Continuous Integration
+
 - **Pull Requests**: Unit tests + lint (fast feedback)
 - **Main Branch**: Full test suite including integration and E2E
 - **Release**: Additional manual testing on multiple platforms
 
-### Testing Best Practices Adopted (t-wada Principles)
+### Testing Best Practices Adopted
 
 1. **Test Pyramid with Appropriate Abstraction Levels**:
    - **Unit Tests (70%)**: Simple, fast, focused on What not How
@@ -221,7 +232,8 @@ make ci          # all tests + coverage
 
 4. **Test Naming Strategy**:
    - **Unit Tests**: `TestFunction_Condition` (simple, direct)
-   - **E2E Tests**: `TestUserAction_WhenCondition_ShouldOutcome` (specification style)
+   - **E2E Tests**: `TestUserAction_WhenCondition_ShouldOutcome` (specification
+     style)
    - Avoid over-long names that obscure intent
 
 5. **Environment Independence**:
@@ -244,16 +256,19 @@ make ci          # all tests + coverage
 ### Migration Status
 
 **Completed**:
+
 - ✅ CommandExecutor architecture for all commands
 - ✅ Comprehensive unit test mocks
 - ✅ Dependency injection patterns
 - ✅ Build tag separation
 
 **In Progress**:
+
 - 🔄 Full integration test coverage
 - 🔄 Docker-based test isolation
 
 **Future**:
+
 - 📋 Performance benchmarks
 - 📋 Mutation testing
 - 📋 Property-based testing for edge cases

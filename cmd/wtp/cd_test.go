@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"testing"
 
 	"github.com/satococoa/wtp/internal/command"
@@ -13,43 +11,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// Test helper functions
-func setupTestGitRepo(t *testing.T) string {
-	tempDir := t.TempDir()
-	repoDir := filepath.Join(tempDir, "test-repo")
-
-	// Create directory and initialize git repo
-	err := os.MkdirAll(repoDir, 0755)
-	assert.NoError(t, err)
-
-	// Initialize git repository
-	runGitCommand(t, repoDir, "init")
-	runGitCommand(t, repoDir, "config", "user.email", "test@example.com")
-	runGitCommand(t, repoDir, "config", "user.name", "Test User")
-
-	// Create initial commit
-	testFile := filepath.Join(repoDir, "README.md")
-	err = os.WriteFile(testFile, []byte("# Test Repository"), 0644)
-	assert.NoError(t, err)
-
-	runGitCommand(t, repoDir, "add", ".")
-	runGitCommand(t, repoDir, "commit", "-m", "Initial commit")
-
-	return repoDir
-}
-
-func cleanupTestRepo(_ string) {
-	// Cleanup is handled by t.TempDir()
-}
-
-func runGitCommand(t *testing.T, repoDir string, args ...string) {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repoDir
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Git command failed: %v\nOutput: %s", err, string(output))
-	}
-}
+// ===== Simple Unit Tests (What testing) =====
 
 func TestNewCdCommand(t *testing.T) {
 	cmd := NewCdCommand()
@@ -125,79 +87,7 @@ func TestCdToWorktree_NotInGitRepo(t *testing.T) {
 	assert.Contains(t, err.Error(), "not in a git repository")
 }
 
-func TestCdToWorktree_Success(t *testing.T) {
-	// Set shell integration
-	os.Setenv("WTP_SHELL_INTEGRATION", "1")
-	defer os.Unsetenv("WTP_SHELL_INTEGRATION")
-
-	// Setup test git repository with worktrees
-	testRepo := setupTestGitRepo(t)
-	defer cleanupTestRepo(testRepo)
-
-	// Create a worktree
-	worktreePath := testRepo + "/../worktrees/feature-branch"
-	runGitCommand(t, testRepo, "worktree", "add", "-b", "feature-branch", worktreePath)
-
-	// Change to the main repository
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	err := os.Chdir(testRepo)
-	assert.NoError(t, err)
-
-	app := &cli.Command{
-		Commands: []*cli.Command{
-			NewCdCommand(),
-		},
-	}
-
-	var buf bytes.Buffer
-	app.Writer = &buf
-
-	ctx := context.Background()
-	err = app.Run(ctx, []string{"wtp", "cd", "feature-branch"})
-	assert.NoError(t, err)
-	// Check that the output contains the worktree directory name
-	assert.Contains(t, buf.String(), "worktrees/feature-branch")
-}
-
-func TestCdToWorktree_WorktreeNotFound(t *testing.T) {
-	// Set shell integration
-	os.Setenv("WTP_SHELL_INTEGRATION", "1")
-	defer os.Unsetenv("WTP_SHELL_INTEGRATION")
-
-	// Setup test git repository
-	testRepo := setupTestGitRepo(t)
-	defer cleanupTestRepo(testRepo)
-
-	// Change to the repository
-	oldDir, _ := os.Getwd()
-	defer func() { _ = os.Chdir(oldDir) }()
-	err := os.Chdir(testRepo)
-	assert.NoError(t, err)
-
-	app := &cli.Command{
-		Commands: []*cli.Command{
-			NewCdCommand(),
-		},
-	}
-
-	var buf bytes.Buffer
-	app.Writer = &buf
-
-	ctx := context.Background()
-	err = app.Run(ctx, []string{"wtp", "cd", "nonexistent"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "worktree 'nonexistent' not found")
-}
-
-func TestCdCommand_ShellComplete(t *testing.T) {
-	cmd := NewCdCommand()
-	// cd command doesn't have shell completion
-	assert.Nil(t, cmd.ShellComplete)
-}
-
-// Test with CommandExecutor architecture
-func TestCdCommandWithCommandExecutor_Success(t *testing.T) {
+func TestCdCommand_Success(t *testing.T) {
 	mockExec := &mockCdCommandExecutor{
 		results: []command.Result{
 			{
@@ -218,7 +108,7 @@ func TestCdCommandWithCommandExecutor_Success(t *testing.T) {
 	assert.Equal(t, []string{"worktree", "list", "--porcelain"}, mockExec.executedCommands[0].Args)
 }
 
-func TestCdCommandWithCommandExecutor_WorktreeNotFound(t *testing.T) {
+func TestCdCommand_NotFound(t *testing.T) {
 	mockExec := &mockCdCommandExecutor{
 		results: []command.Result{
 			{
@@ -237,7 +127,13 @@ func TestCdCommandWithCommandExecutor_WorktreeNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
 }
 
-func TestCdCommandWithCommandExecutor_NoWorktrees(t *testing.T) {
+func TestCdCommand_ShellComplete(t *testing.T) {
+	cmd := NewCdCommand()
+	// cd command doesn't have shell completion
+	assert.Nil(t, cmd.ShellComplete)
+}
+
+func TestCdCommand_NoWorktrees(t *testing.T) {
 	mockExec := &mockCdCommandExecutor{
 		results: []command.Result{
 			{
@@ -256,7 +152,8 @@ func TestCdCommandWithCommandExecutor_NoWorktrees(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
 }
 
-// Mock command executor for cd testing
+// ===== Mock Implementations =====
+
 type mockCdCommandExecutor struct {
 	executedCommands []command.Command
 	results          []command.Result

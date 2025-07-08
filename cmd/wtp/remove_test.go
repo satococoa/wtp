@@ -12,6 +12,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// ===== Simple Unit Tests (What testing) =====
+
 func TestNewRemoveCommand(t *testing.T) {
 	cmd := NewRemoveCommand()
 
@@ -174,52 +176,7 @@ func TestRemoveCommand_ShellComplete(t *testing.T) {
 	})
 }
 
-func TestRemoveCommand_SuccessWithOutput(_ *testing.T) {
-	// This test verifies that output is written to the Writer
-	// when remove command succeeds
-	app := &cli.Command{
-		Commands: []*cli.Command{
-			NewRemoveCommand(),
-		},
-	}
-
-	var buf bytes.Buffer
-	app.Writer = &buf
-
-	// Simulate a remove command (will fail due to not being in git repo, but that's OK for this test)
-	ctx := context.Background()
-	_ = app.Run(ctx, []string{"wtp", "remove", "feature"})
-
-	// Even if the command fails, we're just testing that it uses the Writer
-	// The actual success case would require a full git repo setup
-}
-
-// Mock command executor for testing - extends the existing one
-type mockRemoveCommandExecutor struct {
-	executedCommands []command.Command
-	results          []command.Result
-}
-
-func (m *mockRemoveCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
-	m.executedCommands = append(m.executedCommands, commands...)
-
-	results := make([]command.Result, len(commands))
-	for i, cmd := range commands {
-		if i < len(m.results) {
-			results[i] = m.results[i]
-		} else {
-			results[i] = command.Result{
-				Command: cmd,
-				Output:  "",
-				Error:   nil,
-			}
-		}
-	}
-
-	return &command.ExecutionResult{Results: results}, nil
-}
-
-func TestRemoveCommandWithCommandExecutor_Success(t *testing.T) {
+func TestRemoveCommand_Success(t *testing.T) {
 	mockExec := &mockRemoveCommandExecutor{
 		results: []command.Result{
 			{
@@ -245,15 +202,33 @@ func TestRemoveCommandWithCommandExecutor_Success(t *testing.T) {
 	assert.Equal(t, []string{"worktree", "remove", "/path/to/worktrees/feature-auth"}, mockExec.executedCommands[1].Args)
 }
 
-func TestRemoveCommandWithCommandExecutor_WithBranch(t *testing.T) {
-	testBranchRemoval(t, false, "-d")
+// ===== Mock Implementations =====
+
+type mockRemoveCommandExecutor struct {
+	executedCommands []command.Command
+	results          []command.Result
 }
 
-func TestRemoveCommandWithCommandExecutor_WithForceBranch(t *testing.T) {
-	testBranchRemoval(t, true, "-D")
+func (m *mockRemoveCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	m.executedCommands = append(m.executedCommands, commands...)
+
+	results := make([]command.Result, len(commands))
+	for i, cmd := range commands {
+		if i < len(m.results) {
+			results[i] = m.results[i]
+		} else {
+			results[i] = command.Result{
+				Command: cmd,
+				Output:  "",
+				Error:   nil,
+			}
+		}
+	}
+
+	return &command.ExecutionResult{Results: results}, nil
 }
 
-func testBranchRemoval(t *testing.T, forceBranch bool, expectedFlag string) {
+func TestRemoveCommand_WithBranch(t *testing.T) {
 	mockExec := &mockRemoveCommandExecutor{
 		results: []command.Result{
 			{
@@ -274,18 +249,43 @@ func testBranchRemoval(t *testing.T, forceBranch bool, expectedFlag string) {
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
 
-	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-auth", false, true, forceBranch)
+	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-auth", false, true, false)
 
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "Removed worktree 'feature-auth'")
 	assert.Contains(t, buf.String(), "Removed branch 'feature-auth'")
 	assert.Len(t, mockExec.executedCommands, 3)
-	assert.Equal(t, []string{"worktree", "list", "--porcelain"}, mockExec.executedCommands[0].Args)
-	assert.Equal(t, []string{"worktree", "remove", "/path/to/worktrees/feature-auth"}, mockExec.executedCommands[1].Args)
-	assert.Equal(t, []string{"branch", expectedFlag, "feature-auth"}, mockExec.executedCommands[2].Args)
+	assert.Equal(t, []string{"branch", "-d", "feature-auth"}, mockExec.executedCommands[2].Args)
 }
 
-func TestRemoveCommandWithCommandExecutor_WorktreeNotFound(t *testing.T) {
+func TestRemoveCommand_ForceBranch(t *testing.T) {
+	mockExec := &mockRemoveCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /path/to/worktrees/feature-auth\nHEAD abc123\nbranch refs/heads/feature-auth\n\n",
+				Error:  nil,
+			},
+			{
+				Output: "",
+				Error:  nil,
+			},
+			{
+				Output: "",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-auth", false, true, true)
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"branch", "-D", "feature-auth"}, mockExec.executedCommands[2].Args)
+}
+
+func TestRemoveCommand_NotFound(t *testing.T) {
 	mockExec := &mockRemoveCommandExecutor{
 		results: []command.Result{
 			{

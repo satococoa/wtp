@@ -385,7 +385,7 @@ func (m *mockRepository) GetWorktrees() ([]git.Worktree, error) {
 	return m.worktrees, nil
 }
 
-// Simple mock executor for unit tests (t-wada approach)
+// Simple mock executor for unit tests
 type mockListExecutor struct {
 	output string
 	err    error
