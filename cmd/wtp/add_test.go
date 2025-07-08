@@ -844,10 +844,10 @@ func TestAddCommand_ErrorMessageQuality(t *testing.T) {
 
 			assert.Error(t, err)
 			errorOutput := err.Error() + buf.String()
-			
+
 			// Check that error message contains relevant information
 			for _, expectedText := range tt.expectedInMessage {
-				assert.Contains(t, strings.ToLower(errorOutput), 
+				assert.Contains(t, strings.ToLower(errorOutput),
 					strings.ToLower(expectedText),
 					"Error message should contain '%s' for better user guidance", expectedText)
 			}
