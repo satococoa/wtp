@@ -2,6 +2,8 @@
 
 This document establishes testing standards and best practices for the wtp project, based on lessons learned from implementing a specification-centered testing approach.
 
+> **Note**: For TDD bug fixing examples and architectural decisions, see [CLAUDE.md](../CLAUDE.md).
+
 ## Core Testing Philosophy
 
 ### 1. Specification-First Testing

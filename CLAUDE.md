@@ -596,6 +596,8 @@ func TestAddCommand_WithCommandExecutor(t *testing.T) {
 3. **Mock in Unit Tests**: Never execute real git in unit tests
 4. **Document in E2E**: Add realistic user scenarios to E2E tests
 
+For detailed testing guidelines, see [docs/testing-guidelines.md](docs/testing-guidelines.md).
+
 **Files Added/Modified**:
 
 - `internal/command/`: New package with executor, builders, and shell
