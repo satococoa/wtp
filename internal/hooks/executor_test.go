@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/satococoa/wtp/internal/config"
 )
@@ -519,5 +521,128 @@ func TestExecutePostCreateHooks_WithWriter(t *testing.T) {
 	copiedFile := filepath.Join(worktreeDir, "copied.txt")
 	if _, err := os.Stat(copiedFile); os.IsNotExist(err) {
 		t.Error("Copy hook did not execute")
+	}
+}
+
+// streamingWriter tracks when writes occur to verify real-time streaming
+type streamingWriter struct {
+	writes []writeRecord
+	mu     sync.Mutex
+}
+
+type writeRecord struct {
+	data string
+	time time.Time
+}
+
+func (sw *streamingWriter) Write(p []byte) (n int, err error) {
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+	sw.writes = append(sw.writes, writeRecord{
+		data: string(p),
+		time: time.Now(),
+	})
+	return len(p), nil
+}
+
+func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping streaming test on Windows")
+	}
+
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	if err := os.MkdirAll(repoRoot, 0755); err != nil {
+		t.Fatalf("Failed to create repo dir: %v", err)
+	}
+	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
+		t.Fatalf("Failed to create worktree dir: %v", err)
+	}
+
+	// Create a script that outputs multiple lines with delays
+	scriptPath := filepath.Join(repoRoot, "stream-test.sh")
+	scriptContent := `#!/bin/bash
+echo "Starting..."
+sleep 0.1
+echo "Processing..."
+sleep 0.1
+echo "Done!"
+`
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+		t.Fatalf("Failed to create script: %v", err)
+	}
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: scriptPath,
+				},
+			},
+		},
+	}
+
+	// Use our custom writer to track when writes occur
+	sw := &streamingWriter{}
+	executor := NewExecutor(cfg, repoRoot)
+
+	err := executor.ExecutePostCreateHooks(sw, worktreeDir)
+	if err != nil {
+		t.Fatalf("Failed to execute hooks: %v", err)
+	}
+
+	// Verify we got multiple writes (streaming) not just one big write
+	if len(sw.writes) < 4 { // At least: Running log + 3 echo outputs
+		t.Errorf("Expected multiple writes for streaming output, got %d writes", len(sw.writes))
+		for i, w := range sw.writes {
+			t.Logf("Write %d: %q", i, w.data)
+		}
+	}
+
+	// Verify output contains expected content
+	var allOutput strings.Builder
+	for _, w := range sw.writes {
+		allOutput.WriteString(w.data)
+	}
+	outputStr := allOutput.String()
+	
+	if !strings.Contains(outputStr, "Starting...") {
+		t.Error("Output should contain 'Starting...'")
+	}
+	if !strings.Contains(outputStr, "Processing...") {
+		t.Error("Output should contain 'Processing...'")
+	}
+	if !strings.Contains(outputStr, "Done!") {
+		t.Error("Output should contain 'Done!'")
+	}
+
+	// Verify streaming: check that writes happened over time, not all at once
+	if len(sw.writes) >= 2 {
+		// Calculate time differences between writes
+		var timeDiffs []time.Duration
+		for i := 1; i < len(sw.writes); i++ {
+			diff := sw.writes[i].time.Sub(sw.writes[i-1].time)
+			timeDiffs = append(timeDiffs, diff)
+		}
+		
+		// At least one time difference should be >= 50ms (half of our sleep time)
+		hasDelay := false
+		for _, diff := range timeDiffs {
+			if diff >= 50*time.Millisecond {
+				hasDelay = true
+				break
+			}
+		}
+		
+		if !hasDelay {
+			t.Error("Expected streaming output with delays, but all writes happened too quickly")
+			for i, diff := range timeDiffs {
+				t.Logf("Time diff %d: %v", i, diff)
+			}
+		}
 	}
 }
