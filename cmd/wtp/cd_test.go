@@ -13,7 +13,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// ===== Simple Unit Tests (What testing) =====
+// ===== Command Structure Tests =====
 
 func TestNewCdCommand(t *testing.T) {
 	cmd := NewCdCommand()
@@ -29,44 +29,188 @@ func TestNewCdCommand(t *testing.T) {
 	assert.Equal(t, "<worktree-name>", cmd.ArgsUsage)
 }
 
-func TestCdToWorktree_NoShellIntegration(t *testing.T) {
-	// Ensure WTP_SHELL_INTEGRATION is not set
-	os.Unsetenv("WTP_SHELL_INTEGRATION")
+// ===== Pure Business Logic Tests =====
 
-	app := &cli.Command{
-		Commands: []*cli.Command{
-			NewCdCommand(),
+func TestCdCommand_WorktreePathResolution(t *testing.T) {
+	tests := []struct {
+		name         string
+		worktreeName string
+		worktreeList string
+		expectedPath string
+		shouldFind   bool
+	}{
+		{
+			name:         "exact match",
+			worktreeName: "feature-branch",
+			worktreeList: "worktree /path/to/worktrees/feature-branch\nHEAD abc123\nbranch refs/heads/feature-branch\n\n",
+			expectedPath: "/path/to/worktrees/feature-branch",
+			shouldFind:   true,
+		},
+		{
+			name:         "no match",
+			worktreeName: "nonexistent",
+			worktreeList: "worktree /path/to/worktrees/main\nHEAD abc123\nbranch refs/heads/main\n\n",
+			expectedPath: "",
+			shouldFind:   false,
+		},
+		{
+			name:         "multiple worktrees",
+			worktreeName: "test",
+			worktreeList: "worktree /path/to/worktrees/feature/test\nHEAD abc123\nbranch refs/heads/feature/test\n\n" +
+				"worktree /path/to/worktrees/bugfix\nHEAD def456\nbranch refs/heads/bugfix\n\n",
+			expectedPath: "/path/to/worktrees/feature/test",
+			shouldFind:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			worktrees := parseWorktreesFromOutput(tt.worktreeList)
+
+			var targetPath string
+			for _, wt := range worktrees {
+				if filepath.Base(wt.Path) == tt.worktreeName {
+					targetPath = wt.Path
+					break
+				}
+			}
+
+			if tt.shouldFind {
+				assert.Equal(t, tt.expectedPath, targetPath)
+			} else {
+				assert.Empty(t, targetPath)
+			}
+		})
+	}
+}
+
+// ===== Command Execution Tests =====
+
+func TestCdCommand_SuccessfulExecution(t *testing.T) {
+	tests := []struct {
+		name         string
+		worktreeName string
+		mockOutput   string
+		expectedPath string
+	}{
+		{
+			name:         "find worktree by name",
+			worktreeName: "feature-branch",
+			mockOutput:   "worktree /path/to/worktrees/feature-branch\nHEAD abc123\nbranch refs/heads/feature-branch\n\n",
+			expectedPath: "/path/to/worktrees/feature-branch",
+		},
+		{
+			name:         "find nested worktree",
+			worktreeName: "auth",
+			mockOutput:   "worktree /path/to/worktrees/feature/auth\nHEAD abc123\nbranch refs/heads/feature/auth\n\n",
+			expectedPath: "/path/to/worktrees/feature/auth",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockCdCommandExecutor{
+				results: []command.Result{
+					{
+						Output: tt.mockOutput,
+						Error:  nil,
+					},
+				},
+			}
+
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", tt.worktreeName)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedPath+"\n", buf.String())
+			assert.Len(t, mockExec.executedCommands, 1)
+			assert.Equal(t, []string{"worktree", "list", "--porcelain"}, mockExec.executedCommands[0].Args)
+		})
+	}
+}
+
+func TestCdCommand_GitCommandConstruction(t *testing.T) {
+	mockExec := &mockCdCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /path/to/worktrees/feature-branch\nHEAD abc123\nbranch refs/heads/feature-branch\n\n",
+				Error:  nil,
+			},
 		},
 	}
 
 	var buf bytes.Buffer
-	app.Writer = &buf
+	cmd := &cli.Command{}
 
-	ctx := context.Background()
-	err := app.Run(ctx, []string{"wtp", "cd", "test"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cd command requires shell integration")
+	err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-branch")
+
+	assert.NoError(t, err)
+	// Verify the correct git command was executed
+	assert.Len(t, mockExec.executedCommands, 1)
+	expectedCmd := command.Command{
+		Name: "git",
+		Args: []string{"worktree", "list", "--porcelain"},
+	}
+	assert.Equal(t, expectedCmd.Name, mockExec.executedCommands[0].Name)
+	assert.Equal(t, expectedCmd.Args, mockExec.executedCommands[0].Args)
 }
 
-func TestCdToWorktree_NoArguments(t *testing.T) {
-	// Set shell integration
-	os.Setenv("WTP_SHELL_INTEGRATION", "1")
-	defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+// ===== Error Handling Tests =====
 
-	app := &cli.Command{
-		Commands: []*cli.Command{
-			NewCdCommand(),
+func TestCdToWorktree_ValidationErrors(t *testing.T) {
+	tests := []struct {
+		name             string
+		shellIntegration bool
+		args             []string
+		expectedError    string
+	}{
+		{
+			name:             "no shell integration",
+			shellIntegration: false,
+			args:             []string{"test"},
+			expectedError:    "cd command requires shell integration",
+		},
+		{
+			name:             "no arguments",
+			shellIntegration: true,
+			args:             []string{},
+			expectedError:    "worktree name is required",
 		},
 	}
 
-	ctx := context.Background()
-	err := app.Run(ctx, []string{"wtp", "cd"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "worktree name is required")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment
+			if tt.shellIntegration {
+				os.Setenv("WTP_SHELL_INTEGRATION", "1")
+				defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+			} else {
+				os.Unsetenv("WTP_SHELL_INTEGRATION")
+			}
+
+			app := &cli.Command{
+				Commands: []*cli.Command{
+					NewCdCommand(),
+				},
+			}
+
+			var buf bytes.Buffer
+			app.Writer = &buf
+
+			ctx := context.Background()
+			cmdArgs := []string{"wtp", "cd"}
+			cmdArgs = append(cmdArgs, tt.args...)
+
+			err := app.Run(ctx, cmdArgs)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedError)
+		})
+	}
 }
 
 func TestCdToWorktree_NotInGitRepo(t *testing.T) {
-	// Set shell integration
 	os.Setenv("WTP_SHELL_INTEGRATION", "1")
 	defer os.Unsetenv("WTP_SHELL_INTEGRATION")
 
@@ -89,28 +233,7 @@ func TestCdToWorktree_NotInGitRepo(t *testing.T) {
 	assert.Contains(t, err.Error(), "not in a git repository")
 }
 
-func TestCdCommand_Success(t *testing.T) {
-	mockExec := &mockCdCommandExecutor{
-		results: []command.Result{
-			{
-				Output: "worktree /path/to/worktrees/feature-branch\nHEAD abc123\nbranch refs/heads/feature-branch\n\n",
-				Error:  nil,
-			},
-		},
-	}
-
-	var buf bytes.Buffer
-	cmd := &cli.Command{}
-
-	err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-branch")
-
-	assert.NoError(t, err)
-	assert.Equal(t, "/path/to/worktrees/feature-branch\n", buf.String())
-	assert.Len(t, mockExec.executedCommands, 1)
-	assert.Equal(t, []string{"worktree", "list", "--porcelain"}, mockExec.executedCommands[0].Args)
-}
-
-func TestCdCommand_NotFound(t *testing.T) {
+func TestCdCommand_WorktreeNotFound(t *testing.T) {
 	mockExec := &mockCdCommandExecutor{
 		results: []command.Result{
 			{
@@ -127,12 +250,6 @@ func TestCdCommand_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
-}
-
-func TestCdCommand_ShellComplete(t *testing.T) {
-	cmd := NewCdCommand()
-	// cd command doesn't have shell completion
-	assert.Nil(t, cmd.ShellComplete)
 }
 
 func TestCdCommand_NoWorktrees(t *testing.T) {
@@ -154,76 +271,40 @@ func TestCdCommand_NoWorktrees(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
 }
 
-// ===== Mock Implementations =====
-
-type mockCdCommandExecutor struct {
-	executedCommands []command.Command
-	results          []command.Result
-}
-
-func (m *mockCdCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
-	m.executedCommands = append(m.executedCommands, commands...)
-
-	results := make([]command.Result, len(commands))
-	for i, cmd := range commands {
-		if i < len(m.results) {
-			results[i] = m.results[i]
-		} else {
-			results[i] = command.Result{
-				Command: cmd,
-				Output:  "",
-				Error:   nil,
-			}
-		}
-	}
-
-	return &command.ExecutionResult{Results: results}, nil
-}
-
-// ===== Real-World Edge Cases =====
+// ===== Edge Cases Tests =====
 
 func TestCdCommand_InternationalCharacters(t *testing.T) {
 	tests := []struct {
 		name         string
 		branchName   string
 		worktreePath string
-		shouldWork   bool
 	}{
 		{
 			name:         "Japanese characters",
 			branchName:   "機能/ログイン",
 			worktreePath: "/path/to/worktrees/機能/ログイン",
-			shouldWork:   true,
 		},
 		{
 			name:         "Spanish accents",
 			branchName:   "función/añadir",
 			worktreePath: "/path/to/worktrees/función/añadir",
-			shouldWork:   true,
 		},
 		{
 			name:         "Emoji characters",
 			branchName:   "feature/🚀-rocket",
 			worktreePath: "/path/to/worktrees/feature/🚀-rocket",
-			shouldWork:   true,
 		},
 		{
 			name:         "Arabic characters",
 			branchName:   "ميزة/تسجيل-الدخول",
 			worktreePath: "/path/to/worktrees/ميزة/تسجيل-الدخول",
-			shouldWork:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var output string
-			if tt.shouldWork {
-				output = fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n",
-					tt.worktreePath, tt.branchName)
-			} else {
-				output = "" // No matching worktree
-			}
+			output := fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n",
+				tt.worktreePath, tt.branchName)
 
 			mockExec := &mockCdCommandExecutor{
 				results: []command.Result{
@@ -236,69 +317,54 @@ func TestCdCommand_InternationalCharacters(t *testing.T) {
 
 			err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", filepath.Base(tt.worktreePath))
 
-			if tt.shouldWork {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.worktreePath+"\n", buf.String())
-			} else {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "not found")
-			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.worktreePath+"\n", buf.String())
 		})
 	}
 }
 
 func TestCdCommand_PathResolution(t *testing.T) {
 	tests := []struct {
-		name             string
-		branchName       string
-		worktreePath     string
-		expectedOutput   string
-		shouldFindBranch bool
-		description      string
+		name           string
+		branchName     string
+		worktreePath   string
+		expectedOutput string
+		description    string
 	}{
 		{
-			name:             "spaces in path",
-			branchName:       "feature/with spaces",
-			worktreePath:     "/path/to/worktrees/feature/with spaces",
-			expectedOutput:   "/path/to/worktrees/feature/with spaces\n",
-			shouldFindBranch: true,
-			description:      "Should handle spaces in paths correctly",
+			name:           "spaces in path",
+			branchName:     "feature/with spaces",
+			worktreePath:   "/path/to/worktrees/feature/with spaces",
+			expectedOutput: "/path/to/worktrees/feature/with spaces\n",
+			description:    "Should handle spaces in paths correctly",
 		},
 		{
-			name:             "relative paths",
-			branchName:       "feature/test",
-			worktreePath:     "../worktrees/feature/test",
-			expectedOutput:   "../worktrees/feature/test\n",
-			shouldFindBranch: true,
-			description:      "Should handle relative paths",
+			name:           "relative paths",
+			branchName:     "feature/test",
+			worktreePath:   "../worktrees/feature/test",
+			expectedOutput: "../worktrees/feature/test\n",
+			description:    "Should handle relative paths",
 		},
 		{
-			name:             "deeply nested path",
-			branchName:       "team/backend/feature/auth",
-			worktreePath:     "/path/to/worktrees/team/backend/feature/auth",
-			expectedOutput:   "/path/to/worktrees/team/backend/feature/auth\n",
-			shouldFindBranch: true,
-			description:      "Should handle deeply nested paths",
+			name:           "deeply nested path",
+			branchName:     "team/backend/feature/auth",
+			worktreePath:   "/path/to/worktrees/team/backend/feature/auth",
+			expectedOutput: "/path/to/worktrees/team/backend/feature/auth\n",
+			description:    "Should handle deeply nested paths",
 		},
 		{
-			name:             "main worktree",
-			branchName:       "main",
-			worktreePath:     ".",
-			expectedOutput:   ".\n",
-			shouldFindBranch: true,
-			description:      "Should handle main worktree path",
+			name:           "main worktree",
+			branchName:     "main",
+			worktreePath:   ".",
+			expectedOutput: ".\n",
+			description:    "Should handle main worktree path",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var output string
-			if tt.shouldFindBranch {
-				output = fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n",
-					tt.worktreePath, tt.branchName)
-			} else {
-				output = "worktree /other/path\nHEAD def456\nbranch refs/heads/other\n\n"
-			}
+			output := fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n",
+				tt.worktreePath, tt.branchName)
 
 			mockExec := &mockCdCommandExecutor{
 				results: []command.Result{
@@ -311,12 +377,8 @@ func TestCdCommand_PathResolution(t *testing.T) {
 
 			err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", filepath.Base(tt.worktreePath))
 
-			if tt.shouldFindBranch {
-				assert.NoError(t, err, tt.description)
-				assert.Equal(t, tt.expectedOutput, buf.String())
-			} else {
-				assert.Error(t, err, tt.description)
-			}
+			assert.NoError(t, err, tt.description)
+			assert.Equal(t, tt.expectedOutput, buf.String())
 		})
 	}
 }
@@ -363,4 +425,30 @@ branch refs/heads/bugfix/auth
 			assert.Equal(t, tt.expectedPath+"\n", buf.String())
 		})
 	}
+}
+
+// ===== Mock Implementations =====
+
+type mockCdCommandExecutor struct {
+	executedCommands []command.Command
+	results          []command.Result
+}
+
+func (m *mockCdCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	m.executedCommands = append(m.executedCommands, commands...)
+
+	results := make([]command.Result, len(commands))
+	for i, cmd := range commands {
+		if i < len(m.results) {
+			results[i] = m.results[i]
+		} else {
+			results[i] = command.Result{
+				Command: cmd,
+				Output:  "",
+				Error:   nil,
+			}
+		}
+	}
+
+	return &command.ExecutionResult{Results: results}, nil
 }
