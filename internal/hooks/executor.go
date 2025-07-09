@@ -28,14 +28,14 @@ func NewExecutor(cfg *config.Config, repoRoot string) *Executor {
 	}
 }
 
-// ExecutePostCreateHooks executes all post-create hooks for a new worktree
-func (e *Executor) ExecutePostCreateHooks(worktreePath string) error {
+// ExecutePostCreateHooks executes all post-create hooks and streams output to writer
+func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) error {
 	if !e.config.HasHooks() {
 		return nil
 	}
 
 	for i, hook := range e.config.Hooks.PostCreate {
-		if err := e.executeHook(&hook, worktreePath); err != nil {
+		if err := e.executeHookWithWriter(w, &hook, worktreePath); err != nil {
 			return fmt.Errorf("failed to execute hook %d: %w", i+1, err)
 		}
 	}
@@ -43,20 +43,20 @@ func (e *Executor) ExecutePostCreateHooks(worktreePath string) error {
 	return nil
 }
 
-// executeHook executes a single hook
-func (e *Executor) executeHook(hook *config.Hook, worktreePath string) error {
+// executeHookWithWriter executes a single hook with output directed to writer
+func (e *Executor) executeHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
 	switch hook.Type {
 	case config.HookTypeCopy:
-		return e.executeCopyHook(hook, worktreePath)
+		return e.executeCopyHookWithWriter(w, hook, worktreePath)
 	case config.HookTypeCommand:
-		return e.executeCommandHook(hook, worktreePath)
+		return e.executeCommandHookWithWriter(w, hook, worktreePath)
 	default:
 		return fmt.Errorf("unknown hook type: %s", hook.Type)
 	}
 }
 
-// executeCopyHook executes a copy hook
-func (e *Executor) executeCopyHook(hook *config.Hook, worktreePath string) error {
+// executeCopyHookWithWriter executes a copy hook with output directed to writer
+func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
 	// Resolve source path (relative to repo root)
 	srcPath := hook.From
 	if !filepath.IsAbs(srcPath) {
@@ -81,10 +81,10 @@ func (e *Executor) executeCopyHook(hook *config.Hook, worktreePath string) error
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
-	// Log the copy operation
+	// Log the copy operation to writer
 	relSrc, _ := filepath.Rel(e.repoRoot, srcPath)
 	relDst, _ := filepath.Rel(worktreePath, dstPath)
-	fmt.Printf("  Copying: %s → %s\n", relSrc, relDst)
+	fmt.Fprintf(w, "  Copying: %s → %s\n", relSrc, relDst)
 
 	if srcInfo.IsDir() {
 		return e.copyDir(srcPath, dstPath)
@@ -92,8 +92,8 @@ func (e *Executor) executeCopyHook(hook *config.Hook, worktreePath string) error
 	return e.copyFile(srcPath, dstPath)
 }
 
-// executeCommandHook executes a command hook
-func (e *Executor) executeCommandHook(hook *config.Hook, worktreePath string) error {
+// executeCommandHookWithWriter executes a command hook with output directed to writer
+func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
 	// #nosec G204 - Commands come from project configuration file controlled by developer
 	cmd := exec.Command(hook.Command, hook.Args...)
 
@@ -117,16 +117,16 @@ func (e *Executor) executeCommandHook(hook *config.Hook, worktreePath string) er
 		fmt.Sprintf("GIT_WTP_WORKTREE_PATH=%s", worktreePath),
 		fmt.Sprintf("GIT_WTP_REPO_ROOT=%s", e.repoRoot))
 
-	// Log the command execution
-	fmt.Printf("  Running: %s", hook.Command)
+	// Log the command execution to writer
+	fmt.Fprintf(w, "  Running: %s", hook.Command)
 	if len(hook.Args) > 0 {
-		fmt.Printf(" %v", hook.Args)
+		fmt.Fprintf(w, " %v", hook.Args)
 	}
-	fmt.Println()
+	fmt.Fprintln(w)
 
-	// Connect stdout and stderr to the console for real-time output
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Connect stdout and stderr to the writer for streaming output
+	cmd.Stdout = w
+	cmd.Stderr = w
 
 	// Execute command
 	if err := cmd.Run(); err != nil {

@@ -1,9 +1,11 @@
 package hooks
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/satococoa/wtp/internal/config"
@@ -28,7 +30,7 @@ func TestExecutePostCreateHooks_NoHooks(t *testing.T) {
 	cfg := &config.Config{}
 	executor := NewExecutor(cfg, "/test/repo")
 
-	err := executor.ExecutePostCreateHooks("/test/worktree")
+	err := executor.ExecutePostCreateHooks(io.Discard, "/test/worktree")
 	if err != nil {
 		t.Errorf("Expected no error for config without hooks, got %v", err)
 	}
@@ -67,7 +69,7 @@ func TestExecuteCopyHook(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, repoRoot)
-	err := executor.ExecutePostCreateHooks(worktreeDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, worktreeDir)
 	if err != nil {
 		t.Fatalf("Failed to execute copy hook: %v", err)
 	}
@@ -117,7 +119,7 @@ func TestExecuteCopyHook_AbsolutePaths(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks("/fake/worktree")
+	err := executor.ExecutePostCreateHooks(io.Discard, "/fake/worktree")
 	if err != nil {
 		t.Fatalf("Failed to execute copy hook with absolute paths: %v", err)
 	}
@@ -172,7 +174,7 @@ func TestExecuteCopyHook_Directory(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, repoRoot)
-	err := executor.ExecutePostCreateHooks(worktreeDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, worktreeDir)
 	if err != nil {
 		t.Fatalf("Failed to execute directory copy hook: %v", err)
 	}
@@ -205,7 +207,7 @@ func TestExecuteCopyHook_MissingSource(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, tempDir)
-	err := executor.ExecutePostCreateHooks(tempDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
 	if err == nil {
 		t.Error("Expected error for missing source file, got nil")
 	}
@@ -254,7 +256,7 @@ func TestExecuteCommandHook(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(tempDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
 	if err != nil {
 		t.Fatalf("Failed to execute command hook: %v", err)
 	}
@@ -294,7 +296,7 @@ func TestExecuteCommandHook_Simple(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(tempDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
 	if err != nil {
 		t.Fatalf("Failed to execute simple command hook: %v", err)
 	}
@@ -339,7 +341,7 @@ func TestExecuteCommandHook_WithWorkDir(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(tempDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
 	if err != nil {
 		t.Fatalf("Failed to execute command hook with work dir: %v", err)
 	}
@@ -365,7 +367,7 @@ func TestExecuteCommandHook_FailingCommand(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks("/fake/worktree")
+	err := executor.ExecutePostCreateHooks(io.Discard, "/fake/worktree")
 	if err == nil {
 		t.Error("Expected error for failing command, got nil")
 	}
@@ -383,7 +385,7 @@ func TestExecuteHook_InvalidType(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks("/fake/worktree")
+	err := executor.ExecutePostCreateHooks(io.Discard, "/fake/worktree")
 	if err == nil {
 		t.Error("Expected error for invalid hook type, got nil")
 	}
@@ -436,7 +438,7 @@ func TestExecutePostCreateHooks_MultipleHooks(t *testing.T) {
 	}
 
 	executor := NewExecutor(cfg, repoRoot)
-	err := executor.ExecutePostCreateHooks(worktreeDir)
+	err := executor.ExecutePostCreateHooks(io.Discard, worktreeDir)
 	if err != nil {
 		t.Fatalf("Failed to execute multiple hooks: %v", err)
 	}
@@ -450,5 +452,72 @@ func TestExecutePostCreateHooks_MultipleHooks(t *testing.T) {
 	commandFile := filepath.Join(worktreeDir, "command_output.txt")
 	if _, err := os.Stat(commandFile); os.IsNotExist(err) {
 		t.Error("Command hook did not execute")
+	}
+}
+
+func TestExecutePostCreateHooks_WithWriter(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create repo and worktree directories
+	if err := os.MkdirAll(repoRoot, 0755); err != nil {
+		t.Fatalf("Failed to create repo dir: %v", err)
+	}
+	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
+		t.Fatalf("Failed to create worktree dir: %v", err)
+	}
+
+	// Create a test source file for copy hook
+	sourceFile := filepath.Join(repoRoot, "test.txt")
+	if err := os.WriteFile(sourceFile, []byte("test content"), 0644); err != nil {
+		t.Fatalf("Failed to create source file: %v", err)
+	}
+
+	// Create config with both copy and command hooks
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: "test.txt",
+					To:   "copied.txt",
+				},
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo",
+					Args:    []string{"Hello from hook"},
+				},
+			},
+		},
+	}
+
+	// Create a buffer to capture output
+	var output strings.Builder
+
+	executor := NewExecutor(cfg, repoRoot)
+
+	// Test the new writer-based implementation
+	err := executor.ExecutePostCreateHooks(&output, worktreeDir)
+	if err != nil {
+		t.Fatalf("Failed to execute hooks with writer: %v", err)
+	}
+
+	// Verify output contains hook execution logs
+	outputStr := output.String()
+	if !strings.Contains(outputStr, "Copying: test.txt → copied.txt") {
+		t.Error("Output should contain copy hook log")
+	}
+	if !strings.Contains(outputStr, "Running: echo [Hello from hook]") {
+		t.Error("Output should contain command hook log")
+	}
+	if !strings.Contains(outputStr, "Hello from hook") {
+		t.Error("Output should contain command output")
+	}
+
+	// Verify hooks actually executed
+	copiedFile := filepath.Join(worktreeDir, "copied.txt")
+	if _, err := os.Stat(copiedFile); os.IsNotExist(err) {
+		t.Error("Copy hook did not execute")
 	}
 }

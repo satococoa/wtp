@@ -353,7 +353,7 @@ func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreeP
 	if cfg.HasHooks() {
 		fmt.Fprintln(w, "\nExecuting post-create hooks...")
 		executor := hooks.NewExecutor(cfg, repoPath)
-		if err := executor.ExecutePostCreateHooks(workTreePath); err != nil {
+		if err := executor.ExecutePostCreateHooks(w, workTreePath); err != nil {
 			return err
 		}
 		fmt.Fprintln(w, "✓ All hooks executed successfully")
