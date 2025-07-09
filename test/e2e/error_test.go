@@ -174,6 +174,10 @@ func TestGitCommandErrors(t *testing.T) {
 		// Try to add worktree with invalid path characters
 		output, err := repo.RunWTP("add", "--path", "/dev/null/invalid", "-b", "test")
 		framework.AssertError(t, err)
+
+		// Debug: Print the actual output
+		t.Logf("Actual output: %q", output)
+
 		framework.AssertTrue(t,
 			strings.Contains(output, "failed") ||
 				strings.Contains(output, "error") ||

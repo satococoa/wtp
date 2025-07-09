@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/config"
@@ -77,20 +78,20 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Setup repository and configuration
-	repo, cfg, mainRepoPath, err := setupRepoAndConfig()
+	_, cfg, mainRepoPath, err := setupRepoAndConfig()
 	if err != nil {
 		return err
 	}
 
-	// Create git executor
-	gitExec := newRepositoryExecutor(repo)
+	// Create command executor
+	executor := command.NewRealExecutor()
 
-	return addCommandWithExecutor(cmd, w, gitExec, cfg, mainRepoPath)
+	return addCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath)
 }
 
 // addCommandWithCommandExecutor is the new implementation using CommandExecutor
 func addCommandWithCommandExecutor(
-	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string, //nolint:unparam
+	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string,
 ) error {
 	// Resolve worktree path and branch name
 	var firstArg string
@@ -99,8 +100,40 @@ func addCommandWithCommandExecutor(
 	}
 	workTreePath, branchName := resolveWorktreePath(cfg, mainRepoPath, firstArg, cmd)
 
+	// Resolve branch if needed
+	var resolvedTrack string
+	// Only auto-resolve branch when:
+	// 1. Not creating a new branch (-b flag)
+	// 2. Not explicitly tracking a remote (--track flag)
+	// 3. Not in detached mode (--detach flag)
+	// 4. Branch name is provided
+	if cmd.String("branch") == "" && cmd.String("track") == "" && !cmd.Bool("detach") && branchName != "" {
+		repo, err := git.NewRepository(mainRepoPath)
+		if err != nil {
+			return err
+		}
+
+		// Check if branch exists locally or in remotes
+		resolvedBranch, isRemote, err := repo.ResolveBranch(branchName)
+		if err != nil {
+			// Check if it's a multiple branches error
+			if strings.Contains(err.Error(), "exists in multiple remotes") {
+				return &MultipleBranchesError{
+					BranchName: branchName,
+					GitError:   err,
+				}
+			}
+			return err
+		}
+
+		// If it's a remote branch, we need to set up tracking
+		if isRemote {
+			resolvedTrack = resolvedBranch
+		}
+	}
+
 	// Build git worktree command using the new command builder
-	worktreeCmd := buildWorktreeCommand(cmd, workTreePath, branchName)
+	worktreeCmd := buildWorktreeCommand(cmd, workTreePath, branchName, resolvedTrack)
 
 	// Execute the command
 	result, err := cmdExec.Execute([]command.Command{worktreeCmd})
@@ -110,14 +143,21 @@ func addCommandWithCommandExecutor(
 
 	// Check if command succeeded
 	if len(result.Results) > 0 && result.Results[0].Error != nil {
-		return errors.WorktreeCreationFailed(workTreePath, branchName, result.Results[0].Error)
+		gitError := result.Results[0].Error
+		gitOutput := result.Results[0].Output
+
+		// Analyze git error output for better error messages
+		return analyzeGitWorktreeError(workTreePath, branchName, gitError, gitOutput)
 	}
 
 	// Display success message
 	displaySuccessMessage(w, branchName, workTreePath)
 
-	// Execute post-create hooks (for now, skip this in the new implementation)
-	// TODO: Implement hooks with CommandExecutor
+	// Execute post-create hooks
+	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
+		// Log warning but don't fail the entire operation
+		fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
+	}
 
 	// Change directory if requested
 	if shouldChangeDirectory(cmd, cfg) {
@@ -129,7 +169,7 @@ func addCommandWithCommandExecutor(
 }
 
 // buildWorktreeCommand builds a git worktree command using the new command package
-func buildWorktreeCommand(cmd *cli.Command, workTreePath, _ string) command.Command {
+func buildWorktreeCommand(cmd *cli.Command, workTreePath, _, resolvedTrack string) command.Command {
 	opts := command.GitWorktreeAddOptions{
 		Force:  cmd.Bool("force"),
 		Detach: cmd.Bool("detach"),
@@ -137,54 +177,187 @@ func buildWorktreeCommand(cmd *cli.Command, workTreePath, _ string) command.Comm
 		Track:  cmd.String("track"),
 	}
 
-	var commitish string
-	if cmd.Args().Len() > 0 {
-		commitish = cmd.Args().Get(0)
+	// Use resolved track if provided and no explicit track flag
+	if resolvedTrack != "" && opts.Track == "" {
+		opts.Track = resolvedTrack
 	}
 
-	// If branch creation, don't use the first arg as commitish
-	if opts.Branch != "" && cmd.Args().Len() > 1 {
-		commitish = cmd.Args().Get(1)
+	var commitish string
+
+	// Handle different argument patterns based on flags
+	if opts.Track != "" {
+		// When using --track, the commitish is the remote branch specified in --track
+		commitish = opts.Track
+		// If there's an argument, it's the local branch name (not used as commitish)
+		if cmd.Args().Len() > 0 && opts.Branch == "" {
+			// The first argument is the branch name when using --track without -b
+			opts.Branch = cmd.Args().Get(0)
+		}
+	} else if cmd.Args().Len() > 0 {
+		// Normal case: first argument is the branch/commitish
+		commitish = cmd.Args().Get(0)
+		// If branch creation with -b, second arg (if any) is the commitish
+		if opts.Branch != "" && cmd.Args().Len() > 1 {
+			commitish = cmd.Args().Get(1)
+		}
 	}
 
 	return command.GitWorktreeAdd(workTreePath, commitish, opts)
 }
 
-func addCommandWithExecutor(
-	cmd *cli.Command, w io.Writer, gitExec GitExecutor, cfg *config.Config, mainRepoPath string,
-) error {
-	// Resolve worktree path and branch name
-	var firstArg string
-	if cmd.Args().Len() > 0 {
-		firstArg = cmd.Args().Get(0)
-	}
-	workTreePath, branchName := resolveWorktreePath(cfg, mainRepoPath, firstArg, cmd)
+// analyzeGitWorktreeError analyzes git worktree errors and provides specific error messages
+func analyzeGitWorktreeError(workTreePath, branchName string, gitError error, gitOutput string) error {
+	errorOutput := strings.ToLower(gitOutput)
 
-	// Handle branch resolution if needed
-	if err := handleBranchResolutionWithExecutor(cmd, gitExec, branchName); err != nil {
-		return err
+	// Check for specific error types
+	if isBranchNotFoundError(errorOutput) {
+		return errors.BranchNotFound(branchName)
 	}
 
-	// Build and execute git worktree command
-	args := buildGitWorktreeArgs(cmd, workTreePath, branchName)
-	if err := gitExec.ExecuteGitCommand(args...); err != nil {
-		return errors.WorktreeCreationFailed(workTreePath, branchName, err)
+	if isWorktreeAlreadyExistsError(errorOutput) {
+		return &WorktreeAlreadyExistsError{
+			BranchName: branchName,
+			Path:       workTreePath,
+			GitError:   gitError,
+		}
 	}
 
-	// Display success message
-	displaySuccessMessage(w, branchName, workTreePath)
-
-	// Execute post-create hooks
-	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
-		return err
+	if isPathAlreadyExistsError(errorOutput) {
+		return &PathAlreadyExistsError{
+			Path:     workTreePath,
+			GitError: gitError,
+		}
 	}
 
-	// Change directory if requested
-	if shouldChangeDirectory(cmd, cfg) {
-		fmt.Fprintln(w)
-		changeToWorktree(w, workTreePath)
+	if isMultipleBranchesError(errorOutput) {
+		return &MultipleBranchesError{
+			BranchName: branchName,
+			GitError:   gitError,
+		}
 	}
 
+	if isInvalidPathError(errorOutput, workTreePath, gitOutput) {
+		return fmt.Errorf(`failed to create worktree at '%s'
+
+The git command failed to create the worktree directory.
+
+Possible causes:
+  • Invalid path specified
+  • Parent directory doesn't exist
+  • Insufficient permissions
+  • Path points to a file instead of directory
+
+Details: %s
+
+Tip: Check that the parent directory exists and you have write permissions.
+
+Original error: %v`, workTreePath, gitOutput, gitError)
+	}
+
+	// Default error with helpful context
+	return fmt.Errorf(`worktree creation failed for path '%s'
+
+The git command encountered an error while creating the worktree.
+
+Details: %s
+
+Tip: Run 'git worktree list' to see existing worktrees, or check git documentation for valid worktree paths.
+
+Original error: %v`, workTreePath, gitOutput, gitError)
+}
+
+// Helper functions to reduce cyclomatic complexity
+func isBranchNotFoundError(errorOutput string) bool {
+	return strings.Contains(errorOutput, "invalid reference") ||
+		strings.Contains(errorOutput, "not a valid object name") ||
+		(strings.Contains(errorOutput, "pathspec") && strings.Contains(errorOutput, "did not match"))
+}
+
+func isWorktreeAlreadyExistsError(errorOutput string) bool {
+	return strings.Contains(errorOutput, "already checked out") ||
+		strings.Contains(errorOutput, "already used by worktree")
+}
+
+func isPathAlreadyExistsError(errorOutput string) bool {
+	return strings.Contains(errorOutput, "already exists")
+}
+
+func isMultipleBranchesError(errorOutput string) bool {
+	return strings.Contains(errorOutput, "more than one remote") || strings.Contains(errorOutput, "ambiguous")
+}
+
+func isInvalidPathError(errorOutput, workTreePath, gitOutput string) bool {
+	return strings.Contains(errorOutput, "could not create directory") ||
+		strings.Contains(errorOutput, "unable to create") ||
+		strings.Contains(errorOutput, "is not a directory") ||
+		strings.Contains(errorOutput, "fatal:") ||
+		strings.Contains(workTreePath, "/dev/") ||
+		gitOutput == ""
+}
+
+// Custom error types for specific worktree errors
+type WorktreeAlreadyExistsError struct {
+	BranchName string
+	Path       string
+	GitError   error
+}
+
+func (e *WorktreeAlreadyExistsError) Error() string {
+	return fmt.Sprintf(`worktree for branch '%s' already exists
+
+The branch '%s' is already checked out in another worktree.
+
+Solutions:
+  • Use '--force' flag to allow multiple checkouts
+  • Choose a different branch
+  • Remove the existing worktree first
+
+Original error: %v`, e.BranchName, e.BranchName, e.GitError)
+}
+
+type PathAlreadyExistsError struct {
+	Path     string
+	GitError error
+}
+
+func (e *PathAlreadyExistsError) Error() string {
+	return fmt.Sprintf(`destination path already exists: %s
+
+The target directory already exists and is not empty.
+
+Solutions:
+  • Use --force flag to overwrite existing directory
+  • Choose a different path with --path flag
+  • Remove the existing directory
+  • Use a different branch name
+
+Original error: %v`, e.Path, e.GitError)
+}
+
+type MultipleBranchesError struct {
+	BranchName string
+	GitError   error
+}
+
+func (e *MultipleBranchesError) Error() string {
+	return fmt.Sprintf(`branch '%s' exists in multiple remotes
+
+Use the --track flag to specify which remote to use:
+  • wtp add --track origin/%s %s
+  • wtp add --track upstream/%s %s
+
+Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.GitError)
+}
+
+func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
+	if cfg.HasHooks() {
+		fmt.Fprintln(w, "\nExecuting post-create hooks...")
+		executor := hooks.NewExecutor(cfg, repoPath)
+		if err := executor.ExecutePostCreateHooks(workTreePath); err != nil {
+			return err
+		}
+		fmt.Fprintln(w, "✓ All hooks executed successfully")
+	}
 	return nil
 }
 
@@ -192,6 +365,31 @@ func validateAddInput(cmd *cli.Command) error {
 	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
 		return errors.BranchNameRequired("wtp add <branch-name>")
 	}
+
+	// Check for conflicting flags
+	if cmd.String("branch") != "" && cmd.Bool("detach") {
+		return fmt.Errorf(`conflicting flags: cannot use both -b/--branch and --detach
+
+The -b/--branch flag creates a new branch, while --detach creates a detached HEAD.
+These options are incompatible.
+
+Choose one:
+  • Use -b to create and checkout a new branch
+  • Use --detach to checkout in detached HEAD state`)
+	}
+
+	// Check for --track with --detach without -b
+	if cmd.String("track") != "" && cmd.Bool("detach") && cmd.String("branch") == "" {
+		return fmt.Errorf(`--track can only be used if a new branch is created
+
+The --track flag sets up tracking for a new branch, but --detach creates a detached HEAD.
+To use --track, you must also use -b to create a new branch.
+
+Examples:
+  • wtp add --track origin/main -b my-branch
+  • wtp add --detach origin/main (without tracking)`)
+	}
+
 	return nil
 }
 
@@ -220,40 +418,12 @@ func setupRepoAndConfig() (*git.Repository, *config.Config, string, error) {
 	return repo, cfg, mainRepoPath, nil
 }
 
-func handleBranchResolutionWithExecutor(cmd *cli.Command, gitExec GitExecutor, branchName string) error {
-	if cmd.String("branch") == "" && cmd.String("track") == "" && branchName != "" && !cmd.Bool("detach") {
-		resolvedBranch, isRemoteBranch, err := gitExec.ResolveBranch(branchName)
-		if err != nil {
-			return err
-		}
-		if isRemoteBranch {
-			if err := cmd.Set("track", resolvedBranch); err != nil {
-				return fmt.Errorf("failed to set track flag: %w", err)
-			}
-		}
-	}
-	return nil
-}
-
 func displaySuccessMessage(w io.Writer, branchName, workTreePath string) {
 	if branchName != "" {
 		fmt.Fprintf(w, "Created worktree '%s' at %s\n", branchName, workTreePath)
 	} else {
 		fmt.Fprintf(w, "Created worktree at %s\n", workTreePath)
 	}
-}
-
-func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
-	if cfg.HasHooks() {
-		fmt.Fprintln(w, "\nExecuting post-create hooks...")
-		executor := hooks.NewExecutor(cfg, repoPath)
-		if err := executor.ExecutePostCreateHooks(workTreePath); err != nil {
-			fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
-		} else {
-			fmt.Fprintln(w, "✓ All hooks executed successfully")
-		}
-	}
-	return nil
 }
 
 // resolveWorktreePath determines the worktree path and branch name based on flags and arguments
