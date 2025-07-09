@@ -609,6 +609,101 @@ func TestAddCommand_WithCommandExecutor(t *testing.T) {
 This architecture establishes a foundation for consistent, testable command
 handling across all wtp commands.
 
+### TDD Approach for Bug Fixes
+
+When fixing bugs, always follow the Test-Driven Development (TDD) cycle:
+
+#### 1. 🔴 RED - Write a Failing Test First
+
+Before fixing any bug, write a test that reproduces the problem:
+
+```go
+// Example: Hook output streaming bug
+func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
+    // Create a writer that tracks when writes occur
+    sw := &streamingWriter{}
+    
+    // Execute hooks that produce output over time
+    err := executor.ExecutePostCreateHooks(sw, worktreeDir)
+    
+    // Verify output was streamed (multiple writes), not buffered
+    if len(sw.writes) < expectedWrites {
+        t.Error("Output should be streamed in real-time")
+    }
+}
+```
+
+#### 2. 🟢 GREEN - Write Minimal Code to Pass
+
+Implement just enough to make the test pass:
+
+```go
+// Fix: Direct output to writer instead of buffering
+func (e *Executor) ExecutePostCreateHooks(w io.Writer, path string) error {
+    // Stream output directly to writer
+    cmd.Stdout = w
+    cmd.Stderr = w
+    return cmd.Run()
+}
+```
+
+#### 3. ♻️ REFACTOR - Improve the Code
+
+Once tests pass, refactor for clarity and maintainability:
+- Remove duplicate code
+- Simplify APIs
+- Improve naming
+- Add documentation
+
+#### Real Example: Hook Output Streaming Fix
+
+**Problem**: Hook output was buffered and shown only after completion.
+
+**TDD Solution**:
+
+1. **RED**: Created `TestExecutePostCreateHooks_StreamingOutput` that verified
+   output appears in real-time by tracking write timestamps.
+
+2. **GREEN**: Modified `ExecutePostCreateHooks` to accept `io.Writer` and
+   stream output directly instead of buffering.
+
+3. **REFACTOR**: Removed duplicate methods, simplified API to single
+   writer-based method.
+
+**Key Testing Techniques**:
+
+- **Custom Writers**: Create writers that track when writes occur
+- **Time Verification**: Check timestamps to ensure real-time behavior
+- **Mock Commands**: Use scripts with controlled output timing
+
+```go
+type streamingWriter struct {
+    writes []writeRecord
+    mu     sync.Mutex
+}
+
+type writeRecord struct {
+    data string
+    time time.Time
+}
+```
+
+#### Benefits of TDD for Bug Fixes
+
+1. **Regression Prevention**: Test ensures bug doesn't reappear
+2. **Clear Understanding**: Test documents expected behavior
+3. **Focused Fix**: Only write code needed to pass test
+4. **Safe Refactoring**: Tests protect against breaking changes
+5. **Better Design**: TDD often leads to cleaner APIs
+
+#### Guidelines
+
+- **Never skip the RED phase**: Ensure test fails before fixing
+- **Keep tests focused**: One test per bug/behavior
+- **Test behavior, not implementation**: Focus on what, not how
+- **Use meaningful assertions**: Clearly express expectations
+- **Consider edge cases**: Test boundary conditions
+
 ---
 
 This document serves as a living record of the project's development. Update as
