@@ -72,11 +72,14 @@ hooks:
     
     # More examples (commented out):
     # - type: command
-    #   command: echo "Created new worktree!"
+    #   command: echo
+    #   args: ["Created new worktree!"]
     # - type: command
-    #   command: ls -la
+    #   command: ls
+    #   args: ["-la"]
     # - type: command
-    #   command: npm install
+    #   command: npm
+    #   args: ["install"]
 `
 
 	// Write configuration file with comments
