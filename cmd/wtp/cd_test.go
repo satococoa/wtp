@@ -129,6 +129,20 @@ func TestCdCommand_BranchNameResolution(t *testing.T) {
 			expectedPath: "/path/to/worktrees/develop",
 			shouldFind:   true,
 		},
+		{
+			name:         "root worktree with develop branch by alias",
+			worktreeName: "root",
+			worktreeList: "worktree /path/to/myproject\nHEAD abc123\nbranch refs/heads/develop\n\n",
+			expectedPath: "/path/to/myproject",
+			shouldFind:   true,
+		},
+		{
+			name:         "root worktree with custom branch by repo name",
+			worktreeName: "myproject(root worktree)",
+			worktreeList: "worktree /path/to/myproject\nHEAD def456\nbranch refs/heads/custom-default\n\n",
+			expectedPath: "/path/to/myproject",
+			shouldFind:   true,
+		},
 	}
 
 	for _, tt := range tests {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/errors"
@@ -82,6 +83,16 @@ func cdCommandWithCommandExecutor(
 	// Parse worktrees from command output
 	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
+	// Find the main worktree path
+	// The main worktree is the one that doesn't contain "worktrees" in its path
+	var mainWorktreePath string
+	for _, wt := range worktrees {
+		if !strings.Contains(wt.Path, filepath.Join("", "worktrees", "")) {
+			mainWorktreePath = wt.Path
+			break
+		}
+	}
+
 	// Find the worktree by name
 	var targetPath string
 	for _, wt := range worktrees {
@@ -98,14 +109,14 @@ func cdCommandWithCommandExecutor(
 		}
 
 		// Priority 3: Special handling for root worktree aliases
-		if worktreeName == "root" && (wt.Branch == git.MainBranch || wt.Branch == git.MasterBranch) {
+		if worktreeName == "root" && wt.IsMainWorktree(mainWorktreePath) {
 			targetPath = wt.Path
 			break
 		}
 
 		// Priority 4: Handle completion display format "reponame(root worktree)"
 		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
-		if worktreeName == repoRootFormat && (wt.Branch == git.MainBranch || wt.Branch == git.MasterBranch) {
+		if worktreeName == repoRootFormat && wt.IsMainWorktree(mainWorktreePath) {
 			targetPath = wt.Path
 			break
 		}

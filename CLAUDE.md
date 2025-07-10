@@ -56,6 +56,28 @@ make dev  # Runs fmt, lint, and test
 
 **Important**: Never commit code that fails lint or tests.
 
+### Quick Testing During Development
+
+For rapid testing during development, you can use `go run` instead of building binaries:
+
+```bash
+# Instead of building and running:
+# go build -o wtp ./cmd/wtp && ./wtp list
+
+# You can directly use:
+go run ./cmd/wtp list
+
+# Test from within a worktree or repository:
+cd test-repo
+go run ../cmd/wtp list
+go run ../cmd/wtp add feature/new-feature
+
+# Test shell integration commands:
+WTP_SHELL_INTEGRATION=1 go run ../cmd/wtp cd root
+```
+
+This approach is faster for iterative development and testing.
+
 ## TDD Approach for Bug Fixes
 
 When fixing bugs, always follow the Test-Driven Development (TDD) cycle:
