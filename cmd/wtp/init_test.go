@@ -149,6 +149,8 @@ func TestInitCommand_Success(t *testing.T) {
 	assert.Contains(t, contentStr, "to: .env")
 	assert.Contains(t, contentStr, "type: command")
 	assert.Contains(t, contentStr, "command: wtp list")
+	assert.Contains(t, contentStr, "command: wtp")
+	assert.Contains(t, contentStr, `args: ["list"]`)
 
 	// Check for comments
 	assert.Contains(t, contentStr, "# Worktree Plus Configuration")

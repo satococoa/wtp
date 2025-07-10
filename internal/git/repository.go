@@ -24,6 +24,11 @@ func (r *Repository) Path() string {
 	return r.path
 }
 
+// GetRepositoryName returns the name of the repository
+func (r *Repository) GetRepositoryName() string {
+	return filepath.Base(r.path)
+}
+
 // GetMainWorktreePath returns the path to the main worktree (original repository)
 // This is useful when running commands from within a worktree
 func (r *Repository) GetMainWorktreePath() (string, error) {
@@ -52,26 +57,16 @@ func (r *Repository) GetMainWorktreePath() (string, error) {
 		return parent, nil
 	}
 
-	// For older git versions or different configurations
-	// Try to get the main worktree from worktree list
-	cmd = exec.Command("git", "worktree", "list", "--porcelain")
-	cmd.Dir = r.path
-	output, err = cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to list worktrees: %w", err)
+	// If commonDir doesn't end with .git, it's likely already the worktree path
+	if !filepath.IsAbs(commonDir) {
+		absPath, absErr := filepath.Abs(filepath.Join(r.path, commonDir))
+		if absErr != nil {
+			return "", fmt.Errorf("failed to get absolute path: %w", absErr)
+		}
+		return absPath, nil
 	}
 
-	worktrees, err := parseWorktreeList(string(output))
-	if err != nil {
-		return "", err
-	}
-
-	// The first worktree in the list is typically the main one
-	if len(worktrees) > 0 {
-		return worktrees[0].Path, nil
-	}
-
-	return "", fmt.Errorf("could not determine main repository path")
+	return commonDir, nil
 }
 
 func (r *Repository) GetWorktrees() ([]Worktree, error) {

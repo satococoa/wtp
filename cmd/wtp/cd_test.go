@@ -84,6 +84,79 @@ func TestCdCommand_WorktreePathResolution(t *testing.T) {
 	}
 }
 
+func TestCdCommand_BranchNameResolution(t *testing.T) {
+	// Test that cd command can resolve worktrees by branch name (with prefixes)
+	// This is needed for the new completion system that shows full branch names
+	tests := []struct {
+		name         string
+		worktreeName string
+		worktreeList string
+		expectedPath string
+		shouldFind   bool
+	}{
+		{
+			name:         "feature branch with prefix",
+			worktreeName: "feature/awesome",
+			worktreeList: "worktree /path/to/worktrees/feature-awesome\nHEAD abc123\nbranch refs/heads/feature/awesome\n\n",
+			expectedPath: "/path/to/worktrees/feature-awesome",
+			shouldFind:   true,
+		},
+		{
+			name:         "fix branch with nested prefix",
+			worktreeName: "fix/123/fix-login",
+			worktreeList: "worktree /path/to/worktrees/fix-123-fix-login\nHEAD def456\nbranch refs/heads/fix/123/fix-login\n\n",
+			expectedPath: "/path/to/worktrees/fix-123-fix-login",
+			shouldFind:   true,
+		},
+		{
+			name:         "root worktree by alias",
+			worktreeName: "root",
+			worktreeList: "worktree /path/to/main\nHEAD ghi789\nbranch refs/heads/main\n\n",
+			expectedPath: "/path/to/main",
+			shouldFind:   true,
+		},
+		{
+			name:         "root worktree by repo name",
+			worktreeName: "wtp(root worktree)", // This is shown in completion
+			worktreeList: "worktree /path/to/wtp\nHEAD ghi789\nbranch refs/heads/main\n\n",
+			expectedPath: "/path/to/wtp",
+			shouldFind:   true,
+		},
+		{
+			name:         "simple branch name still works",
+			worktreeName: "develop",
+			worktreeList: "worktree /path/to/worktrees/develop\nHEAD jkl012\nbranch refs/heads/develop\n\n",
+			expectedPath: "/path/to/worktrees/develop",
+			shouldFind:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock executor
+			mockExec := &mockCdCommandExecutor{
+				results: []command.Result{
+					{Output: tt.worktreeList, Error: nil},
+				},
+			}
+
+			// Create buffer to capture output
+			var buf bytes.Buffer
+
+			// Call the function
+			err := cdCommandWithCommandExecutor(nil, &buf, mockExec, "/some/path", tt.worktreeName)
+
+			if tt.shouldFind {
+				assert.NoError(t, err)
+				output := buf.String()
+				assert.Contains(t, output, tt.expectedPath)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
+
 // ===== Command Execution Tests =====
 
 func TestCdCommand_SuccessfulExecution(t *testing.T) {

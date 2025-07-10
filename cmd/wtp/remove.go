@@ -153,10 +153,26 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 	var availableWorktrees []string
 
 	for _, wt := range worktrees {
+		// Priority 1: Match by branch name (for prefixes like feature/awesome)
+		if wt.Branch == worktreeName {
+			targetWorktree = &wt
+		}
+
+		// Priority 2: Match by directory name (legacy behavior)
 		wtName := filepath.Base(wt.Path)
-		availableWorktrees = append(availableWorktrees, wtName)
 		if wtName == worktreeName {
 			targetWorktree = &wt
+		}
+
+		// Build available worktrees list - prefer branch name if available
+		if wt.Branch != "" {
+			availableWorktrees = append(availableWorktrees, wt.Branch)
+		} else {
+			availableWorktrees = append(availableWorktrees, wtName)
+		}
+
+		// Exit early if we found a match
+		if targetWorktree != nil {
 			break
 		}
 	}

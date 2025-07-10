@@ -609,7 +609,7 @@ echo "Done!"
 		allOutput.WriteString(w.data)
 	}
 	outputStr := allOutput.String()
-	
+
 	if !strings.Contains(outputStr, "Starting...") {
 		t.Error("Output should contain 'Starting...'")
 	}
@@ -628,7 +628,7 @@ echo "Done!"
 			diff := sw.writes[i].time.Sub(sw.writes[i-1].time)
 			timeDiffs = append(timeDiffs, diff)
 		}
-		
+
 		// At least one time difference should be >= 50ms (half of our sleep time)
 		hasDelay := false
 		for _, diff := range timeDiffs {
@@ -637,7 +637,7 @@ echo "Done!"
 				break
 			}
 		}
-		
+
 		if !hasDelay {
 			t.Error("Expected streaming output with delays, but all writes happened too quickly")
 			for i, diff := range timeDiffs {

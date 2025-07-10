@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/satococoa/wtp/internal/git"
@@ -91,7 +90,7 @@ func completionBash(_ context.Context, cmd *cli.Command) error {
 
 _wtp_completion() {
     local cur prev words cword
-    
+
     # Use _init_completion if available, otherwise manual setup
     if declare -F _init_completion >/dev/null 2>&1; then
         _init_completion || return
@@ -175,7 +174,7 @@ _wtp_completion() {
                     local has_path_flag=false
                     local branch_value_provided=false
                     local i
-                    
+
                     # Parse previous words to understand current context
                     for ((i=2; i<cword; i++)); do
                         case "${words[i]}" in
@@ -194,7 +193,7 @@ _wtp_completion() {
                                 ;;
                         esac
                     done
-                    
+
                     # If we're immediately after -b/--branch, complete with branch names
                     if [[ "$prev" == "-b" || "$prev" == "--branch" ]]; then
                         local branches
@@ -202,21 +201,21 @@ _wtp_completion() {
                         COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
                         return
                     fi
-                    
+
                     # Count non-flag arguments to determine if we should complete
                     local arg_count=0
                     for ((i=2; i<cword; i++)); do
                         if [[ "${words[i]}" != -* ]]; then
                             # Skip values that follow flags
                             local prev_word="${words[i-1]}"
-                            if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" && 
-                                  "$prev_word" != "--path" && "$prev_word" != "--reason" && 
+                            if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" &&
+                                  "$prev_word" != "--path" && "$prev_word" != "--reason" &&
                                   "$prev_word" != "-t" && "$prev_word" != "--track" ]]; then
                                 ((arg_count++))
                             fi
                         fi
                     done
-                    
+
                     # If -b flag was used and value provided, complete with commit-ish (max 1 arg)
                     if [[ $has_branch_flag == true && $branch_value_provided == true ]]; then
                         if [[ $arg_count -eq 0 ]]; then
@@ -242,15 +241,15 @@ _wtp_completion() {
                             for ((i=2; i<cword; i++)); do
                                 if [[ "${words[i]}" != -* ]]; then
                                     local prev_word="${words[i-1]}"
-                                    if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" && 
-                                          "$prev_word" != "--path" && "$prev_word" != "--reason" && 
+                                    if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" &&
+                                          "$prev_word" != "--path" && "$prev_word" != "--reason" &&
                                           "$prev_word" != "-t" && "$prev_word" != "--track" ]]; then
                                         first_arg="${words[i]}"
                                         break
                                     fi
                                 fi
                             done
-                            
+
                             local branches
                             branches=$(wtp completion __branches 2>/dev/null | grep -v "^${first_arg}$")
                             COMPREPLY=( $(compgen -W "$branches" -- "$cur") )
@@ -301,7 +300,7 @@ wtp() {
         local output
         output=$(WTP_SHELL_INTEGRATION=1 command wtp "$@" 2>&1)
         local exit_code=$?
-        
+
         # Check if we should cd (last line is a path)
         if [[ $exit_code -eq 0 ]]; then
             local last_line=$(echo "$output" | tail -n1)
@@ -340,11 +339,11 @@ func completionZsh(_ context.Context, cmd *cli.Command) error {
 _wtp() {
     local context state line
     typeset -A opt_args
-    
+
     _arguments -C \
         '1: :_wtp_commands' \
         '*:: :->args'
-    
+
     case $state in
         args)
             case $words[1] in
@@ -361,7 +360,7 @@ _wtp() {
                         '(--track -t)'{--track,-t}'[Set upstream branch]:upstream:_wtp_remote_branches' \
                         '(--help -h)'{--help,-h}'[Show help]' \
                         '*:::arg:->add_args' && return
-                    
+
                     # Handle positional arguments based on context
                     case $state in
                         add_args)
@@ -376,7 +375,7 @@ _wtp() {
                                     ((arg_count++))
                                 fi
                             done
-                            
+
                             if [[ $has_b_flag == true ]]; then
                                 # With -b flag: max 1 positional arg (commit-ish)
                                 if [[ $arg_count -eq 0 ]]; then
@@ -498,14 +497,14 @@ _wtp_branches_except_first() {
             break
         fi
     done
-    
+
     local branches
     if [[ -n "$first_branch" ]]; then
         branches=(${(f)"$(wtp completion __branches 2>/dev/null | grep -v "^${first_branch}$")"})
     else
         branches=(${(f)"$(wtp completion __branches 2>/dev/null)"})
     fi
-    
+
     if [[ ${#branches[@]} -gt 0 ]]; then
         _describe 'branches' branches
     else
@@ -536,7 +535,7 @@ wtp() {
         local output
         output=$(WTP_SHELL_INTEGRATION=1 command wtp "$@" 2>&1)
         local exit_code=$?
-        
+
         # Check if we should cd (last line is a path)
         if [[ $exit_code -eq 0 ]]; then
             local last_line=$(echo "$output" | tail -n1)
@@ -593,7 +592,7 @@ function wtp
         # Run the add command and capture output
         set -l output (env WTP_SHELL_INTEGRATION=1 command wtp $argv 2>&1)
         set -l exit_code $status
-        
+
         # Check if we should cd (last line is a path)
         if test $exit_code -eq 0
             set -l last_line (echo "$output" | tail -n1)
@@ -703,9 +702,25 @@ func printWorktrees(w io.Writer) {
 		return
 	}
 
-	// Extract worktree names (directory names) from worktrees
+	// Get repository name for completion
+	repoName := repo.GetRepositoryName()
+	// Get main worktree path for comparison
+	mainWorktreePath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		// Fallback to repository path if main worktree path cannot be determined
+		mainWorktreePath = repo.Path()
+	}
+
+	// Extract worktree names using CompletionName for each worktree
 	for _, wt := range worktrees {
-		// Use the directory name as the worktree identifier
-		fmt.Fprintln(w, filepath.Base(wt.Path))
+		// Use CompletionName method for proper display
+		completionName := wt.CompletionName(repoName)
+		// For the main worktree, also provide "root" as an alias
+		if wt.IsMainWorktree(mainWorktreePath) {
+			fmt.Fprintln(w, completionName)
+			fmt.Fprintln(w, "root") // Alternative alias for main worktree
+		} else {
+			fmt.Fprintln(w, completionName)
+		}
 	}
 }

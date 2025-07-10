@@ -85,8 +85,27 @@ func cdCommandWithCommandExecutor(
 	// Find the worktree by name
 	var targetPath string
 	for _, wt := range worktrees {
-		// Match by directory name only
+		// Priority 1: Match by branch name (for prefixes like feature/awesome)
+		if wt.Branch == worktreeName {
+			targetPath = wt.Path
+			break
+		}
+
+		// Priority 2: Match by directory name (legacy behavior)
 		if filepath.Base(wt.Path) == worktreeName {
+			targetPath = wt.Path
+			break
+		}
+
+		// Priority 3: Special handling for root worktree aliases
+		if worktreeName == "root" && (wt.Branch == git.MainBranch || wt.Branch == git.MasterBranch) {
+			targetPath = wt.Path
+			break
+		}
+
+		// Priority 4: Handle completion display format "reponame(root worktree)"
+		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
+		if worktreeName == repoRootFormat && (wt.Branch == git.MainBranch || wt.Branch == git.MasterBranch) {
 			targetPath = wt.Path
 			break
 		}

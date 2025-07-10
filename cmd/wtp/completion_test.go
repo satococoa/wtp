@@ -219,6 +219,26 @@ func TestPrintWorktrees(t *testing.T) {
 	})
 }
 
+func TestWorktreeCompletionDisplay(t *testing.T) {
+	// Test how worktrees should be displayed in completion
+	t.Run("root worktree should show with repo name and root indicator", func(t *testing.T) {
+		// FAIL: Root worktree should be displayed as "wtp(root worktree)" or similar
+		// Currently it just shows the directory name which is confusing
+		t.Skip("TODO: Implement root worktree display - should show 'wtp(root worktree)' for completion")
+	})
+
+	t.Run("worktrees with prefixes should preserve full path", func(t *testing.T) {
+		// FAIL: feature/awesome should be displayed as "feature/awesome", not "awesome"
+		// fix/123/fix-login should be displayed as "fix/123/fix-login", not "fix-login"
+		t.Skip("TODO: Implement full path display - should preserve prefixes like 'feature/', 'fix/' etc.")
+	})
+
+	t.Run("completion should accept both root and wtp as valid commands for root worktree", func(t *testing.T) {
+		// FAIL: Should accept both "wtp cd root" and "wtp cd wtp" for root worktree
+		t.Skip("TODO: Implement multiple aliases for root worktree")
+	})
+}
+
 func TestCompletionScriptGeneration(t *testing.T) {
 	// Verify completion scripts are generated correctly for each shell
 	shells := []string{"bash", "zsh"}

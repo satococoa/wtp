@@ -54,7 +54,7 @@ version: "1.0"
 defaults:
   # Base directory for worktrees (relative to repository root)
   base_dir: ../worktrees
-  
+
   # Automatically change to the new worktree directory after creation
   cd_after_create: true
 
@@ -65,11 +65,12 @@ hooks:
     - type: copy
       from: .env.example
       to: .env
-    
+
     # Example: Run a command to show all worktrees
     - type: command
-      command: wtp list
-    
+      command: wtp
+			args: ["list"]
+
     # More examples (commented out):
     # - type: command
     #   command: echo
