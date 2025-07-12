@@ -111,8 +111,7 @@ hooks:
       from: ".env.example"
       to: ".env"
     - type: command
-      command: "npm"
-      args: ["install"]
+      command: "npm install"
       work_dir: "."
 ```
 

@@ -36,8 +36,7 @@ hooks:
       from: ".env.example"
       to: ".env"
     - type: command
-      command: "echo"
-      args: ["test"]
+      command: "echo test"
 `
 
 	err := os.WriteFile(configPath, []byte(configContent), 0644)
@@ -205,7 +204,7 @@ func TestConfigValidate(t *testing.T) {
 					PostCreate: []Hook{
 						{
 							Type: HookTypeCommand,
-							Args: []string{"test"},
+							// Missing Command field - should cause validation error
 						},
 					},
 				},
@@ -256,8 +255,7 @@ func TestHookValidate(t *testing.T) {
 			name: "valid command hook",
 			hook: Hook{
 				Type:    HookTypeCommand,
-				Command: "echo",
-				Args:    []string{"test"},
+				Command: "echo test",
 			},
 			expectError: false,
 		},
@@ -291,7 +289,6 @@ func TestHookValidate(t *testing.T) {
 			name: "command hook missing command",
 			hook: Hook{
 				Type: HookTypeCommand,
-				Args: []string{"test"},
 			},
 			expectError: true,
 		},

@@ -977,7 +977,7 @@ func TestExecutePostCreateHooks_Integration(t *testing.T) {
 		cfg := &config.Config{
 			Hooks: config.Hooks{
 				PostCreate: []config.Hook{
-					{Type: "command", Command: "nonexistent-command-xyz", Args: []string{"test"}},
+					{Type: "command", Command: "nonexistent-command-xyz test"},
 				},
 			},
 		}

@@ -68,19 +68,15 @@ hooks:
 
     # Example: Run a command to show all worktrees
     - type: command
-      command: wtp
-			args: ["list"]
+      command: wtp list
 
     # More examples (commented out):
     # - type: command
-    #   command: echo
-    #   args: ["Created new worktree!"]
+    #   command: echo "Created new worktree!"
     # - type: command
-    #   command: ls
-    #   args: ["-la"]
+    #   command: ls -la
     # - type: command
-    #   command: npm
-    #   args: ["install"]
+    #   command: npm install
 `
 
 	// Write configuration file with comments

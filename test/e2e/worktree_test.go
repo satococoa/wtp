@@ -300,9 +300,7 @@ hooks:
       from: template.txt
       to: copied.txt
     - type: command
-      command: touch
-      args:
-        - hook-executed.txt`
+      command: touch hook-executed.txt`
 		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
 
 		// Create worktree with hooks

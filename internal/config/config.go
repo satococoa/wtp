@@ -32,7 +32,6 @@ type Hook struct {
 	From    string            `yaml:"from,omitempty"`
 	To      string            `yaml:"to,omitempty"`
 	Command string            `yaml:"command,omitempty"`
-	Args    []string          `yaml:"args,omitempty"`
 	Env     map[string]string `yaml:"env,omitempty"`
 	WorkDir string            `yaml:"work_dir,omitempty"`
 }

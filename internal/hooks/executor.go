@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/satococoa/wtp/internal/config"
 )
@@ -94,8 +95,15 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 
 // executeCommandHookWithWriter executes a command hook with output directed to writer
 func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
-	// #nosec G204 - Commands come from project configuration file controlled by developer
-	cmd := exec.Command(hook.Command, hook.Args...)
+	// Execute command using shell for unified command format
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		// #nosec G204 - Commands come from project configuration file controlled by developer
+		cmd = exec.Command("cmd", "/c", hook.Command)
+	} else {
+		// #nosec G204 - Commands come from project configuration file controlled by developer
+		cmd = exec.Command("sh", "-c", hook.Command)
+	}
 
 	// Set working directory
 	workDir := hook.WorkDir
@@ -119,9 +127,6 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 
 	// Log the command execution to writer
 	fmt.Fprintf(w, "  Running: %s", hook.Command)
-	if len(hook.Args) > 0 {
-		fmt.Fprintf(w, " %v", hook.Args)
-	}
 	fmt.Fprintln(w)
 
 	// Connect stdout and stderr to the writer for streaming output

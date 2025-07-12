@@ -218,37 +218,12 @@ func TestExecuteCopyHook_MissingSource(t *testing.T) {
 func TestExecuteCommandHook(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Create a simple script based on OS
-	var scriptContent, scriptName, command string
-	if runtime.GOOS == "windows" {
-		scriptName = "test.bat"
-		scriptContent = "@echo test output > output.txt"
-		command = "cmd"
-	} else {
-		scriptName = "test.sh"
-		scriptContent = "#!/bin/bash\necho 'test output' > output.txt"
-		command = "bash"
-	}
-
-	scriptPath := filepath.Join(tempDir, scriptName)
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
-		t.Fatalf("Failed to create test script: %v", err)
-	}
-
-	var args []string
-	if runtime.GOOS == "windows" {
-		args = []string{"/c", scriptName}
-	} else {
-		args = []string{scriptName}
-	}
-
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
 					Type:    config.HookTypeCommand,
-					Command: command,
-					Args:    args,
+					Command: "echo 'test output' > output.txt",
 					Env: map[string]string{
 						"TEST_VAR": "test_value",
 					},
@@ -273,25 +248,12 @@ func TestExecuteCommandHook(t *testing.T) {
 func TestExecuteCommandHook_Simple(t *testing.T) {
 	tempDir := t.TempDir()
 
-	// Use a simple command that should work on all platforms
-	var command string
-	var args []string
-
-	if runtime.GOOS == "windows" {
-		command = "cmd"
-		args = []string{"/c", "echo test > test_output.txt"}
-	} else {
-		command = "sh"
-		args = []string{"-c", "echo test > test_output.txt"}
-	}
-
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
 					Type:    config.HookTypeCommand,
-					Command: command,
-					Args:    args,
+					Command: "echo test > test_output.txt",
 				},
 			},
 		},
@@ -317,25 +279,12 @@ func TestExecuteCommandHook_WithWorkDir(t *testing.T) {
 		t.Fatalf("Failed to create subdirectory: %v", err)
 	}
 
-	// Use a simple command that should work on all platforms
-	var command string
-	var args []string
-
-	if runtime.GOOS == "windows" {
-		command = "cmd"
-		args = []string{"/c", "echo test > workdir_test.txt"}
-	} else {
-		command = "sh"
-		args = []string{"-c", "echo test > workdir_test.txt"}
-	}
-
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
 					Type:    config.HookTypeCommand,
-					Command: command,
-					Args:    args,
+					Command: "echo test > workdir_test.txt",
 					WorkDir: "subdir",
 				},
 			},
@@ -361,8 +310,7 @@ func TestExecuteCommandHook_FailingCommand(t *testing.T) {
 			PostCreate: []config.Hook{
 				{
 					Type:    config.HookTypeCommand,
-					Command: "nonexistent-command",
-					Args:    []string{"arg1"},
+					Command: "nonexistent-command arg1",
 				},
 			},
 		},
@@ -412,16 +360,6 @@ func TestExecutePostCreateHooks_MultipleHooks(t *testing.T) {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
-	var command string
-	var args []string
-	if runtime.GOOS == "windows" {
-		command = "cmd"
-		args = []string{"/c", "echo command executed > command_output.txt"}
-	} else {
-		command = "sh"
-		args = []string{"-c", "echo command executed > command_output.txt"}
-	}
-
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
@@ -432,8 +370,7 @@ func TestExecutePostCreateHooks_MultipleHooks(t *testing.T) {
 				},
 				{
 					Type:    config.HookTypeCommand,
-					Command: command,
-					Args:    args,
+					Command: "echo command executed > command_output.txt",
 				},
 			},
 		},
@@ -487,8 +424,7 @@ func TestExecutePostCreateHooks_WithWriter(t *testing.T) {
 				},
 				{
 					Type:    config.HookTypeCommand,
-					Command: "echo",
-					Args:    []string{"Hello from hook"},
+					Command: "echo Hello from hook",
 				},
 			},
 		},
@@ -510,7 +446,7 @@ func TestExecutePostCreateHooks_WithWriter(t *testing.T) {
 	if !strings.Contains(outputStr, "Copying: test.txt → copied.txt") {
 		t.Error("Output should contain copy hook log")
 	}
-	if !strings.Contains(outputStr, "Running: echo [Hello from hook]") {
+	if !strings.Contains(outputStr, "Running: echo Hello from hook") {
 		t.Error("Output should contain command hook log")
 	}
 	if !strings.Contains(outputStr, "Hello from hook") {
@@ -663,4 +599,69 @@ func hasSignificantDelay(timeDiffs []time.Duration) bool {
 		}
 	}
 	return false
+}
+
+// TDD: Test for unified command format (should fail initially)
+func TestExecuteCommandHook_UnifiedCommandFormat(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo 'unified command test' > unified_output.txt",
+					// No Args field - should be executed as shell command
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, "/fake/repo")
+	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to execute unified command hook: %v", err)
+	}
+
+	// Verify output file was created
+	outputFile := filepath.Join(tempDir, "unified_output.txt")
+	if _, statErr := os.Stat(outputFile); os.IsNotExist(statErr) {
+		t.Error("Expected output file was not created")
+	}
+
+	// Verify file content
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Failed to read output file: %v", err)
+	}
+
+	expectedContent := "unified command test"
+	actualContent := strings.TrimSpace(string(content))
+	if actualContent != expectedContent {
+		t.Errorf("Expected content %q, got %q", expectedContent, actualContent)
+	}
+}
+
+func TestExecuteCommandHook_MultilineUnifiedFormat(t *testing.T) {
+	tempDir := t.TempDir()
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCommand,
+					Command: `echo "Starting hook execution..."
+sleep 0.1
+echo "Step 1: Installing dependencies..."
+echo "Hook execution completed!"`,
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, "/fake/repo")
+	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
+	if err != nil {
+		t.Fatalf("Failed to execute multiline unified command hook: %v", err)
+	}
 }

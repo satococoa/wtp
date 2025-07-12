@@ -198,14 +198,12 @@ hooks:
 
     # Execute commands in the new worktree
     - type: command
-      command: "npm"
-      args: ["install"]
+      command: "npm install"
       env:
         NODE_ENV: "development"
 
     - type: command
-      command: "make"
-      args: ["db:setup"]
+      command: "make db:setup"
       work_dir: "."
 ```
 
