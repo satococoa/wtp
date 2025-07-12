@@ -1,0 +1,67 @@
+version: '3'
+
+vars:
+  BINARY_NAME: wtp
+  VERSION:
+    sh: git describe --tags --always --dirty
+  COMMIT:
+    sh: git rev-parse HEAD
+  DATE:
+    sh: date -u '+%Y-%m-%dT%H:%M:%SZ'
+  LDFLAGS: '-s -w -X main.version={{.VERSION}} -X main.commit={{.COMMIT}} -X main.date={{.DATE}}'
+
+tasks:
+  default:
+    desc: Build the binary
+    cmds:
+      - echo "Building {{.BINARY_NAME}}..."
+      - go build -ldflags="{{.LDFLAGS}}" -o {{.BINARY_NAME}} ./cmd/wtp
+
+  build:
+    desc: Build the binary
+    cmds:
+      - echo "Building {{.BINARY_NAME}}..."
+      - go build -ldflags="{{.LDFLAGS}}" -o {{.BINARY_NAME}} ./cmd/wtp
+
+  test:
+    desc: Run tests
+    cmds:
+      - echo "Running tests..."
+      - go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+  lint:
+    desc: Run linter
+    cmds:
+      - echo "Running linter..."
+      - go tool golangci-lint run
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - echo "Cleaning..."
+      - rm -f {{.BINARY_NAME}}
+      - rm -f coverage.out coverage.html
+      - rm -rf dist/
+
+  dev:
+    desc: Run full development build
+    cmds:
+      - task: clean
+      - task: lint
+      - task: test
+      - task: build
+      - echo "Development build completed"
+
+  test-e2e:
+    desc: Run E2E tests
+    cmds:
+      - task: build
+      - echo "Running E2E tests..."
+      - WTP_E2E_BINARY={{.PWD}}/{{.BINARY_NAME}} go test -v -race -timeout 10m ./test/e2e/...
+
+  fmt:
+    desc: Format code
+    cmds:
+      - echo "Formatting code..."
+      - go fmt ./...
+      - go tool goimports -w .

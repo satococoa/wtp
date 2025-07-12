@@ -44,14 +44,14 @@ This covers 90% of use cases without over-engineering.
 Before committing any changes, always run:
 
 ```bash
-make dev  # Runs fmt, lint, and test
+go tool task dev  # Runs fmt, lint, and test
 ```
 
 **Checklist for new features:**
 
 1. Update README.md documentation and examples
 2. Update command help text
-3. Run `make dev` and fix all issues
+3. Run `go tool task dev` and fix all issues
 4. Update documentation for architectural changes
 
 **Important**: Never commit code that fails lint or tests.

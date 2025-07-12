@@ -307,10 +307,10 @@ cd wtp
 go mod download
 
 # Run tests
-make test
+go tool task test
 
 # Build
-make build
+go tool task build
 
 # Run locally
 ./wtp --help

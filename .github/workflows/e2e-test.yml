@@ -29,13 +29,13 @@ jobs:
         run: go mod download
       
       - name: Build wtp
-        run: make build
+        run: go tool task build
       
       - name: Run unit tests
-        run: make test
+        run: go tool task test
       
       - name: Run E2E tests
-        run: make test-e2e
+        run: go tool task test-e2e
         env:
           WTP_E2E_BINARY: ./wtp
       
