@@ -550,9 +550,24 @@ func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
 		t.Skip("Skipping streaming test on Windows")
 	}
 
+	repoRoot, worktreeDir, scriptPath := setupStreamingTestDirectories(t)
+	cfg := createStreamingTestConfig(scriptPath)
+
+	sw := &streamingWriter{}
+	executor := NewExecutor(cfg, repoRoot)
+
+	err := executor.ExecutePostCreateHooks(sw, worktreeDir)
+	if err != nil {
+		t.Fatalf("Failed to execute hooks: %v", err)
+	}
+
+	verifyStreamingOutput(t, sw)
+}
+
+func setupStreamingTestDirectories(t *testing.T) (repoRoot, worktreeDir, scriptPath string) {
 	tempDir := t.TempDir()
-	repoRoot := filepath.Join(tempDir, "repo")
-	worktreeDir := filepath.Join(tempDir, "worktree")
+	repoRoot = filepath.Join(tempDir, "repo")
+	worktreeDir = filepath.Join(tempDir, "worktree")
 
 	// Create directories
 	if err := os.MkdirAll(repoRoot, 0755); err != nil {
@@ -563,7 +578,7 @@ func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
 	}
 
 	// Create a script that outputs multiple lines with delays
-	scriptPath := filepath.Join(repoRoot, "stream-test.sh")
+	scriptPath = filepath.Join(repoRoot, "stream-test.sh")
 	scriptContent := `#!/bin/bash
 echo "Starting..."
 sleep 0.1
@@ -575,7 +590,11 @@ echo "Done!"
 		t.Fatalf("Failed to create script: %v", err)
 	}
 
-	cfg := &config.Config{
+	return
+}
+
+func createStreamingTestConfig(scriptPath string) *config.Config {
+	return &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
@@ -585,16 +604,9 @@ echo "Done!"
 			},
 		},
 	}
+}
 
-	// Use our custom writer to track when writes occur
-	sw := &streamingWriter{}
-	executor := NewExecutor(cfg, repoRoot)
-
-	err := executor.ExecutePostCreateHooks(sw, worktreeDir)
-	if err != nil {
-		t.Fatalf("Failed to execute hooks: %v", err)
-	}
-
+func verifyStreamingOutput(t *testing.T, sw *streamingWriter) {
 	// Verify we got multiple writes (streaming) not just one big write
 	if len(sw.writes) < 4 { // At least: Running log + 3 echo outputs
 		t.Errorf("Expected multiple writes for streaming output, got %d writes", len(sw.writes))
@@ -603,46 +615,52 @@ echo "Done!"
 		}
 	}
 
-	// Verify output contains expected content
+	verifyOutputContent(t, sw)
+	verifyStreamingTiming(t, sw)
+}
+
+func verifyOutputContent(t *testing.T, sw *streamingWriter) {
 	var allOutput strings.Builder
 	for _, w := range sw.writes {
 		allOutput.WriteString(w.data)
 	}
 	outputStr := allOutput.String()
 
-	if !strings.Contains(outputStr, "Starting...") {
-		t.Error("Output should contain 'Starting...'")
-	}
-	if !strings.Contains(outputStr, "Processing...") {
-		t.Error("Output should contain 'Processing...'")
-	}
-	if !strings.Contains(outputStr, "Done!") {
-		t.Error("Output should contain 'Done!'")
-	}
-
-	// Verify streaming: check that writes happened over time, not all at once
-	if len(sw.writes) >= 2 {
-		// Calculate time differences between writes
-		var timeDiffs []time.Duration
-		for i := 1; i < len(sw.writes); i++ {
-			diff := sw.writes[i].time.Sub(sw.writes[i-1].time)
-			timeDiffs = append(timeDiffs, diff)
-		}
-
-		// At least one time difference should be >= 50ms (half of our sleep time)
-		hasDelay := false
-		for _, diff := range timeDiffs {
-			if diff >= 50*time.Millisecond {
-				hasDelay = true
-				break
-			}
-		}
-
-		if !hasDelay {
-			t.Error("Expected streaming output with delays, but all writes happened too quickly")
-			for i, diff := range timeDiffs {
-				t.Logf("Time diff %d: %v", i, diff)
-			}
+	expectedStrings := []string{"Starting...", "Processing...", "Done!"}
+	for _, expected := range expectedStrings {
+		if !strings.Contains(outputStr, expected) {
+			t.Errorf("Output should contain '%s'", expected)
 		}
 	}
+}
+
+func verifyStreamingTiming(t *testing.T, sw *streamingWriter) {
+	if len(sw.writes) < 2 {
+		return
+	}
+
+	// Calculate time differences between writes
+	var timeDiffs []time.Duration
+	for i := 1; i < len(sw.writes); i++ {
+		diff := sw.writes[i].time.Sub(sw.writes[i-1].time)
+		timeDiffs = append(timeDiffs, diff)
+	}
+
+	// At least one time difference should be >= 50ms (half of our sleep time)
+	hasDelay := hasSignificantDelay(timeDiffs)
+	if !hasDelay {
+		t.Error("Expected streaming output with delays, but all writes happened too quickly")
+		for i, diff := range timeDiffs {
+			t.Logf("Time diff %d: %v", i, diff)
+		}
+	}
+}
+
+func hasSignificantDelay(timeDiffs []time.Duration) bool {
+	for _, diff := range timeDiffs {
+		if diff >= 50*time.Millisecond {
+			return true
+		}
+	}
+	return false
 }
