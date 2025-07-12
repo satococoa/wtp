@@ -3,6 +3,7 @@ package git
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -27,22 +28,54 @@ func (w *Worktree) String() string {
 	return fmt.Sprintf("%s [%s]", w.Path, w.HEAD)
 }
 
-// CompletionName returns the name to display for shell completion
-// For the main worktree, it returns the repository name with "(root worktree)" suffix
-// For other worktrees, it returns the branch name preserving any prefixes
+// CompletionName returns the name to display for shell completion.
+//
+// Format: <worktreeName>@<commit-ish>[(root worktree)]
+//
+// Examples:
+//   - Root worktree: "giselle@fix-nodes(root worktree)"
+//   - Matching names: "develop" (when worktree dir and branch both = "develop")
+//   - Different names: "feature-awesome@feature/awesome"
+//   - Full path match: "feature/new-top-page" (when path ends with branch name)
 func (w *Worktree) CompletionName(repoName string) string {
-	if w.IsMainWorktree("") {
-		// For main worktree, show repo name with indicator
-		return fmt.Sprintf("%s(root worktree)", repoName)
+	// Check if this is the main/root worktree
+	if w.isMainWorktreeHeuristic() {
+		return fmt.Sprintf("%s@%s(root worktree)", repoName, w.Branch)
 	}
 
-	// For other worktrees, prefer branch name over directory name
-	if w.Branch != "" {
+	// For other worktrees, determine optimal display format
+	return w.formatNonRootWorktreeCompletion()
+}
+
+// isMainWorktreeHeuristic uses path heuristics to determine if this is the main worktree.
+// Main worktrees typically don't have "/worktrees/" in their path.
+func (w *Worktree) isMainWorktreeHeuristic() bool {
+	return !strings.Contains(w.Path, filepath.Join("", "worktrees", ""))
+}
+
+// formatNonRootWorktreeCompletion formats completion name for non-root worktrees.
+// Priority:
+// 1. If path ends with branch name → show branch only
+// 2. If directory name = branch name → show branch only
+// 3. Otherwise → show "directory@branch"
+func (w *Worktree) formatNonRootWorktreeCompletion() string {
+	if w.Branch == "" {
+		return filepath.Base(w.Path)
+	}
+
+	// Check if path ends with full branch name (handles prefixed paths)
+	if strings.HasSuffix(w.Path, w.Branch) {
 		return w.Branch
 	}
 
-	// Fallback to directory name if no branch
-	return filepath.Base(w.Path)
+	// Check if directory name matches branch name
+	worktreeName := filepath.Base(w.Path)
+	if w.Branch == worktreeName {
+		return w.Branch
+	}
+
+	// Different names: show both
+	return fmt.Sprintf("%s@%s", worktreeName, w.Branch)
 }
 
 // IsMainWorktree returns true if this is the main/root worktree

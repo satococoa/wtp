@@ -107,37 +107,47 @@ func TestWorktree_CompletionName(t *testing.T) {
 		expected         string
 	}{
 		{
-			name: "root worktree should show repo name with root indicator",
+			name: "root worktree should show repo name with branch and root indicator",
+			worktree: Worktree{
+				Path:   "/Users/user/repos/giselle",
+				Branch: "fix-nodes",
+			},
+			repoName:         "giselle",
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "giselle@fix-nodes(root worktree)",
+		},
+		{
+			name: "root worktree with main branch should show repo name with branch and root indicator",
 			worktree: Worktree{
 				Path:   "/Users/user/repos/wtp",
 				Branch: "main",
 			},
 			repoName:         "wtp",
 			mainWorktreePath: "/Users/user/repos/wtp",
-			expected:         "wtp(root worktree)",
+			expected:         "wtp@main(root worktree)",
 		},
 		{
-			name: "feature branch should preserve prefix",
+			name: "feature branch worktree should show branch when worktree name differs",
 			worktree: Worktree{
 				Path:   "/Users/user/repos/wtp/worktrees/feature-awesome",
 				Branch: "feature/awesome",
 			},
 			repoName:         "wtp",
 			mainWorktreePath: "/Users/user/repos/wtp",
-			expected:         "feature/awesome",
+			expected:         "feature-awesome@feature/awesome",
 		},
 		{
-			name: "fix branch with multiple slashes should preserve full path",
+			name: "fix branch with multiple slashes should show worktree name and branch",
 			worktree: Worktree{
 				Path:   "/Users/user/repos/wtp/worktrees/fix-123-fix-login",
 				Branch: "fix/123/fix-login",
 			},
 			repoName:         "wtp",
 			mainWorktreePath: "/Users/user/repos/wtp",
-			expected:         "fix/123/fix-login",
+			expected:         "fix-123-fix-login@fix/123/fix-login",
 		},
 		{
-			name: "simple branch name should be preserved",
+			name: "simple branch where worktree name matches branch should show branch only",
 			worktree: Worktree{
 				Path:   "/Users/user/repos/wtp/worktrees/develop",
 				Branch: "develop",
@@ -145,6 +155,16 @@ func TestWorktree_CompletionName(t *testing.T) {
 			repoName:         "wtp",
 			mainWorktreePath: "/Users/user/repos/wtp",
 			expected:         "develop",
+		},
+		{
+			name: "feature branch where worktree name matches branch should show branch only",
+			worktree: Worktree{
+				Path:   "/Users/user/repos/wtp/worktrees/feature/new-top-page",
+				Branch: "feature/new-top-page",
+			},
+			repoName:         "wtp",
+			mainWorktreePath: "/Users/user/repos/wtp",
+			expected:         "feature/new-top-page",
 		},
 	}
 

@@ -171,6 +171,122 @@ func TestCdCommand_BranchNameResolution(t *testing.T) {
 	}
 }
 
+func TestCdCommand_NewInputAcceptanceRequirements(t *testing.T) {
+	// Test the new requirements: cd should accept worktree name (with prefix), branch name, and "root"
+	tests := []struct {
+		name             string
+		worktreeName     string
+		worktrees        []ParsedWorktree
+		mainWorktreePath string
+		expected         string
+		shouldFind       bool
+	}{
+		{
+			name:         "accept branch name input for root worktree",
+			worktreeName: "fix-nodes",
+			worktrees: []ParsedWorktree{
+				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
+				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+			},
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "/Users/user/repos/giselle",
+			shouldFind:       true,
+		},
+		{
+			name:         "accept repo name input for root worktree",
+			worktreeName: "giselle",
+			worktrees: []ParsedWorktree{
+				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
+				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+			},
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "/Users/user/repos/giselle",
+			shouldFind:       true, // Now this should work
+		},
+		{
+			name:         "accept branch name input for regular worktree",
+			worktreeName: "feature/awesome",
+			worktrees: []ParsedWorktree{
+				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
+				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+			},
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "/Users/user/repos/giselle/worktrees/feature-awesome",
+			shouldFind:       true,
+		},
+		{
+			name:         "accept worktree directory name input for regular worktree",
+			worktreeName: "feature-awesome",
+			worktrees: []ParsedWorktree{
+				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
+				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+			},
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "/Users/user/repos/giselle/worktrees/feature-awesome",
+			shouldFind:       true,
+		},
+		{
+			name:         "root alias should work for any branch",
+			worktreeName: "root",
+			worktrees: []ParsedWorktree{
+				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
+				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+			},
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "/Users/user/repos/giselle",
+			shouldFind:       true,
+		},
+		{
+			name:         "should fail for non-existent input",
+			worktreeName: "non-existent",
+			worktrees: []ParsedWorktree{
+				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
+				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+			},
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "",
+			shouldFind:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Convert test data to worktree list output
+			var worktreeListOutput string
+			for _, wt := range tt.worktrees {
+				worktreeListOutput += fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/%s\n\n", wt.Path, wt.Branch)
+			}
+
+			// Create mock executor
+			mockExec := &mockCdCommandExecutor{
+				results: []command.Result{
+					{Output: worktreeListOutput, Error: nil},
+				},
+			}
+
+			// Create buffer to capture output
+			var buf bytes.Buffer
+
+			// Call the function
+			err := cdCommandWithCommandExecutor(nil, &buf, mockExec, "/some/path", tt.worktreeName)
+
+			if tt.shouldFind {
+				assert.NoError(t, err, "Expected to find worktree for input: %s", tt.worktreeName)
+				output := buf.String()
+				assert.Contains(t, output, tt.expected, "Expected output to contain path: %s", tt.expected)
+			} else {
+				assert.Error(t, err, "Expected error for non-existent worktree: %s", tt.worktreeName)
+			}
+		})
+	}
+}
+
+// ParsedWorktree represents a worktree for testing
+type ParsedWorktree struct {
+	Path   string
+	Branch string
+}
+
 // ===== Command Execution Tests =====
 
 func TestCdCommand_SuccessfulExecution(t *testing.T) {

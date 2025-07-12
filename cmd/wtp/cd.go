@@ -93,28 +93,35 @@ func cdCommandWithCommandExecutor(
 		}
 	}
 
-	// Find the worktree by name
+	// Find the worktree using multiple resolution strategies
+	// The order matters: more specific matches come first
 	var targetPath string
 	for _, wt := range worktrees {
-		// Priority 1: Match by branch name (for prefixes like feature/awesome)
+		// Priority 1: Exact branch name match (supports prefixes like "feature/awesome")
 		if wt.Branch == worktreeName {
 			targetPath = wt.Path
 			break
 		}
 
-		// Priority 2: Match by directory name (legacy behavior)
+		// Priority 2: Worktree directory name match (legacy behavior)
 		if filepath.Base(wt.Path) == worktreeName {
 			targetPath = wt.Path
 			break
 		}
 
-		// Priority 3: Special handling for root worktree aliases
+		// Priority 3: Root worktree alias ("root" → main worktree)
 		if worktreeName == "root" && wt.IsMainWorktree(mainWorktreePath) {
 			targetPath = wt.Path
 			break
 		}
 
-		// Priority 4: Handle completion display format "reponame(root worktree)"
+		// Priority 4: Repository name for root worktree ("giselle" → root worktree)
+		if worktreeName == filepath.Base(wt.Path) && wt.IsMainWorktree(mainWorktreePath) {
+			targetPath = wt.Path
+			break
+		}
+
+		// Priority 5: Completion display format ("wtp(root worktree)" → root worktree)
 		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
 		if worktreeName == repoRootFormat && wt.IsMainWorktree(mainWorktreePath) {
 			targetPath = wt.Path

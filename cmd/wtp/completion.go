@@ -704,23 +704,11 @@ func printWorktrees(w io.Writer) {
 
 	// Get repository name for completion
 	repoName := repo.GetRepositoryName()
-	// Get main worktree path for comparison
-	mainWorktreePath, err := repo.GetMainWorktreePath()
-	if err != nil {
-		// Fallback to repository path if main worktree path cannot be determined
-		mainWorktreePath = repo.Path()
-	}
 
 	// Extract worktree names using CompletionName for each worktree
 	for _, wt := range worktrees {
 		// Use CompletionName method for proper display
 		completionName := wt.CompletionName(repoName)
-		// For the main worktree, also provide "root" as an alias
-		if wt.IsMainWorktree(mainWorktreePath) {
-			fmt.Fprintln(w, completionName)
-			fmt.Fprintln(w, "root") // Alternative alias for main worktree
-		} else {
-			fmt.Fprintln(w, completionName)
-		}
+		fmt.Fprintln(w, completionName)
 	}
 }
