@@ -366,6 +366,8 @@ branch refs/heads/feature/test
 	assert.Contains(t, output, "/path/to/feature")
 	assert.Contains(t, output, "main")
 	assert.Contains(t, output, "feature/test")
+	// Should show "(detached)" for detached HEAD
+	assert.Contains(t, output, "(detached)")
 }
 
 func TestListCommand_HeaderFormatting(t *testing.T) {
@@ -430,6 +432,64 @@ func (m *mockListCommandExecutor) Execute(commands []command.Command) (*command.
 	}
 
 	return &command.ExecutionResult{Results: results}, nil
+}
+
+func TestListCommand_DetachedHeadFormatting(t *testing.T) {
+	tests := []struct {
+		name           string
+		mockOutput     string
+		expectedBranch string
+		description    string
+	}{
+		{
+			name: "empty branch should show (detached)",
+			mockOutput: `worktree /path/to/empty
+HEAD abc123
+
+`,
+			expectedBranch: "(detached)",
+			description:    "Empty branch field should display as (detached)",
+		},
+		{
+			name: "detached keyword should show (detached)",
+			mockOutput: `worktree /path/to/detached-head
+HEAD def456
+detached
+
+`,
+			expectedBranch: "(detached)",
+			description:    "Detached keyword should display as (detached)",
+		},
+		{
+			name: "normal branch should show as is",
+			mockOutput: `worktree /path/to/normal
+HEAD ghi789
+branch refs/heads/feature/awesome
+
+`,
+			expectedBranch: "feature/awesome",
+			description:    "Normal branch should display as is",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockListCommandExecutor{
+				results: []command.Result{
+					{Output: tt.mockOutput, Error: nil},
+				},
+			}
+
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+
+			assert.NoError(t, err, tt.description)
+			output := buf.String()
+			assert.Contains(t, output, tt.expectedBranch, tt.description)
+		})
+	}
 }
 
 type mockError struct {

@@ -119,6 +119,14 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 	return worktrees
 }
 
+// formatBranchDisplay formats branch name for display, showing "(detached)" for detached HEAD
+func formatBranchDisplay(branch string) string {
+	if branch == "" || branch == "detached" {
+		return "(detached)"
+	}
+	return branch
+}
+
 // displayWorktrees formats and displays worktree information
 func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 	// Calculate column widths dynamically
@@ -129,8 +137,11 @@ func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 		if len(wt.Path) > maxPathLen {
 			maxPathLen = len(wt.Path)
 		}
-		if len(wt.Branch) > maxBranchLen {
-			maxBranchLen = len(wt.Branch)
+
+		// Calculate branch display length (considering "(detached)" formatting)
+		branchDisplay := formatBranchDisplay(wt.Branch)
+		if len(branchDisplay) > maxBranchLen {
+			maxBranchLen = len(branchDisplay)
 		}
 	}
 
@@ -151,6 +162,8 @@ func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 		if len(headShort) > headDisplayLength {
 			headShort = headShort[:headDisplayLength]
 		}
-		fmt.Fprintf(w, "%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, wt.Branch, headShort)
+
+		branchDisplay := formatBranchDisplay(wt.Branch)
+		fmt.Fprintf(w, "%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, branchDisplay, headShort)
 	}
 }
