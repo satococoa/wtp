@@ -1091,3 +1091,90 @@ func (m *mockCommandExecutor) Execute(commands []command.Command) (*command.Exec
 
 	return &command.ExecutionResult{Results: results}, nil
 }
+
+// ===== Error Analysis Tests =====
+
+func TestAnalyzeGitWorktreeError(t *testing.T) {
+	tests := []struct {
+		name           string
+		workTreePath   string
+		branchName     string
+		gitOutput      string
+		expectedError  string
+		expectedType   interface{}
+	}{
+		{
+			name:          "branch not found error",
+			workTreePath:  "/path/to/worktree",
+			branchName:    "nonexistent-branch",
+			gitOutput:     "fatal: invalid reference: nonexistent-branch",
+			expectedError: "branch 'nonexistent-branch' not found",
+			expectedType:  nil, // BranchNotFound returns a regular error
+		},
+		{
+			name:          "worktree already exists error",
+			workTreePath:  "/path/to/worktree",
+			branchName:    "feature-branch",
+			gitOutput:     "fatal: 'feature-branch' is already checked out at '/existing/path'",
+			expectedError: "",
+			expectedType:  &WorktreeAlreadyExistsError{},
+		},
+		{
+			name:          "path already exists error",
+			workTreePath:  "/existing/path",
+			branchName:    "new-branch",
+			gitOutput:     "fatal: '/existing/path' already exists",
+			expectedError: "",
+			expectedType:  &PathAlreadyExistsError{},
+		},
+		{
+			name:          "multiple branches error",
+			workTreePath:  "/path/to/worktree",
+			branchName:    "ambiguous-branch",
+			gitOutput:     "fatal: 'ambiguous-branch' matched multiple branches",
+			expectedError: "",
+			expectedType:  &MultipleBranchesError{},
+		},
+		{
+			name:          "invalid path error",
+			workTreePath:  "/invalid/path",
+			branchName:    "valid-branch",
+			gitOutput:     "fatal: could not create directory '/invalid/path'",
+			expectedError: "failed to create worktree at '/invalid/path'",
+			expectedType:  nil, // Returns a regular error
+		},
+		{
+			name:          "generic git error - fallback",
+			workTreePath:  "/path/to/worktree",
+			branchName:    "some-branch",
+			gitOutput:     "fatal: some unexpected git error",
+			expectedError: "unexpected git error",
+			expectedType:  nil, // Falls through to generic error
+		},
+		{
+			name:          "case insensitive matching",
+			workTreePath:  "/path/to/worktree", 
+			branchName:    "BRANCH-NAME",
+			gitOutput:     "FATAL: INVALID REFERENCE: BRANCH-NAME",
+			expectedError: "branch 'BRANCH-NAME' not found",
+			expectedType:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gitError := assert.AnError // Mock git error
+			result := analyzeGitWorktreeError(tt.workTreePath, tt.branchName, gitError, tt.gitOutput)
+			
+			assert.Error(t, result, "Should return an error")
+			
+			if tt.expectedError != "" {
+				assert.Contains(t, result.Error(), tt.expectedError)
+			}
+			
+			if tt.expectedType != nil {
+				assert.IsType(t, tt.expectedType, result)
+			}
+		})
+	}
+}

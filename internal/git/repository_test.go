@@ -200,6 +200,50 @@ func TestExecuteGitCommand(t *testing.T) {
 	}
 }
 
+func TestRepository_GetRepositoryName(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "simple repository name",
+			path:     "/Users/user/repos/wtp",
+			expected: "wtp",
+		},
+		{
+			name:     "repository with long path",
+			path:     "/home/developer/projects/my-awesome-project",
+			expected: "my-awesome-project",
+		},
+		{
+			name:     "repository in nested directory",
+			path:     "/var/lib/git/repositories/backend-api",
+			expected: "backend-api",
+		},
+		{
+			name:     "root directory",
+			path:     "/",
+			expected: "/",
+		},
+		{
+			name:     "current directory",
+			path:     ".",
+			expected: ".",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &Repository{path: tt.path}
+			result := repo.GetRepositoryName()
+			if result != tt.expected {
+				t.Errorf("Expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
 func TestIsGitRepository(t *testing.T) {
 	// Test with valid git repository
 	repoDir := setupTestRepo(t)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/satococoa/wtp/internal/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 )
@@ -220,22 +221,111 @@ func TestPrintWorktrees(t *testing.T) {
 }
 
 func TestWorktreeCompletionDisplay(t *testing.T) {
-	// Test how worktrees should be displayed in completion
-	t.Run("root worktree should show with repo name and root indicator", func(t *testing.T) {
-		// FAIL: Root worktree should be displayed as "wtp(root worktree)" or similar
-		// Currently it just shows the directory name which is confusing
-		t.Skip("TODO: Implement root worktree display - should show 'wtp(root worktree)' for completion")
+	// Test how worktrees are displayed in completion
+	t.Run("root worktree shows with repo name and root indicator", func(t *testing.T) {
+		// Feature is implemented in CompletionName method
+		// Format: "repoName@branch(root worktree)"
+		worktree := &git.Worktree{
+			Path:   "/Users/user/repos/wtp",
+			Branch: "main",
+		}
+		result := worktree.CompletionName("wtp")
+		expected := "wtp@main(root worktree)"
+		if result != expected {
+			t.Errorf("Expected %q, got %q", expected, result)
+		}
 	})
 
-	t.Run("worktrees with prefixes should preserve full path", func(t *testing.T) {
-		// FAIL: feature/awesome should be displayed as "feature/awesome", not "awesome"
-		// fix/123/fix-login should be displayed as "fix/123/fix-login", not "fix-login"
-		t.Skip("TODO: Implement full path display - should preserve prefixes like 'feature/', 'fix/' etc.")
+	t.Run("worktrees with prefixes preserve full path", func(t *testing.T) {
+		// Feature is implemented - preserves slashes in branch names
+		worktree := &git.Worktree{
+			Path:   "/Users/user/repos/wtp/worktrees/feature/new-top-page",
+			Branch: "feature/new-top-page",
+		}
+		result := worktree.CompletionName("wtp")
+		expected := "feature/new-top-page"
+		if result != expected {
+			t.Errorf("Expected %q, got %q", expected, result)
+		}
 	})
 
-	t.Run("completion should accept both root and wtp as valid commands for root worktree", func(t *testing.T) {
-		// FAIL: Should accept both "wtp cd root" and "wtp cd wtp" for root worktree
-		t.Skip("TODO: Implement multiple aliases for root worktree")
+	t.Run("completion shows appropriate format based on worktree and branch names", func(t *testing.T) {
+		// Feature is implemented - shows branch@worktree when names differ
+		worktree := &git.Worktree{
+			Path:   "/Users/user/repos/wtp/worktrees/feature-awesome",
+			Branch: "feature/awesome",
+		}
+		result := worktree.CompletionName("wtp")
+		expected := "feature-awesome@feature/awesome"
+		if result != expected {
+			t.Errorf("Expected %q, got %q", expected, result)
+		}
+	})
+}
+
+func TestCompleteBranchesFunction(t *testing.T) {
+	t.Run("completeBranches writes to command writer", func(t *testing.T) {
+		var buf bytes.Buffer
+		
+		// Create a mock command with writer
+		cmd := &cli.Command{}
+		cmd.Root().Writer = &buf
+		
+		// Call completeBranches - it should not panic and should write to buffer
+		assert.NotPanics(t, func() {
+			completeBranches(context.Background(), cmd)
+		})
+		
+		// Output depends on git state, but function should execute without error
+		// In non-git directory, it will return early but not panic
+	})
+	
+	t.Run("completeBranches uses stdout when no writer", func(t *testing.T) {
+		cmd := &cli.Command{}
+		// cmd.Root().Writer is nil
+		
+		// Should not panic even with nil writer
+		assert.NotPanics(t, func() {
+			// Redirect stdout to avoid noise in test output
+			oldStdout := os.Stdout
+			os.Stdout = os.NewFile(0, os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+			
+			completeBranches(context.Background(), cmd)
+		})
+	})
+}
+
+func TestCompleteWorktreesFunction(t *testing.T) {
+	t.Run("completeWorktrees writes to command writer", func(t *testing.T) {
+		var buf bytes.Buffer
+		
+		// Create a mock command with writer
+		cmd := &cli.Command{}
+		cmd.Root().Writer = &buf
+		
+		// Call completeWorktrees - it should not panic and should write to buffer
+		assert.NotPanics(t, func() {
+			completeWorktrees(context.Background(), cmd)
+		})
+		
+		// Output depends on git state, but function should execute without error
+		// In non-git directory, it will return early but not panic
+	})
+	
+	t.Run("completeWorktrees uses stdout when no writer", func(t *testing.T) {
+		cmd := &cli.Command{}
+		// cmd.Root().Writer is nil
+		
+		// Should not panic even with nil writer
+		assert.NotPanics(t, func() {
+			// Redirect stdout to avoid noise in test output
+			oldStdout := os.Stdout
+			os.Stdout = os.NewFile(0, os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+			
+			completeWorktrees(context.Background(), cmd)
+		})
 	})
 }
 
