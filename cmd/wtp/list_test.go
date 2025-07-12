@@ -366,8 +366,8 @@ branch refs/heads/feature/test
 	assert.Contains(t, output, "/path/to/feature")
 	assert.Contains(t, output, "main")
 	assert.Contains(t, output, "feature/test")
-	// Should show "(detached)" for detached HEAD
-	assert.Contains(t, output, "(detached)")
+	// Should show "(detached HEAD)" for detached HEAD
+	assert.Contains(t, output, "(detached HEAD)")
 }
 
 func TestListCommand_HeaderFormatting(t *testing.T) {
@@ -442,23 +442,23 @@ func TestListCommand_DetachedHeadFormatting(t *testing.T) {
 		description    string
 	}{
 		{
-			name: "empty branch should show (detached)",
+			name: "empty branch should show (no branch)",
 			mockOutput: `worktree /path/to/empty
 HEAD abc123
 
 `,
-			expectedBranch: "(detached)",
-			description:    "Empty branch field should display as (detached)",
+			expectedBranch: "(no branch)",
+			description:    "Empty branch field should display as (no branch)",
 		},
 		{
-			name: "detached keyword should show (detached)",
+			name: "detached keyword should show (detached HEAD)",
 			mockOutput: `worktree /path/to/detached-head
 HEAD def456
 detached
 
 `,
-			expectedBranch: "(detached)",
-			description:    "Detached keyword should display as (detached)",
+			expectedBranch: "(detached HEAD)",
+			description:    "Detached keyword should display as (detached HEAD)",
 		},
 		{
 			name: "normal branch should show as is",

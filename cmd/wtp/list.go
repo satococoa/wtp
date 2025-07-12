@@ -18,6 +18,7 @@ const (
 	pathHeaderDashes   = 4
 	branchHeaderDashes = 6
 	headDisplayLength  = 8
+	detachedKeyword    = "detached"
 )
 
 // GitRepository interface for mocking
@@ -109,6 +110,8 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 			currentWorktree.HEAD = strings.TrimPrefix(line, "HEAD ")
 		} else if strings.HasPrefix(line, "branch ") {
 			currentWorktree.Branch = strings.TrimPrefix(line, "branch refs/heads/")
+		} else if line == detachedKeyword {
+			currentWorktree.Branch = detachedKeyword
 		}
 	}
 
@@ -119,10 +122,13 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 	return worktrees
 }
 
-// formatBranchDisplay formats branch name for display, showing "(detached)" for detached HEAD
+// formatBranchDisplay formats branch name for display, following Git conventions
 func formatBranchDisplay(branch string) string {
-	if branch == "" || branch == "detached" {
-		return "(detached)"
+	if branch == detachedKeyword {
+		return "(detached HEAD)"
+	}
+	if branch == "" {
+		return "(no branch)"
 	}
 	return branch
 }
