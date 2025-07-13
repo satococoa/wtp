@@ -1096,12 +1096,12 @@ func (m *mockCommandExecutor) Execute(commands []command.Command) (*command.Exec
 
 func TestAnalyzeGitWorktreeError(t *testing.T) {
 	tests := []struct {
-		name           string
-		workTreePath   string
-		branchName     string
-		gitOutput      string
-		expectedError  string
-		expectedType   interface{}
+		name          string
+		workTreePath  string
+		branchName    string
+		gitOutput     string
+		expectedError string
+		expectedType  interface{}
 	}{
 		{
 			name:          "branch not found error",
@@ -1153,7 +1153,7 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 		},
 		{
 			name:          "case insensitive matching",
-			workTreePath:  "/path/to/worktree", 
+			workTreePath:  "/path/to/worktree",
 			branchName:    "BRANCH-NAME",
 			gitOutput:     "FATAL: INVALID REFERENCE: BRANCH-NAME",
 			expectedError: "branch 'BRANCH-NAME' not found",
@@ -1165,13 +1165,13 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gitError := assert.AnError // Mock git error
 			result := analyzeGitWorktreeError(tt.workTreePath, tt.branchName, gitError, tt.gitOutput)
-			
+
 			assert.Error(t, result, "Should return an error")
-			
+
 			if tt.expectedError != "" {
 				assert.Contains(t, result.Error(), tt.expectedError)
 			}
-			
+
 			if tt.expectedType != nil {
 				assert.IsType(t, tt.expectedType, result)
 			}

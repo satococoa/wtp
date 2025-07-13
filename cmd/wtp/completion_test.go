@@ -266,31 +266,31 @@ func TestWorktreeCompletionDisplay(t *testing.T) {
 func TestCompleteBranchesFunction(t *testing.T) {
 	t.Run("completeBranches writes to command writer", func(t *testing.T) {
 		var buf bytes.Buffer
-		
+
 		// Create a mock command with writer
 		cmd := &cli.Command{}
 		cmd.Root().Writer = &buf
-		
+
 		// Call completeBranches - it should not panic and should write to buffer
 		assert.NotPanics(t, func() {
 			completeBranches(context.Background(), cmd)
 		})
-		
+
 		// Output depends on git state, but function should execute without error
 		// In non-git directory, it will return early but not panic
 	})
-	
+
 	t.Run("completeBranches uses stdout when no writer", func(t *testing.T) {
 		cmd := &cli.Command{}
 		// cmd.Root().Writer is nil
-		
+
 		// Should not panic even with nil writer
 		assert.NotPanics(t, func() {
 			// Redirect stdout to avoid noise in test output
 			oldStdout := os.Stdout
 			os.Stdout = os.NewFile(0, os.DevNull)
 			defer func() { os.Stdout = oldStdout }()
-			
+
 			completeBranches(context.Background(), cmd)
 		})
 	})
@@ -299,31 +299,31 @@ func TestCompleteBranchesFunction(t *testing.T) {
 func TestCompleteWorktreesFunction(t *testing.T) {
 	t.Run("completeWorktrees writes to command writer", func(t *testing.T) {
 		var buf bytes.Buffer
-		
+
 		// Create a mock command with writer
 		cmd := &cli.Command{}
 		cmd.Root().Writer = &buf
-		
+
 		// Call completeWorktrees - it should not panic and should write to buffer
 		assert.NotPanics(t, func() {
 			completeWorktrees(context.Background(), cmd)
 		})
-		
+
 		// Output depends on git state, but function should execute without error
 		// In non-git directory, it will return early but not panic
 	})
-	
+
 	t.Run("completeWorktrees uses stdout when no writer", func(t *testing.T) {
 		cmd := &cli.Command{}
 		// cmd.Root().Writer is nil
-		
+
 		// Should not panic even with nil writer
 		assert.NotPanics(t, func() {
 			// Redirect stdout to avoid noise in test output
 			oldStdout := os.Stdout
 			os.Stdout = os.NewFile(0, os.DevNull)
 			defer func() { os.Stdout = oldStdout }()
-			
+
 			completeWorktrees(context.Background(), cmd)
 		})
 	})
