@@ -23,6 +23,12 @@ tasks:
       - echo "Building {{.BINARY_NAME}}..."
       - go build -ldflags="{{.LDFLAGS}}" -o {{.BINARY_NAME}} ./cmd/wtp
 
+  install:
+    desc: Install the binary to GOPATH/bin
+    cmds:
+      - echo "Installing {{.BINARY_NAME}}..."
+      - go install -ldflags="{{.LDFLAGS}}" ./cmd/wtp
+
   test:
     desc: Run tests
     cmds:
@@ -47,6 +53,7 @@ tasks:
     desc: Run full development build
     cmds:
       - task: clean
+      - task: fmt
       - task: lint
       - task: test
       - task: build
