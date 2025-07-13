@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/satococoa/wtp/test/e2e/framework"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestConfigBaseDirIntegration tests that base_dir configuration is properly handled
@@ -34,19 +35,21 @@ defaults:
 
 		// Verify worktree was created in custom directory
 		worktrees := repo.ListWorktrees()
-		foundInCustomDir := false
 
+		// Using testify's assert for more complex checks
+		assert.NotEmpty(t, worktrees, "Should have at least one worktree")
+
+		// Find the feature/test worktree path
+		var featureWorktreePath string
 		for _, wt := range worktrees {
 			if strings.Contains(wt, "feature/test") && wt != repo.Path() {
-				// Check if the path contains the custom directory
-				if strings.Contains(wt, "my-custom-worktrees") {
-					foundInCustomDir = true
-					break
-				}
+				featureWorktreePath = wt
+				break
 			}
 		}
 
-		framework.AssertTrue(t, foundInCustomDir, "Worktree should be created in custom base_dir")
+		assert.NotEmpty(t, featureWorktreePath, "Should find feature/test worktree")
+		assert.Contains(t, featureWorktreePath, "my-custom-worktrees", "Worktree should be created in custom base_dir")
 	})
 
 	t.Run("RemoveFindsWorktreeRegardlessOfConfig", func(t *testing.T) {

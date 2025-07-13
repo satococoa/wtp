@@ -3,6 +3,8 @@ package framework
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func AssertWorktreeCreated(t *testing.T, output, branch string) {
@@ -17,20 +19,13 @@ func AssertWorktreeCreated(t *testing.T, output, branch string) {
 
 func AssertErrorContains(t *testing.T, err error, expected string) {
 	t.Helper()
-	if err == nil {
-		t.Errorf("Expected error containing '%s', but got no error", expected)
-		return
-	}
-	if !strings.Contains(err.Error(), expected) {
-		t.Errorf("Expected error containing '%s', got: %v", expected, err)
-	}
+	assert.Error(t, err, "Expected error containing '%s', but got no error", expected)
+	assert.Contains(t, err.Error(), expected, "Expected error containing '%s', got: %v", expected, err)
 }
 
 func AssertOutputContains(t *testing.T, output, expected string) {
 	t.Helper()
-	if !strings.Contains(output, expected) {
-		t.Errorf("Expected output containing '%s', got: %s", expected, output)
-	}
+	assert.Contains(t, output, expected, "Expected output containing '%s', got: %s", expected, output)
 }
 
 func AssertHelpfulError(t *testing.T, output string) {
@@ -63,66 +58,49 @@ func AssertHelpfulError(t *testing.T, output string) {
 func AssertMultipleStringsInOutput(t *testing.T, output string, expected []string) {
 	t.Helper()
 	for _, exp := range expected {
-		if !strings.Contains(output, exp) {
-			t.Errorf("Expected output to contain '%s', got: %s", exp, output)
-		}
+		assert.Contains(t, output, exp, "Expected output to contain '%s', got: %s", exp, output)
 	}
 }
 
 func AssertNoError(t *testing.T, err error) {
 	t.Helper()
-	if err != nil {
-		t.Errorf("Expected no error, got: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func AssertError(t *testing.T, err error) {
 	t.Helper()
-	if err == nil {
-		t.Error("Expected error, but got none")
-	}
+	assert.Error(t, err)
 }
 
 func AssertFileExists(t *testing.T, repo *TestRepo, path string) {
 	t.Helper()
-	if !repo.HasFile(path) {
-		t.Errorf("Expected file '%s' to exist", path)
-	}
+	assert.True(t, repo.HasFile(path), "Expected file '%s' to exist", path)
 }
 
 func AssertFileNotExists(t *testing.T, repo *TestRepo, path string) {
 	t.Helper()
-	if repo.HasFile(path) {
-		t.Errorf("Expected file '%s' not to exist", path)
-	}
+	assert.False(t, repo.HasFile(path), "Expected file '%s' not to exist", path)
 }
 
 func AssertFileContains(t *testing.T, repo *TestRepo, path, content string) {
 	t.Helper()
-	if !repo.HasFile(path) {
-		t.Errorf("File '%s' does not exist", path)
-		return
-	}
-	fileContent := repo.ReadFile(path)
-	if !strings.Contains(fileContent, content) {
-		t.Errorf("Expected file '%s' to contain '%s', got: %s", path, content, fileContent)
+	assert.True(t, repo.HasFile(path), "File '%s' does not exist", path)
+	if repo.HasFile(path) {
+		fileContent := repo.ReadFile(path)
+		assert.Contains(t, fileContent, content, "Expected file '%s' to contain '%s', got: %s", path, content, fileContent)
 	}
 }
 
 func AssertCurrentBranch(t *testing.T, repo *TestRepo, expected string) {
 	t.Helper()
 	current := repo.CurrentBranch()
-	if current != expected {
-		t.Errorf("Expected current branch to be '%s', got: '%s'", expected, current)
-	}
+	assert.Equal(t, expected, current, "Expected current branch to be '%s', got: '%s'", expected, current)
 }
 
 func AssertWorktreeCount(t *testing.T, repo *TestRepo, expected int) {
 	t.Helper()
 	worktrees := repo.ListWorktrees()
-	if len(worktrees) != expected {
-		t.Errorf("Expected %d worktrees, got %d: %v", expected, len(worktrees), worktrees)
-	}
+	assert.Len(t, worktrees, expected, "Expected %d worktrees, got %d: %v", expected, len(worktrees), worktrees)
 }
 
 func AssertWorktreeExists(t *testing.T, repo *TestRepo, path string) {
@@ -152,28 +130,20 @@ func AssertWorktreeNotExists(t *testing.T, repo *TestRepo, path string) {
 
 func AssertEqual(t *testing.T, expected, actual interface{}) {
 	t.Helper()
-	if expected != actual {
-		t.Errorf("Expected %v, got %v", expected, actual)
-	}
+	assert.Equal(t, expected, actual)
 }
 
 func AssertNotEqual(t *testing.T, notExpected, actual interface{}) {
 	t.Helper()
-	if notExpected == actual {
-		t.Errorf("Expected value to not be %v", actual)
-	}
+	assert.NotEqual(t, notExpected, actual)
 }
 
 func AssertTrue(t *testing.T, condition bool, message string) {
 	t.Helper()
-	if !condition {
-		t.Error(message)
-	}
+	assert.True(t, condition, message)
 }
 
 func AssertFalse(t *testing.T, condition bool, message string) {
 	t.Helper()
-	if condition {
-		t.Error(message)
-	}
+	assert.False(t, condition, message)
 }
