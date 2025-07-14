@@ -35,10 +35,17 @@ func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) erro
 		return nil
 	}
 
+	totalHooks := len(e.config.Hooks.PostCreate)
 	for i, hook := range e.config.Hooks.PostCreate {
+		// Log which hook is starting
+		fmt.Fprintf(w, "\n→ Running hook %d of %d...\n", i+1, totalHooks)
+
 		if err := e.executeHookWithWriter(w, &hook, worktreePath); err != nil {
 			return fmt.Errorf("failed to execute hook %d: %w", i+1, err)
 		}
+
+		// Log successful completion
+		fmt.Fprintf(w, "✓ Hook %d completed\n", i+1)
 	}
 
 	return nil
@@ -129,12 +136,45 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 	fmt.Fprintf(w, "  Running: %s", hook.Command)
 	fmt.Fprintln(w)
 
-	// Connect stdout and stderr to the writer for streaming output
-	cmd.Stdout = w
-	cmd.Stderr = w
+	// Create pipes for stdout and stderr to enable real-time streaming
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
 
-	// Execute command
-	if err := cmd.Run(); err != nil {
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	// Start command
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// Stream output in real-time using goroutines
+	const numStreams = 2 // stdout and stderr
+	done := make(chan error, numStreams)
+
+	go func() {
+		_, err := io.Copy(w, stdout)
+		done <- err
+	}()
+
+	go func() {
+		_, err := io.Copy(w, stderr)
+		done <- err
+	}()
+
+	// Wait for streaming to complete
+	for i := 0; i < numStreams; i++ {
+		if err := <-done; err != nil {
+			return fmt.Errorf("output streaming failed: %w", err)
+		}
+	}
+
+	// Wait for command to complete
+	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("command failed: %s", err)
 	}
 
