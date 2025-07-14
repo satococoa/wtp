@@ -12,6 +12,7 @@ import (
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/satococoa/wtp/internal/hooks"
+	wtpio "github.com/satococoa/wtp/internal/io"
 	"github.com/urfave/cli/v3"
 )
 
@@ -351,12 +352,17 @@ Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.B
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
 	if cfg.HasHooks() {
-		fmt.Fprintln(w, "\nExecuting post-create hooks...")
+		// Use a flushing writer to ensure real-time output
+		fw := wtpio.NewFlushingWriter(w)
+
+		fmt.Fprintln(fw, "\nExecuting post-create hooks...")
+
 		executor := hooks.NewExecutor(cfg, repoPath)
-		if err := executor.ExecutePostCreateHooks(w, workTreePath); err != nil {
+		if err := executor.ExecutePostCreateHooks(fw, workTreePath); err != nil {
 			return err
 		}
-		fmt.Fprintln(w, "✓ All hooks executed successfully")
+
+		fmt.Fprintln(fw, "✓ All hooks executed successfully")
 	}
 	return nil
 }
