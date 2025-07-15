@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 const (
 	directoryPermissions = 0o755
+	windowsOS            = "windows"
 )
 
 // Executor handles hook execution
@@ -31,7 +33,7 @@ func NewExecutor(cfg *config.Config, repoRoot string) *Executor {
 
 // ExecutePostCreateHooks executes all post-create hooks and streams output to writer
 func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) error {
-	if !e.config.HasHooks() {
+	if e.config == nil || !e.config.HasHooks() {
 		return nil
 	}
 
@@ -104,7 +106,7 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
 	// Execute command using shell for unified command format
 	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == windowsOS {
 		// #nosec G204 - Commands come from project configuration file controlled by developer
 		cmd = exec.Command("cmd", "/c", hook.Command)
 	} else {
@@ -157,13 +159,19 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 	done := make(chan error, numStreams)
 
 	go func() {
-		_, err := io.Copy(w, stdout)
-		done <- err
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			fmt.Fprintln(w, scanner.Text())
+		}
+		done <- scanner.Err()
 	}()
 
 	go func() {
-		_, err := io.Copy(w, stderr)
-		done <- err
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			fmt.Fprintln(w, scanner.Text())
+		}
+		done <- scanner.Err()
 	}()
 
 	// Wait for streaming to complete

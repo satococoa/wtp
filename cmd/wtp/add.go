@@ -73,6 +73,8 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
+	// Wrap in FlushingWriter to ensure real-time output for all operations
+	fw := wtpio.NewFlushingWriter(w)
 	// Validate inputs
 	if err := validateAddInput(cmd); err != nil {
 		return err
@@ -87,7 +89,7 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	// Create command executor
 	executor := command.NewRealExecutor()
 
-	return addCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath)
+	return addCommandWithCommandExecutor(cmd, fw, executor, cfg, mainRepoPath)
 }
 
 // addCommandWithCommandExecutor is the new implementation using CommandExecutor
@@ -352,17 +354,14 @@ Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.B
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
 	if cfg.HasHooks() {
-		// Use a flushing writer to ensure real-time output
-		fw := wtpio.NewFlushingWriter(w)
-
-		fmt.Fprintln(fw, "\nExecuting post-create hooks...")
+		fmt.Fprintln(w, "\nExecuting post-create hooks...")
 
 		executor := hooks.NewExecutor(cfg, repoPath)
-		if err := executor.ExecutePostCreateHooks(fw, workTreePath); err != nil {
+		if err := executor.ExecutePostCreateHooks(w, workTreePath); err != nil {
 			return err
 		}
 
-		fmt.Fprintln(fw, "✓ All hooks executed successfully")
+		fmt.Fprintln(w, "✓ All hooks executed successfully")
 	}
 	return nil
 }

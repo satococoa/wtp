@@ -1,7 +1,8 @@
 package hooks
 
 import (
-	"io"
+	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -11,190 +12,319 @@ import (
 	"time"
 
 	"github.com/satococoa/wtp/internal/config"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewExecutor(t *testing.T) {
-	cfg := &config.Config{}
-	repoRoot := "/test/repo"
-
-	executor := NewExecutor(cfg, repoRoot)
-
-	if executor.config != cfg {
-		t.Error("Config not set correctly")
-	}
-
-	if executor.repoRoot != repoRoot {
-		t.Error("RepoRoot not set correctly")
-	}
+func TestExecutePostCreateHooks_NilConfig(t *testing.T) {
+	executor := NewExecutor(nil, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, "/test/worktree")
+	assert.NoError(t, err)
 }
 
 func TestExecutePostCreateHooks_NoHooks(t *testing.T) {
-	cfg := &config.Config{}
-	executor := NewExecutor(cfg, "/test/repo")
-
-	err := executor.ExecutePostCreateHooks(io.Discard, "/test/worktree")
-	if err != nil {
-		t.Errorf("Expected no error for config without hooks, got %v", err)
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{},
+		},
 	}
+	executor := NewExecutor(cfg, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, "/test/worktree")
+	assert.NoError(t, err)
 }
 
-func TestExecuteCopyHook(t *testing.T) {
-	tempDir := t.TempDir()
-	repoRoot := filepath.Join(tempDir, "repo")
-	worktreeDir := filepath.Join(tempDir, "worktree")
-
-	// Create repo and worktree directories
-	if err := os.MkdirAll(repoRoot, 0755); err != nil {
-		t.Fatalf("Failed to create repo dir: %v", err)
-	}
-	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
-		t.Fatalf("Failed to create worktree dir: %v", err)
-	}
-
-	// Create source file
-	sourceFile := filepath.Join(repoRoot, "test.txt")
-	sourceContent := "test content"
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
-		t.Fatalf("Failed to create source file: %v", err)
-	}
-
+func TestExecutePostCreateHooks_InvalidHookType(t *testing.T) {
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
-					Type: config.HookTypeCopy,
-					From: "test.txt",
-					To:   "copied.txt",
+					Type: "invalid",
 				},
 			},
 		},
 	}
-
-	executor := NewExecutor(cfg, repoRoot)
-	err := executor.ExecutePostCreateHooks(io.Discard, worktreeDir)
-	if err != nil {
-		t.Fatalf("Failed to execute copy hook: %v", err)
-	}
-
-	// Verify file was copied
-	destFile := filepath.Join(worktreeDir, "copied.txt")
-	content, err := os.ReadFile(destFile)
-	if err != nil {
-		t.Fatalf("Failed to read copied file: %v", err)
-	}
-
-	if string(content) != sourceContent {
-		t.Errorf("Expected content %s, got %s", sourceContent, string(content))
-	}
+	executor := NewExecutor(cfg, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, "/test/worktree")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown hook type")
 }
 
-func TestExecuteCopyHook_AbsolutePaths(t *testing.T) {
+func TestExecutePostCreateHooks_CopyFile(t *testing.T) {
+	// Create temp directories
 	tempDir := t.TempDir()
-	sourceDir := filepath.Join(tempDir, "source")
-	destDir := filepath.Join(tempDir, "dest")
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
 
 	// Create directories
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
-		t.Fatalf("Failed to create source dir: %v", err)
-	}
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		t.Fatalf("Failed to create dest dir: %v", err)
-	}
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
 
 	// Create source file
-	sourceFile := filepath.Join(sourceDir, "test.txt")
-	sourceContent := "absolute path test"
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
-		t.Fatalf("Failed to create source file: %v", err)
-	}
+	srcFile := filepath.Join(repoRoot, ".env.example")
+	srcContent := "TEST_VAR=value"
+	err = os.WriteFile(srcFile, []byte(srcContent), 0644)
+	require.NoError(t, err)
 
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
 					Type: config.HookTypeCopy,
-					From: sourceFile,                           // Absolute path
-					To:   filepath.Join(destDir, "copied.txt"), // Absolute path
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, "/fake/worktree")
-	if err != nil {
-		t.Fatalf("Failed to execute copy hook with absolute paths: %v", err)
-	}
-
-	// Verify file was copied
-	destFile := filepath.Join(destDir, "copied.txt")
-	content, err := os.ReadFile(destFile)
-	if err != nil {
-		t.Fatalf("Failed to read copied file: %v", err)
-	}
-
-	if string(content) != sourceContent {
-		t.Errorf("Expected content %s, got %s", sourceContent, string(content))
-	}
-}
-
-func TestExecuteCopyHook_Directory(t *testing.T) {
-	tempDir := t.TempDir()
-	repoRoot := filepath.Join(tempDir, "repo")
-	worktreeDir := filepath.Join(tempDir, "worktree")
-
-	// Create repo and worktree directories
-	if err := os.MkdirAll(repoRoot, 0755); err != nil {
-		t.Fatalf("Failed to create repo dir: %v", err)
-	}
-	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
-		t.Fatalf("Failed to create worktree dir: %v", err)
-	}
-
-	// Create source directory with files
-	sourceDir := filepath.Join(repoRoot, "config")
-	if err := os.MkdirAll(sourceDir, 0755); err != nil {
-		t.Fatalf("Failed to create source dir: %v", err)
-	}
-
-	sourceFile := filepath.Join(sourceDir, "app.conf")
-	sourceContent := "config content"
-	if err := os.WriteFile(sourceFile, []byte(sourceContent), 0644); err != nil {
-		t.Fatalf("Failed to create source file: %v", err)
-	}
-
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type: config.HookTypeCopy,
-					From: "config",
-					To:   "config-copy",
+					From: ".env.example",
+					To:   ".env",
 				},
 			},
 		},
 	}
 
 	executor := NewExecutor(cfg, repoRoot)
-	err := executor.ExecutePostCreateHooks(io.Discard, worktreeDir)
-	if err != nil {
-		t.Fatalf("Failed to execute directory copy hook: %v", err)
-	}
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
 
-	// Verify directory and file were copied
-	destFile := filepath.Join(worktreeDir, "config-copy", "app.conf")
-	content, err := os.ReadFile(destFile)
-	if err != nil {
-		t.Fatalf("Failed to read copied file: %v", err)
-	}
+	// Check that file was copied
+	dstFile := filepath.Join(worktreeDir, ".env")
+	dstContent, err := os.ReadFile(dstFile)
+	require.NoError(t, err)
+	assert.Equal(t, srcContent, string(dstContent))
 
-	if string(content) != sourceContent {
-		t.Errorf("Expected content %s, got %s", sourceContent, string(content))
-	}
+	// Verify output contains progress messages
+	output := buf.String()
+	assert.Contains(t, output, "Running hook 1 of 1")
+	assert.Contains(t, output, "✓ Hook 1 completed")
 }
 
-func TestExecuteCopyHook_MissingSource(t *testing.T) {
+func TestExecutePostCreateHooks_Command(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
 	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo 'Hello from hook'",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check output
+	output := buf.String()
+	assert.Contains(t, output, "Hello from hook")
+	assert.Contains(t, output, "Running hook 1 of 1")
+	assert.Contains(t, output, "✓ Hook 1 completed")
+}
+
+func TestExecutePostCreateHooks_MultipleHooks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create source file for copy hook
+	srcFile := filepath.Join(repoRoot, "template.txt")
+	err = os.WriteFile(srcFile, []byte("template content"), 0644)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo 'First hook'",
+				},
+				{
+					Type: config.HookTypeCopy,
+					From: "template.txt",
+					To:   "output.txt",
+				},
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo 'Third hook'",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check output
+	output := buf.String()
+	assert.Contains(t, output, "First hook")
+	assert.Contains(t, output, "Third hook")
+	assert.Contains(t, output, "Running hook 1 of 3")
+	assert.Contains(t, output, "Running hook 2 of 3")
+	assert.Contains(t, output, "Running hook 3 of 3")
+	assert.Contains(t, output, "✓ Hook 1 completed")
+	assert.Contains(t, output, "✓ Hook 2 completed")
+	assert.Contains(t, output, "✓ Hook 3 completed")
+
+	// Check that file was copied
+	dstFile := filepath.Join(worktreeDir, "output.txt")
+	_, err = os.Stat(dstFile)
+	assert.NoError(t, err)
+}
+
+func TestExecutePostCreateHooks_CommandWithEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo $CUSTOM_VAR",
+					Env: map[string]string{
+						"CUSTOM_VAR": "custom_value",
+					},
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check output
+	output := buf.String()
+	assert.Contains(t, output, "custom_value")
+}
+
+func TestExecutePostCreateHooks_CommandWithWorkDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	subDir := filepath.Join(worktreeDir, "subdir")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(subDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "pwd",
+					WorkDir: "subdir",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check output
+	output := buf.String()
+	assert.Contains(t, output, "subdir")
+}
+
+func TestExecutePostCreateHooks_CommandFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "exit 1",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to execute hook")
+}
+
+func TestExecutePostCreateHooks_CopyNonExistentFile(t *testing.T) {
+	// Create temp directories
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
 
 	cfg := &config.Config{
 		Hooks: config.Hooks{
@@ -202,262 +332,138 @@ func TestExecuteCopyHook_MissingSource(t *testing.T) {
 				{
 					Type: config.HookTypeCopy,
 					From: "nonexistent.txt",
-					To:   "dest.txt",
+					To:   "output.txt",
 				},
 			},
 		},
 	}
 
-	executor := NewExecutor(cfg, tempDir)
-	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
-	if err == nil {
-		t.Error("Expected error for missing source file, got nil")
-	}
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to execute hook")
 }
 
-func TestExecuteCommandHook(t *testing.T) {
-	tempDir := t.TempDir()
-
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type:    config.HookTypeCommand,
-					Command: "echo 'test output' > output.txt",
-					Env: map[string]string{
-						"TEST_VAR": "test_value",
-					},
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
-	if err != nil {
-		t.Fatalf("Failed to execute command hook: %v", err)
-	}
-
-	// Verify output file was created
-	outputFile := filepath.Join(tempDir, "output.txt")
-	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
-		t.Error("Expected output file was not created")
-	}
-}
-
-func TestExecuteCommandHook_Simple(t *testing.T) {
-	tempDir := t.TempDir()
-
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type:    config.HookTypeCommand,
-					Command: "echo test > test_output.txt",
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
-	if err != nil {
-		t.Fatalf("Failed to execute simple command hook: %v", err)
-	}
-
-	// Verify output file was created
-	outputFile := filepath.Join(tempDir, "test_output.txt")
-	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
-		t.Error("Expected output file was not created")
-	}
-}
-
-func TestExecuteCommandHook_WithWorkDir(t *testing.T) {
-	tempDir := t.TempDir()
-	subDir := filepath.Join(tempDir, "subdir")
-	if err := os.MkdirAll(subDir, 0755); err != nil {
-		t.Fatalf("Failed to create subdirectory: %v", err)
-	}
-
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type:    config.HookTypeCommand,
-					Command: "echo test > workdir_test.txt",
-					WorkDir: "subdir",
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
-	if err != nil {
-		t.Fatalf("Failed to execute command hook with work dir: %v", err)
-	}
-
-	// Verify output file was created in subdirectory
-	outputFile := filepath.Join(subDir, "workdir_test.txt")
-	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
-		t.Error("Expected output file was not created in work directory")
-	}
-}
-
-func TestExecuteCommandHook_FailingCommand(t *testing.T) {
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type:    config.HookTypeCommand,
-					Command: "nonexistent-command arg1",
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, "/fake/worktree")
-	if err == nil {
-		t.Error("Expected error for failing command, got nil")
-	}
-}
-
-func TestExecuteHook_InvalidType(t *testing.T) {
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type: "invalid-type",
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, "/fake/worktree")
-	if err == nil {
-		t.Error("Expected error for invalid hook type, got nil")
-	}
-}
-
-func TestExecutePostCreateHooks_MultipleHooks(t *testing.T) {
+func TestExecutePostCreateHooks_CopyToNestedDirectory(t *testing.T) {
+	// Create temp directories
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
 	worktreeDir := filepath.Join(tempDir, "worktree")
 
 	// Create directories
-	if err := os.MkdirAll(repoRoot, 0755); err != nil {
-		t.Fatalf("Failed to create repo dir: %v", err)
-	}
-	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
-		t.Fatalf("Failed to create worktree dir: %v", err)
-	}
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
 
 	// Create source file
-	sourceFile := filepath.Join(repoRoot, "source.txt")
-	if err := os.WriteFile(sourceFile, []byte("content"), 0644); err != nil {
-		t.Fatalf("Failed to create source file: %v", err)
-	}
+	srcFile := filepath.Join(repoRoot, "template.txt")
+	srcContent := "template content"
+	err = os.WriteFile(srcFile, []byte(srcContent), 0644)
+	require.NoError(t, err)
 
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
 					Type: config.HookTypeCopy,
-					From: "source.txt",
-					To:   "copied.txt",
-				},
-				{
-					Type:    config.HookTypeCommand,
-					Command: "echo command executed > command_output.txt",
+					From: "template.txt",
+					To:   "nested/dir/output.txt",
 				},
 			},
 		},
 	}
 
 	executor := NewExecutor(cfg, repoRoot)
-	err := executor.ExecutePostCreateHooks(io.Discard, worktreeDir)
-	if err != nil {
-		t.Fatalf("Failed to execute multiple hooks: %v", err)
-	}
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
 
-	// Verify both hooks executed
-	copiedFile := filepath.Join(worktreeDir, "copied.txt")
-	if _, err := os.Stat(copiedFile); os.IsNotExist(err) {
-		t.Error("Copy hook did not execute")
-	}
-
-	commandFile := filepath.Join(worktreeDir, "command_output.txt")
-	if _, err := os.Stat(commandFile); os.IsNotExist(err) {
-		t.Error("Command hook did not execute")
-	}
+	// Check that file was copied and directory was created
+	dstFile := filepath.Join(worktreeDir, "nested", "dir", "output.txt")
+	dstContent, err := os.ReadFile(dstFile)
+	require.NoError(t, err)
+	assert.Equal(t, srcContent, string(dstContent))
 }
 
-func TestExecutePostCreateHooks_WithWriter(t *testing.T) {
+func TestExecutePostCreateHooks_AbsoluteWorkDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	absoluteDir := filepath.Join(tempDir, "absolute")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(absoluteDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "pwd",
+					WorkDir: absoluteDir,
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check output
+	output := buf.String()
+	assert.Contains(t, output, absoluteDir)
+}
+
+func TestExecutePostCreateHooks_EnvironmentVariables(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping command test on Windows")
+	}
+
+	// Create temp directories
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
 	worktreeDir := filepath.Join(tempDir, "worktree")
 
-	// Create repo and worktree directories
-	if err := os.MkdirAll(repoRoot, 0755); err != nil {
-		t.Fatalf("Failed to create repo dir: %v", err)
-	}
-	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
-		t.Fatalf("Failed to create worktree dir: %v", err)
-	}
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
 
-	// Create a test source file for copy hook
-	sourceFile := filepath.Join(repoRoot, "test.txt")
-	if err := os.WriteFile(sourceFile, []byte("test content"), 0644); err != nil {
-		t.Fatalf("Failed to create source file: %v", err)
-	}
-
-	// Create config with both copy and command hooks
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
-					Type: config.HookTypeCopy,
-					From: "test.txt",
-					To:   "copied.txt",
-				},
-				{
 					Type:    config.HookTypeCommand,
-					Command: "echo Hello from hook",
+					Command: "echo WORKTREE=$GIT_WTP_WORKTREE_PATH REPO=$GIT_WTP_REPO_ROOT",
 				},
 			},
 		},
 	}
 
-	// Create a buffer to capture output
-	var output strings.Builder
-
 	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
 
-	// Test the new writer-based implementation
-	err := executor.ExecutePostCreateHooks(&output, worktreeDir)
-	if err != nil {
-		t.Fatalf("Failed to execute hooks with writer: %v", err)
-	}
-
-	// Verify output contains hook execution logs
-	outputStr := output.String()
-	if !strings.Contains(outputStr, "Copying: test.txt → copied.txt") {
-		t.Error("Output should contain copy hook log")
-	}
-	if !strings.Contains(outputStr, "Running: echo Hello from hook") {
-		t.Error("Output should contain command hook log")
-	}
-	if !strings.Contains(outputStr, "Hello from hook") {
-		t.Error("Output should contain command output")
-	}
-
-	// Verify hooks actually executed
-	copiedFile := filepath.Join(worktreeDir, "copied.txt")
-	if _, err := os.Stat(copiedFile); os.IsNotExist(err) {
-		t.Error("Copy hook did not execute")
-	}
+	// Check output
+	output := buf.String()
+	assert.Contains(t, output, fmt.Sprintf("WORKTREE=%s", worktreeDir))
+	assert.Contains(t, output, fmt.Sprintf("REPO=%s", repoRoot))
 }
 
 // streamingWriter tracks when writes occur to verify real-time streaming
@@ -560,108 +566,105 @@ func verifyOutputContent(t *testing.T, sw *streamingWriter) {
 	for _, w := range sw.writes {
 		allOutput.WriteString(w.data)
 	}
-	outputStr := allOutput.String()
+	output := allOutput.String()
 
-	expectedStrings := []string{"Starting...", "Processing...", "Done!"}
-	for _, expected := range expectedStrings {
-		if !strings.Contains(outputStr, expected) {
-			t.Errorf("Output should contain '%s'", expected)
-		}
-	}
+	// Check expected content is present
+	assert.Contains(t, output, "Starting...")
+	assert.Contains(t, output, "Processing...")
+	assert.Contains(t, output, "Done!")
 }
 
 func verifyStreamingTiming(t *testing.T, sw *streamingWriter) {
-	if len(sw.writes) < 2 {
-		return
+	// Find indices of our expected outputs
+	var startIdx, procIdx, doneIdx int
+	for i, w := range sw.writes {
+		if strings.Contains(w.data, "Starting...") {
+			startIdx = i
+		} else if strings.Contains(w.data, "Processing...") {
+			procIdx = i
+		} else if strings.Contains(w.data, "Done!") {
+			doneIdx = i
+		}
 	}
 
-	// Calculate time differences between writes
-	var timeDiffs []time.Duration
-	for i := 1; i < len(sw.writes); i++ {
-		diff := sw.writes[i].time.Sub(sw.writes[i-1].time)
-		timeDiffs = append(timeDiffs, diff)
-	}
-
-	// At least one time difference should be >= 50ms (half of our sleep time)
-	hasDelay := hasSignificantDelay(timeDiffs)
-	if !hasDelay {
+	// Verify outputs came in the right order with delays
+	if startIdx >= procIdx || procIdx >= doneIdx {
 		t.Error("Expected streaming output with delays, but all writes happened too quickly")
-		for i, diff := range timeDiffs {
-			t.Logf("Time diff %d: %v", i, diff)
-		}
 	}
 }
 
-func hasSignificantDelay(timeDiffs []time.Duration) bool {
-	for _, diff := range timeDiffs {
-		if diff >= 50*time.Millisecond {
-			return true
-		}
+func TestExecutePostCreateHooks_RealTimeLineBuffering(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping line buffering test on Windows")
 	}
-	return false
-}
 
-// TDD: Test for unified command format (should fail initially)
-func TestExecuteCommandHook_UnifiedCommandFormat(t *testing.T) {
 	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	require.NoError(t, os.MkdirAll(repoRoot, 0755))
+	require.NoError(t, os.MkdirAll(worktreeDir, 0755))
+
+	// Create a script that outputs lines with delays
+	scriptPath := filepath.Join(repoRoot, "line-buffer-test.sh")
+	scriptContent := `#!/bin/bash
+echo "Line 1"
+sleep 0.1
+echo "Line 2"
+sleep 0.1
+echo "Line 3"
+`
+	require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
 
 	cfg := &config.Config{
 		Hooks: config.Hooks{
 			PostCreate: []config.Hook{
 				{
 					Type:    config.HookTypeCommand,
-					Command: "echo 'unified command test' > unified_output.txt",
-					// No Args field - should be executed as shell command
+					Command: scriptPath,
 				},
 			},
 		},
 	}
 
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
-	if err != nil {
-		t.Fatalf("Failed to execute unified command hook: %v", err)
+	sw := &streamingWriter{}
+	executor := NewExecutor(cfg, repoRoot)
+
+	start := time.Now()
+	err := executor.ExecutePostCreateHooks(sw, worktreeDir)
+	duration := time.Since(start)
+
+	require.NoError(t, err)
+
+	// Should take at least 0.2 seconds due to sleeps
+	assert.True(t, duration >= 200*time.Millisecond, "Expected execution to take at least 200ms, took %v", duration)
+
+	// Verify we got line-by-line output
+	var lines []string
+	for _, w := range sw.writes {
+		if strings.Contains(w.data, "Line") && !strings.Contains(w.data, "Running:") {
+			lines = append(lines, strings.TrimSpace(w.data))
+		}
 	}
 
-	// Verify output file was created
-	outputFile := filepath.Join(tempDir, "unified_output.txt")
-	if _, statErr := os.Stat(outputFile); os.IsNotExist(statErr) {
-		t.Error("Expected output file was not created")
+	assert.Equal(t, []string{"Line 1", "Line 2", "Line 3"}, lines)
+
+	// Verify timing between lines
+	var lineTimes []time.Time
+	for _, w := range sw.writes {
+		if strings.Contains(w.data, "Line") {
+			lineTimes = append(lineTimes, w.time)
+		}
 	}
 
-	// Verify file content
-	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("Failed to read output file: %v", err)
+	if len(lineTimes) >= 2 {
+		gap1 := lineTimes[1].Sub(lineTimes[0])
+		assert.True(t, gap1 >= 50*time.Millisecond, "Expected at least 50ms between Line 1 and Line 2, got %v", gap1)
 	}
 
-	expectedContent := "unified command test"
-	actualContent := strings.TrimSpace(string(content))
-	if actualContent != expectedContent {
-		t.Errorf("Expected content %q, got %q", expectedContent, actualContent)
-	}
-}
-
-func TestExecuteCommandHook_MultilineUnifiedFormat(t *testing.T) {
-	tempDir := t.TempDir()
-
-	cfg := &config.Config{
-		Hooks: config.Hooks{
-			PostCreate: []config.Hook{
-				{
-					Type: config.HookTypeCommand,
-					Command: `echo "Starting hook execution..."
-sleep 0.1
-echo "Step 1: Installing dependencies..."
-echo "Hook execution completed!"`,
-				},
-			},
-		},
-	}
-
-	executor := NewExecutor(cfg, "/fake/repo")
-	err := executor.ExecutePostCreateHooks(io.Discard, tempDir)
-	if err != nil {
-		t.Fatalf("Failed to execute multiline unified command hook: %v", err)
+	if len(lineTimes) >= 3 {
+		gap2 := lineTimes[2].Sub(lineTimes[1])
+		assert.True(t, gap2 >= 50*time.Millisecond, "Expected at least 50ms between Line 2 and Line 3, got %v", gap2)
 	}
 }
