@@ -190,19 +190,6 @@ func truncatePath(path string, maxWidth int) string {
 	return path[:startLen] + ellipsis + path[len(path)-endLen:]
 }
 
-// getRelativePath calculates the relative path from the current directory
-func getRelativePath(from, to string) string {
-	// Get relative path
-	relPath, err := filepath.Rel(from, to)
-	if err != nil {
-		// If unable to get relative path, return absolute path
-		return to
-	}
-
-	// If path starts with "..", it's outside current directory tree
-	// In this case, we want to show it as relative
-	return relPath
-}
 
 // displayWorktreesRelative formats and displays worktree information with relative paths
 func displayWorktreesRelative(
@@ -235,20 +222,14 @@ func displayWorktreesRelative(
 		var pathDisplay string
 		var isCurrent bool
 
-		if wt.IsMain {
-			// Main worktree always shows as @
-			pathDisplay = "@ (main worktree)"
+		// Use unified worktree naming function
+		if cfg != nil {
+			pathDisplay = getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
 		} else {
-			// Get base_dir path
-			baseDir := cfg.Defaults.BaseDir
-			if !filepath.IsAbs(baseDir) {
-				baseDir = filepath.Join(mainRepoPath, baseDir)
-			}
-
-			// Show relative path from base_dir for non-main worktrees
-			pathDisplay = getRelativePath(baseDir, wt.Path)
-			// If it's just a directory name (no / or ..), use it as is
-			if !strings.Contains(pathDisplay, string(filepath.Separator)) && !strings.HasPrefix(pathDisplay, "..") {
+			// Fallback when config can't be loaded
+			if wt.IsMain {
+				pathDisplay = "@"
+			} else {
 				pathDisplay = filepath.Base(wt.Path)
 			}
 		}

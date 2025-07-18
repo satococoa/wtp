@@ -170,6 +170,11 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 	}
 
 	for _, wt := range worktrees {
+		// Skip main worktree - it cannot be removed
+		if wt.IsMain {
+			continue
+		}
+
 		// Priority 1: Match by branch name (for prefixes like feature/awesome)
 		if wt.Branch == worktreeName {
 			targetWorktree = &wt
@@ -187,7 +192,7 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 			targetWorktree = &wt
 		}
 
-		// Build available worktrees list using consistent naming
+		// Build available worktrees list using consistent naming (excluding main worktree)
 		availableWorktrees = append(availableWorktrees, worktreeDisplayName)
 
 		// Exit early if we found a match
@@ -208,6 +213,11 @@ func findTargetWorktreeFromListFallback(worktrees []git.Worktree, worktreeName s
 	var availableWorktrees []string
 
 	for _, wt := range worktrees {
+		// Skip main worktree - it cannot be removed
+		if wt.IsMain {
+			continue
+		}
+
 		// Priority 1: Match by branch name (for prefixes like feature/awesome)
 		if wt.Branch == worktreeName {
 			targetWorktree = &wt
@@ -219,7 +229,7 @@ func findTargetWorktreeFromListFallback(worktrees []git.Worktree, worktreeName s
 			targetWorktree = &wt
 		}
 
-		// Build available worktrees list - prefer branch name if available
+		// Build available worktrees list - prefer branch name if available (excluding main worktree)
 		if wt.Branch != "" {
 			availableWorktrees = append(availableWorktrees, wt.Branch)
 		} else {

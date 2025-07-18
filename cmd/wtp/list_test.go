@@ -132,7 +132,7 @@ func TestListCommand_Output(t *testing.T) {
 				"PATH",
 				"BRANCH",
 				"HEAD",
-				"@ (main worktree)", // Main worktree always shows as @
+				"@", // Main worktree always shows as @
 				"main",
 				"abc123",
 			},
@@ -145,7 +145,7 @@ func TestListCommand_Output(t *testing.T) {
 				"PATH",
 				"BRANCH",
 				"HEAD",
-				"@ (main worktree)",
+				"@",
 				"main",
 				"feature", // Relative path from current directory
 				"feature/test",
@@ -314,7 +314,7 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 			// Check that the branch name is displayed correctly
 			assert.Contains(t, output, tt.branchName)
 			// Main worktree should show as @
-			assert.Contains(t, output, "@ (main worktree)")
+			assert.Contains(t, output, "@")
 		})
 	}
 }
@@ -380,7 +380,7 @@ func TestListCommand_LongPaths(t *testing.T) {
 			assert.NoError(t, err)
 			output := buf.String()
 			// Main worktree should show as @
-			assert.Contains(t, output, "@ (main worktree)")
+			assert.Contains(t, output, "@")
 		})
 	}
 }
@@ -431,7 +431,7 @@ branch refs/heads/feature/test
 	output := buf.String()
 
 	// Check that all worktrees are displayed
-	assert.Contains(t, output, "@ (main worktree)")
+	assert.Contains(t, output, "@")
 	assert.Contains(t, output, "detached")
 	assert.Contains(t, output, "feature")
 	assert.Contains(t, output, "main")
@@ -597,11 +597,11 @@ branch refs/heads/feature/test
 `,
 			currentPath: "/Users/satoshi/dev/project/.worktrees/feature",
 			expectedContains: []string{
-				"@ (main worktree)",
+				"@",
 				"feature",
 				"*", // Current worktree marker
 			},
-			description: "Main worktree should show as @ (main worktree) and current should have *",
+			description: "Main worktree should show as @ and current should have *",
 		},
 		{
 			name: "relative paths from parent directory",
@@ -634,7 +634,7 @@ branch refs/heads/feature
 `,
 			currentPath: "/Users/satoshi/dev",
 			expectedContains: []string{
-				"@ (main worktree)", // Main worktree always shows as @
+				"@", // Main worktree always shows as @
 				"../../alice/project2",
 			},
 			description: "Should show relative paths with .. for outside paths",
@@ -656,7 +656,7 @@ branch refs/heads/hoge
 `,
 			currentPath: "/Users/satoshi/dev/src/github.com/satococoa/giselle/.worktrees/foobar",
 			expectedContains: []string{
-				"@ (main worktree)",
+				"@",
 				"foobar*", // Current worktree with marker
 				"hoge",    // Should be "hoge" not "../hoge" when paths are relative to base_dir
 			},
