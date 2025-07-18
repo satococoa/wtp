@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/satococoa/wtp/internal/git"
@@ -729,13 +730,27 @@ func printWorktrees(w io.Writer) {
 		return
 	}
 
-	// Get repository name for completion
-	repoName := repo.GetRepositoryName()
+	// Print completion candidates
+	rootPrinted := false
+	for i := range worktrees {
+		wt := &worktrees[i]
+		if wt.IsMain {
+			// Print special 'root' alias only once for main worktree
+			if !rootPrinted {
+				fmt.Fprintln(w, "root")
+				rootPrinted = true
+			}
+		}
 
-	// Extract worktree names using CompletionName for each worktree
-	for _, wt := range worktrees {
-		// Use CompletionName method for proper display
-		completionName := wt.CompletionName(repoName)
-		fmt.Fprintln(w, completionName)
+		// Always print the branch name as a completion candidate
+		if wt.Branch != "" {
+			fmt.Fprintln(w, wt.Branch)
+		}
+
+		// Also print worktree directory name if different from branch
+		worktreeName := filepath.Base(wt.Path)
+		if wt.Branch != worktreeName && worktreeName != "" {
+			fmt.Fprintln(w, worktreeName)
+		}
 	}
 }

@@ -84,56 +84,16 @@ func cdCommandWithCommandExecutor(
 	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
 	// Find the main worktree path
-	// The main worktree is the one that doesn't contain "worktrees" in its path
-	var mainWorktreePath string
-	for _, wt := range worktrees {
-		if !strings.Contains(wt.Path, filepath.Join("", "worktrees", "")) {
-			mainWorktreePath = wt.Path
-			break
-		}
-	}
+	mainWorktreePath := findMainWorktreePath(worktrees)
 
 	// Find the worktree using multiple resolution strategies
-	// The order matters: more specific matches come first
-	var targetPath string
-	for _, wt := range worktrees {
-		// Priority 1: Exact branch name match (supports prefixes like "feature/awesome")
-		if wt.Branch == worktreeName {
-			targetPath = wt.Path
-			break
-		}
-
-		// Priority 2: Worktree directory name match (legacy behavior)
-		if filepath.Base(wt.Path) == worktreeName {
-			targetPath = wt.Path
-			break
-		}
-
-		// Priority 3: Root worktree alias ("root" → main worktree)
-		if worktreeName == "root" && wt.IsMainWorktree(mainWorktreePath) {
-			targetPath = wt.Path
-			break
-		}
-
-		// Priority 4: Repository name for root worktree ("giselle" → root worktree)
-		if worktreeName == filepath.Base(wt.Path) && wt.IsMainWorktree(mainWorktreePath) {
-			targetPath = wt.Path
-			break
-		}
-
-		// Priority 5: Completion display format ("wtp(root worktree)" → root worktree)
-		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
-		if worktreeName == repoRootFormat && wt.IsMainWorktree(mainWorktreePath) {
-			targetPath = wt.Path
-			break
-		}
-	}
+	targetPath := resolveCdWorktreePath(worktreeName, worktrees, mainWorktreePath)
 
 	if targetPath == "" {
 		// Get available worktree names for suggestions
 		availableWorktrees := make([]string, 0, len(worktrees))
-		for _, wt := range worktrees {
-			availableWorktrees = append(availableWorktrees, filepath.Base(wt.Path))
+		for i := range worktrees {
+			availableWorktrees = append(availableWorktrees, filepath.Base(worktrees[i].Path))
 		}
 		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
@@ -141,4 +101,60 @@ func cdCommandWithCommandExecutor(
 	// Output the path for the shell function to cd to
 	fmt.Fprintln(w, targetPath)
 	return nil
+}
+
+// findMainWorktreePath finds the main worktree from the list of worktrees
+func findMainWorktreePath(worktrees []git.Worktree) string {
+	// The first worktree is always the main worktree (git worktree list behavior)
+	if len(worktrees) > 0 {
+		return worktrees[0].Path
+	}
+	return ""
+}
+
+// resolveCdWorktreePath resolves a worktree name to its path using multiple strategies
+func resolveCdWorktreePath(worktreeName string, worktrees []git.Worktree, mainWorktreePath string) string {
+	// The order matters: more specific matches come first
+	for i := range worktrees {
+		wt := &worktrees[i]
+
+		// Priority 1: Exact branch name match (supports prefixes like "feature/awesome")
+		if wt.Branch == worktreeName {
+			return wt.Path
+		}
+
+		// Priority 2: Worktree directory name match (legacy behavior)
+		if filepath.Base(wt.Path) == worktreeName {
+			return wt.Path
+		}
+
+		// Priority 3: Root worktree alias ("root" → main worktree)
+		if worktreeName == "root" && wt.IsMainWorktree(mainWorktreePath) {
+			return wt.Path
+		}
+
+		// Priority 4: Repository name for root worktree ("giselle" → root worktree)
+		if worktreeName == filepath.Base(wt.Path) && wt.IsMainWorktree(mainWorktreePath) {
+			return wt.Path
+		}
+
+		// Priority 5: Legacy completion display format ("wtp(root worktree)" → root worktree)
+		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
+		if worktreeName == repoRootFormat && wt.IsMainWorktree(mainWorktreePath) {
+			return wt.Path
+		}
+
+		// Priority 6: Current completion display format ("giselle@fix-nodes(root worktree)" → root worktree)
+		if strings.HasSuffix(worktreeName, "(root worktree)") && wt.IsMainWorktree(mainWorktreePath) {
+			// Extract repo name and branch from format "repo@branch(root worktree)"
+			prefix := strings.TrimSuffix(worktreeName, "(root worktree)")
+			// Check if this matches the worktree by comparing repo name and branch
+			expectedPrefix := filepath.Base(wt.Path) + "@" + wt.Branch
+			if prefix == expectedPrefix {
+				return wt.Path
+			}
+		}
+	}
+
+	return ""
 }

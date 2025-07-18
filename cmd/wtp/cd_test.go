@@ -123,6 +123,13 @@ func TestCdCommand_BranchNameResolution(t *testing.T) {
 			shouldFind:   true,
 		},
 		{
+			name:         "root worktree by completion format",
+			worktreeName: "giselle@fix-nodes(root worktree)", // Actual completion format
+			worktreeList: "worktree /path/to/giselle\nHEAD ghi789\nbranch refs/heads/fix-nodes\n\n",
+			expectedPath: "/path/to/giselle",
+			shouldFind:   true,
+		},
+		{
 			name:         "simple branch name still works",
 			worktreeName: "develop",
 			worktreeList: "worktree /path/to/worktrees/develop\nHEAD jkl012\nbranch refs/heads/develop\n\n",

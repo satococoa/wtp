@@ -111,6 +111,7 @@ func TestWorktree_CompletionName(t *testing.T) {
 			worktree: Worktree{
 				Path:   "/Users/user/repos/giselle",
 				Branch: "fix-nodes",
+				IsMain: true,
 			},
 			repoName:         "giselle",
 			mainWorktreePath: "/Users/user/repos/giselle",
@@ -121,6 +122,7 @@ func TestWorktree_CompletionName(t *testing.T) {
 			worktree: Worktree{
 				Path:   "/Users/user/repos/wtp",
 				Branch: "main",
+				IsMain: true,
 			},
 			repoName:         "wtp",
 			mainWorktreePath: "/Users/user/repos/wtp",
@@ -165,6 +167,26 @@ func TestWorktree_CompletionName(t *testing.T) {
 			repoName:         "wtp",
 			mainWorktreePath: "/Users/user/repos/wtp",
 			expected:         "feature/new-top-page",
+		},
+		{
+			name: "worktree in worktrees directory should not be detected as root",
+			worktree: Worktree{
+				Path:   "/Users/user/repos/giselle/.worktrees/stripe-basil-update",
+				Branch: "stripe-basil-migration",
+			},
+			repoName:         "giselle",
+			mainWorktreePath: "/Users/user/repos/giselle",
+			expected:         "stripe-basil-update@stripe-basil-migration",
+		},
+		{
+			name: "worktree in .worktrees directory should not be detected as root",
+			worktree: Worktree{
+				Path:   "/Users/satoshi/dev/src/github.com/giselles-ai/giselle/.worktrees/stripe-basil-update",
+				Branch: "stripe-basil-migration",
+			},
+			repoName:         "giselle",
+			mainWorktreePath: "/Users/satoshi/dev/src/github.com/giselles-ai/giselle",
+			expected:         "stripe-basil-update@stripe-basil-migration",
 		},
 	}
 

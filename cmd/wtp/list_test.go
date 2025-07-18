@@ -304,6 +304,15 @@ func TestListCommand_LongPaths(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Mock a wide terminal so paths aren't truncated
+			oldGetTerminalWidth := getTerminalWidth
+			getTerminalWidth = func() int {
+				return 200 // Wide enough to show full paths
+			}
+			defer func() {
+				getTerminalWidth = oldGetTerminalWidth
+			}()
+
 			mockOutput := "worktree " + tt.path + "\nHEAD abc123\nbranch refs/heads/main\n\n"
 
 			mockExec := &mockListCommandExecutor{
@@ -498,4 +507,97 @@ type mockError struct {
 
 func (e *mockError) Error() string {
 	return e.message
+}
+
+func TestListCommand_TerminalWidthTruncation(t *testing.T) {
+	tests := []struct {
+		name             string
+		mockOutput       string
+		terminalWidth    int
+		expectedContains []string
+		expectedNotFull  []string
+		description      string
+	}{
+		{
+			name: "truncate very long paths to fit terminal",
+			mockOutput: `worktree /Users/satoshi/dev/src/github.com/giselles-ai/giselle
+HEAD 5d46cc7a
+branch refs/heads/add-github-pull-request-ingestion-table
+
+worktree /Users/satoshi/dev/src/github.com/giselles-ai/giselle/.worktrees/stripe-basil-update
+HEAD 7c81ef4f
+branch refs/heads/stripe-basil-migration
+
+`,
+			terminalWidth:    80,
+			expectedContains: []string{"PATH", "BRANCH", "HEAD"},
+			expectedNotFull: []string{
+				"/Users/satoshi/dev/src/github.com/giselles-ai/giselle/.worktrees/stripe-basil-update",
+			},
+			description: "Long paths should be truncated when terminal width is limited",
+		},
+		{
+			name: "handle multiple long paths",
+			mockOutput: `worktree /very/long/path/that/exceeds/normal/terminal/width/and/should/be/truncated/somehow
+HEAD abc123
+branch refs/heads/main
+
+worktree /another/extremely/long/path/that/also/exceeds/terminal/width/limitations/feature
+HEAD def456
+branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
+
+`,
+			terminalWidth:    100,
+			expectedContains: []string{"PATH", "BRANCH", "HEAD"},
+			expectedNotFull: []string{
+				"/very/long/path/that/exceeds/normal/terminal/width/and/should/be/truncated/somehow",
+				"/another/extremely/long/path/that/also/exceeds/terminal/width/limitations/feature",
+			},
+			description: "Multiple long paths should be handled gracefully",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock terminal width detection
+			oldGetTerminalWidth := getTerminalWidth
+			getTerminalWidth = func() int {
+				return tt.terminalWidth
+			}
+			defer func() {
+				getTerminalWidth = oldGetTerminalWidth
+			}()
+
+			mockExec := &mockListCommandExecutor{
+				results: []command.Result{
+					{Output: tt.mockOutput, Error: nil},
+				},
+			}
+
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+
+			assert.NoError(t, err, tt.description)
+			output := buf.String()
+
+			// Check expected content is present
+			for _, expected := range tt.expectedContains {
+				assert.Contains(t, output, expected)
+			}
+
+			// Check that long paths are truncated (not displayed in full)
+			for _, longPath := range tt.expectedNotFull {
+				assert.NotContains(t, output, longPath, "Long path should be truncated: %s", longPath)
+			}
+
+			// Check that output fits within terminal width
+			lines := strings.Split(strings.TrimSpace(output), "\n")
+			for _, line := range lines {
+				assert.LessOrEqual(t, len(line), tt.terminalWidth,
+					"Line should not exceed terminal width: %s", line)
+			}
+		})
+	}
 }

@@ -77,7 +77,14 @@ func (r *Repository) GetWorktrees() ([]Worktree, error) {
 		return nil, fmt.Errorf("failed to list worktrees: %w", err)
 	}
 
-	return parseWorktreeList(string(output))
+	worktrees := parseWorktreeList(string(output))
+
+	// The first worktree in the list is always the main worktree
+	if len(worktrees) > 0 {
+		worktrees[0].IsMain = true
+	}
+
+	return worktrees, nil
 }
 
 func (r *Repository) CreateWorktree(path, branch string) error {
@@ -232,7 +239,7 @@ func isGitRepository(path string) bool {
 	return true
 }
 
-func parseWorktreeList(output string) ([]Worktree, error) {
+func parseWorktreeList(output string) []Worktree {
 	var worktrees []Worktree
 	lines := strings.Split(output, "\n")
 
@@ -264,5 +271,5 @@ func parseWorktreeList(output string) ([]Worktree, error) {
 		worktrees = append(worktrees, *current)
 	}
 
-	return worktrees, nil
+	return worktrees
 }

@@ -149,10 +149,7 @@ branch refs/heads/feature/test
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := parseWorktreeList(tt.output)
-			if err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
+			result := parseWorktreeList(tt.output)
 
 			if len(result) != len(tt.expected) {
 				t.Errorf("Expected %d worktrees, got %d", len(tt.expected), len(result))

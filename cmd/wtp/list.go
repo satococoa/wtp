@@ -11,6 +11,7 @@ import (
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/term"
 )
 
 // Display constants
@@ -32,7 +33,14 @@ var (
 	listNewRepository = func(path string) (GitRepository, error) {
 		return git.NewRepository(path)
 	}
-	listNewExecutor = command.NewRealExecutor // Add this for mocking
+	listNewExecutor  = command.NewRealExecutor // Add this for mocking
+	getTerminalWidth = func() int {
+		width, _, err := term.GetSize(int(os.Stdout.Fd()))
+		if err != nil || width <= 0 {
+			return 80 //nolint:mnd // Default terminal width
+		}
+		return width
+	}
 )
 
 // NewListCommand creates the list command definition
@@ -133,32 +141,65 @@ func formatBranchDisplay(branch string) string {
 	return branch
 }
 
+// truncatePath truncates a path to fit within the given width, showing beginning and end
+func truncatePath(path string, maxWidth int) string {
+	if len(path) <= maxWidth {
+		return path
+	}
+
+	// Reserve space for ellipsis "..."
+	const ellipsis = "..."
+	if maxWidth <= len(ellipsis) {
+		return path[:maxWidth]
+	}
+
+	availableWidth := maxWidth - len(ellipsis)
+	// Show more of the end (file/directory name) than the beginning
+	startLen := availableWidth / 3 //nolint:mnd // Show 1/3 of start, 2/3 of end
+	endLen := availableWidth - startLen
+
+	return path[:startLen] + ellipsis + path[len(path)-endLen:]
+}
+
 // displayWorktrees formats and displays worktree information
 func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
-	// Calculate column widths dynamically
-	maxPathLen := 4   // "PATH"
+	termWidth := getTerminalWidth()
+
+	// Minimum widths for columns
+	const minPathWidth = 20
+	const headWidth = headDisplayLength
+	const spacing = 3 // Spaces between columns
+
+	// Calculate initial column widths
 	maxBranchLen := 6 // "BRANCH"
-
 	for _, wt := range worktrees {
-		if len(wt.Path) > maxPathLen {
-			maxPathLen = len(wt.Path)
-		}
-
-		// Calculate branch display length (considering "(detached)" formatting)
 		branchDisplay := formatBranchDisplay(wt.Branch)
 		if len(branchDisplay) > maxBranchLen {
 			maxBranchLen = len(branchDisplay)
 		}
 	}
 
-	// Add some padding
-	maxPathLen += 2
-	maxBranchLen += 2
+	// Calculate available width for path column
+	// Total = path + spacing + branch + spacing + head
+	availableForPath := termWidth - spacing - maxBranchLen - spacing - headWidth
+
+	// If branch column is too wide, limit it as well
+	maxAvailableForBranch := termWidth - minPathWidth - spacing - spacing - headWidth
+	if maxBranchLen > maxAvailableForBranch {
+		maxBranchLen = maxAvailableForBranch
+		// Recalculate path width with truncated branch width
+		availableForPath = termWidth - spacing - maxBranchLen - spacing - headWidth
+	}
+
+	// Ensure minimum path width
+	if availableForPath < minPathWidth {
+		availableForPath = minPathWidth
+	}
 
 	// Print header
-	fmt.Fprintf(w, "%-*s %-*s %s\n", maxPathLen, "PATH", maxBranchLen, "BRANCH", "HEAD")
+	fmt.Fprintf(w, "%-*s %-*s %s\n", availableForPath, "PATH", maxBranchLen, "BRANCH", "HEAD")
 	fmt.Fprintf(w, "%-*s %-*s %s\n",
-		maxPathLen, strings.Repeat("-", pathHeaderDashes),
+		availableForPath, strings.Repeat("-", pathHeaderDashes),
 		maxBranchLen, strings.Repeat("-", branchHeaderDashes),
 		"----")
 
@@ -170,6 +211,9 @@ func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 		}
 
 		branchDisplay := formatBranchDisplay(wt.Branch)
-		fmt.Fprintf(w, "%-*s %-*s %s\n", maxPathLen, wt.Path, maxBranchLen, branchDisplay, headShort)
+		pathDisplay := truncatePath(wt.Path, availableForPath)
+		branchDisplayTrunc := truncatePath(branchDisplay, maxBranchLen)
+
+		fmt.Fprintf(w, "%-*s %-*s %s\n", availableForPath, pathDisplay, maxBranchLen, branchDisplayTrunc, headShort)
 	}
 }

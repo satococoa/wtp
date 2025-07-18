@@ -228,6 +228,7 @@ func TestWorktreeCompletionDisplay(t *testing.T) {
 		worktree := &git.Worktree{
 			Path:   "/Users/user/repos/wtp",
 			Branch: "main",
+			IsMain: true,
 		}
 		result := worktree.CompletionName("wtp")
 		expected := "wtp@main(root worktree)"

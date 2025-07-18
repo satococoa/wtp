@@ -15,6 +15,7 @@ type Worktree struct {
 	Path   string
 	Branch string
 	HEAD   string
+	IsMain bool // True if this is the main/root worktree
 }
 
 func (w *Worktree) Name() string {
@@ -39,7 +40,7 @@ func (w *Worktree) String() string {
 //   - Full path match: "feature/new-top-page" (when path ends with branch name)
 func (w *Worktree) CompletionName(repoName string) string {
 	// Check if this is the main/root worktree
-	if w.isMainWorktreeHeuristic() {
+	if w.IsMain {
 		return fmt.Sprintf("%s@%s(root worktree)", repoName, w.Branch)
 	}
 
@@ -48,9 +49,11 @@ func (w *Worktree) CompletionName(repoName string) string {
 }
 
 // isMainWorktreeHeuristic uses path heuristics to determine if this is the main worktree.
-// Main worktrees typically don't have "/worktrees/" in their path.
+// Main worktrees typically don't have "/worktrees/" or "/.worktrees/" in their path.
 func (w *Worktree) isMainWorktreeHeuristic() bool {
-	return !strings.Contains(w.Path, filepath.Join("", "worktrees", ""))
+	path := w.Path
+	return !strings.Contains(path, filepath.Join("", "worktrees", "")) &&
+		!strings.Contains(path, filepath.Join("", ".worktrees", ""))
 }
 
 // formatNonRootWorktreeCompletion formats completion name for non-root worktrees.
@@ -80,12 +83,16 @@ func (w *Worktree) formatNonRootWorktreeCompletion() string {
 
 // IsMainWorktree returns true if this is the main/root worktree
 func (w *Worktree) IsMainWorktree(mainWorktreePath string) bool {
+	// If IsMain flag is set, use it (set by GetWorktrees)
+	if w.IsMain {
+		return true
+	}
+
 	// If mainWorktreePath is provided, compare paths
 	if mainWorktreePath != "" {
 		return w.Path == mainWorktreePath
 	}
 
-	// Heuristic: main worktree usually has "main" or "master" branch
-	// and the path doesn't contain "worktrees" directory
-	return w.Branch == MainBranch || w.Branch == MasterBranch
+	// Fallback: use heuristic if mainWorktreePath is not provided
+	return w.isMainWorktreeHeuristic()
 }
