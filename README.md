@@ -247,6 +247,9 @@ Once shell integration is enabled, you can quickly change to any worktree:
 # Change to a worktree by its directory name
 wtp cd auth
 
+# Change to the root worktree using the '@' shorthand
+wtp cd @
+
 # Tab completion works!
 wtp cd <TAB>
 ```

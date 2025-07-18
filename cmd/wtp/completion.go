@@ -73,6 +73,39 @@ func NewCompletionCommand() *cli.Command {
 					return nil
 				},
 			},
+			{
+				Name:   "__worktrees_cd",
+				Hidden: true,
+				Usage:  "List worktrees for cd completion with markers",
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					w := cmd.Root().Writer
+					if w == nil {
+						w = os.Stdout
+					}
+
+					// Get current directory
+					cwd, err := os.Getwd()
+					if err != nil {
+						return err
+					}
+
+					// Initialize repository
+					repo, err := git.NewRepository(cwd)
+					if err != nil {
+						return err
+					}
+
+					// Get all worktrees
+					worktrees, err := repo.GetWorktrees()
+					if err != nil {
+						return err
+					}
+
+					// Print with cd-specific formatting
+					printWorktriesForCd(w, worktrees, cwd)
+					return nil
+				},
+			},
 		},
 	}
 }
@@ -270,9 +303,9 @@ _wtp_completion() {
                     COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
                     ;;
                 cd)
-                    # Get actual worktree branches dynamically
+                    # Get actual worktree branches dynamically with markers
                     local worktrees
-                    worktrees=$(wtp completion __worktrees 2>/dev/null)
+                    worktrees=$(wtp completion __worktrees_cd 2>/dev/null)
                     COMPREPLY=( $(compgen -W "$worktrees" -- "$cur") )
                     ;;
             esac
@@ -428,7 +461,7 @@ _wtp() {
                 cd)
                     _arguments -s \
                         '(--help -h)'{--help,-h}'[Show help]' \
-                        '1: :_wtp_worktrees'
+                        '1: :_wtp_worktrees_cd'
                     ;;
             esac
             ;;
@@ -462,6 +495,14 @@ _wtp_branches() {
 _wtp_worktrees() {
     local worktrees
     worktrees=(${(f)"$(wtp completion __worktrees 2>/dev/null)"})
+    if [[ ${#worktrees[@]} -gt 0 ]]; then
+        _describe 'worktrees' worktrees
+    fi
+}
+
+_wtp_worktrees_cd() {
+    local worktrees
+    worktrees=(${(f)"$(wtp completion __worktrees_cd 2>/dev/null)"})
     if [[ ${#worktrees[@]} -gt 0 ]]; then
         _describe 'worktrees' worktrees
     fi
@@ -730,27 +771,48 @@ func printWorktrees(w io.Writer) {
 		return
 	}
 
-	// Print completion candidates
-	rootPrinted := false
+	// For now, keep the old behavior for backward compatibility
+	// This will be called from hidden __worktrees command
+	printWorktriesForRemove(w, worktrees)
+}
+
+// printWorktriesForCd prints worktrees for cd command with special formatting
+func printWorktriesForCd(w io.Writer, worktrees []git.Worktree, currentPath string) {
+	// Print @ for main worktree
 	for i := range worktrees {
 		wt := &worktrees[i]
 		if wt.IsMain {
-			// Print special 'root' alias only once for main worktree
-			if !rootPrinted {
-				fmt.Fprintln(w, "root")
-				rootPrinted = true
+			if wt.Path == currentPath {
+				fmt.Fprintln(w, "@*")
+			} else {
+				fmt.Fprintln(w, "@")
+			}
+			break
+		}
+	}
+
+	// Print other worktrees with current marker
+	for i := range worktrees {
+		wt := &worktrees[i]
+		if !wt.IsMain {
+			name := filepath.Base(wt.Path)
+			if wt.Path == currentPath {
+				fmt.Fprintf(w, "%s*\n", name)
+			} else {
+				fmt.Fprintln(w, name)
 			}
 		}
+	}
+}
 
-		// Always print the branch name as a completion candidate
-		if wt.Branch != "" {
-			fmt.Fprintln(w, wt.Branch)
-		}
-
-		// Also print worktree directory name if different from branch
-		worktreeName := filepath.Base(wt.Path)
-		if wt.Branch != worktreeName && worktreeName != "" {
-			fmt.Fprintln(w, worktreeName)
+// printWorktriesForRemove prints worktrees for remove command (no main, no markers)
+func printWorktriesForRemove(w io.Writer, worktrees []git.Worktree) {
+	for i := range worktrees {
+		wt := &worktrees[i]
+		if !wt.IsMain {
+			// Use worktree directory name
+			name := filepath.Base(wt.Path)
+			fmt.Fprintln(w, name)
 		}
 	}
 }

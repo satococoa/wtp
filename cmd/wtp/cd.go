@@ -114,6 +114,9 @@ func findMainWorktreePath(worktrees []git.Worktree) string {
 
 // resolveCdWorktreePath resolves a worktree name to its path using multiple strategies
 func resolveCdWorktreePath(worktreeName string, worktrees []git.Worktree, mainWorktreePath string) string {
+	// Remove asterisk marker from completion (e.g., "feature*" → "feature", "@*" → "@")
+	worktreeName = strings.TrimSuffix(worktreeName, "*")
+
 	// The order matters: more specific matches come first
 	for i := range worktrees {
 		wt := &worktrees[i]
@@ -133,18 +136,23 @@ func resolveCdWorktreePath(worktreeName string, worktrees []git.Worktree, mainWo
 			return wt.Path
 		}
 
-		// Priority 4: Repository name for root worktree ("giselle" → root worktree)
+		// Priority 4: @ symbol for main worktree ("@" → main worktree)
+		if worktreeName == "@" && wt.IsMainWorktree(mainWorktreePath) {
+			return wt.Path
+		}
+
+		// Priority 5: Repository name for root worktree ("giselle" → root worktree)
 		if worktreeName == filepath.Base(wt.Path) && wt.IsMainWorktree(mainWorktreePath) {
 			return wt.Path
 		}
 
-		// Priority 5: Legacy completion display format ("wtp(root worktree)" → root worktree)
+		// Priority 6: Legacy completion display format ("wtp(root worktree)" → root worktree)
 		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
 		if worktreeName == repoRootFormat && wt.IsMainWorktree(mainWorktreePath) {
 			return wt.Path
 		}
 
-		// Priority 6: Current completion display format ("giselle@fix-nodes(root worktree)" → root worktree)
+		// Priority 7: Current completion display format ("giselle@fix-nodes(root worktree)" → root worktree)
 		if strings.HasSuffix(worktreeName, "(root worktree)") && wt.IsMainWorktree(mainWorktreePath) {
 			// Extract repo name and branch from format "repo@branch(root worktree)"
 			prefix := strings.TrimSuffix(worktreeName, "(root worktree)")

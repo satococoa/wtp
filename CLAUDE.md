@@ -73,7 +73,7 @@ go run ../cmd/wtp list
 go run ../cmd/wtp add feature/new-feature
 
 # Test shell integration commands:
-WTP_SHELL_INTEGRATION=1 go run ../cmd/wtp cd root
+WTP_SHELL_INTEGRATION=1 go run ../cmd/wtp cd @
 ```
 
 This approach is faster for iterative development and testing.

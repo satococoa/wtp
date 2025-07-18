@@ -116,6 +116,27 @@ func TestCdCommand_BranchNameResolution(t *testing.T) {
 			shouldFind:   true,
 		},
 		{
+			name:         "main worktree by @ symbol",
+			worktreeName: "@",
+			worktreeList: "worktree /path/to/main\nHEAD ghi789\nbranch refs/heads/main\n\n",
+			expectedPath: "/path/to/main",
+			shouldFind:   true,
+		},
+		{
+			name:         "@ symbol with asterisk from completion",
+			worktreeName: "@*",
+			worktreeList: "worktree /path/to/main\nHEAD ghi789\nbranch refs/heads/main\n\n",
+			expectedPath: "/path/to/main",
+			shouldFind:   true,
+		},
+		{
+			name:         "worktree name with asterisk from completion",
+			worktreeName: "feature*",
+			worktreeList: "worktree /path/to/worktrees/feature\nHEAD abc123\nbranch refs/heads/feature\n\n",
+			expectedPath: "/path/to/worktrees/feature",
+			shouldFind:   true,
+		},
+		{
 			name:         "root worktree by repo name",
 			worktreeName: "wtp(root worktree)", // This is shown in completion
 			worktreeList: "worktree /path/to/wtp\nHEAD ghi789\nbranch refs/heads/main\n\n",
