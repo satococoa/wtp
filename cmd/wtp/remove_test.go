@@ -135,9 +135,9 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 		expectedCommands []command.Command
 	}{
 		{
-			name:             "basic remove",
-			flags:            map[string]interface{}{},
-			worktreeName:     "feature-branch",
+			name:         "basic remove",
+			flags:        map[string]interface{}{},
+			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 			expectedCommands: []command.Command{
@@ -152,9 +152,9 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 			},
 		},
 		{
-			name:             "remove with force",
-			flags:            map[string]interface{}{"force": true},
-			worktreeName:     "feature-branch",
+			name:         "remove with force",
+			flags:        map[string]interface{}{"force": true},
+			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 			expectedCommands: []command.Command{
@@ -169,9 +169,9 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 			},
 		},
 		{
-			name:             "remove with branch deletion",
-			flags:            map[string]interface{}{"branch": true},
-			worktreeName:     "feature-branch",
+			name:         "remove with branch deletion",
+			flags:        map[string]interface{}{"branch": true},
+			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 			expectedCommands: []command.Command{
@@ -261,7 +261,7 @@ func TestRemoveCommand_SuccessMessage(t *testing.T) {
 					{
 						Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 							"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
-						Error:  nil,
+						Error: nil,
 					},
 					{
 						Output: "success",
@@ -396,7 +396,7 @@ func TestRemoveCommand_ExecutionError(t *testing.T) {
 			{
 				Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 					"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
-				Error:  nil,
+				Error: nil,
 			},
 		},
 		shouldFail: true,

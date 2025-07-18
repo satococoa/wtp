@@ -190,7 +190,6 @@ func truncatePath(path string, maxWidth int) string {
 	return path[:startLen] + ellipsis + path[len(path)-endLen:]
 }
 
-
 // displayWorktreesRelative formats and displays worktree information with relative paths
 func displayWorktreesRelative(
 	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,

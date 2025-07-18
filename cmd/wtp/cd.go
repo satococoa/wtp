@@ -133,60 +133,81 @@ func resolveCdWorktreePath(worktreeName string, worktrees []git.Worktree, mainWo
 
 	// Load config for unified naming
 	cfg, _ := config.LoadConfig(mainWorktreePath)
-	var worktreeNameFromPath string
 
 	// The order matters: more specific matches come first
 	for i := range worktrees {
 		wt := &worktrees[i]
 
-		// Priority 1: Exact branch name match (supports prefixes like "feature/awesome")
-		if wt.Branch == worktreeName {
+		if path := tryDirectMatches(wt, worktreeName, cfg, mainWorktreePath); path != "" {
+			return path
+		}
+
+		if path := tryMainWorktreeMatches(wt, worktreeName, mainWorktreePath); path != "" {
+			return path
+		}
+	}
+
+	return ""
+}
+
+// tryDirectMatches attempts direct name matches
+func tryDirectMatches(wt *git.Worktree, worktreeName string, cfg *config.Config, mainWorktreePath string) string {
+	// Priority 1: Exact branch name match (supports prefixes like "feature/awesome")
+	if wt.Branch == worktreeName {
+		return wt.Path
+	}
+
+	// Priority 2: Unified worktree name match (relative to base_dir)
+	if cfg != nil {
+		worktreeNameFromPath := getWorktreeNameFromPath(wt.Path, cfg, mainWorktreePath, wt.IsMain)
+		if worktreeNameFromPath == worktreeName {
 			return wt.Path
 		}
+	}
 
-		// Priority 2: Unified worktree name match (relative to base_dir)
-		if cfg != nil {
-			worktreeNameFromPath = getWorktreeNameFromPath(wt.Path, cfg, mainWorktreePath, wt.IsMain)
-			if worktreeNameFromPath == worktreeName {
-				return wt.Path
-			}
-		}
+	// Priority 3: Worktree directory name match (legacy behavior)
+	if filepath.Base(wt.Path) == worktreeName {
+		return wt.Path
+	}
 
-		// Priority 3: Worktree directory name match (legacy behavior)
-		if filepath.Base(wt.Path) == worktreeName {
+	return ""
+}
+
+// tryMainWorktreeMatches attempts main worktree specific matches
+func tryMainWorktreeMatches(wt *git.Worktree, worktreeName, mainWorktreePath string) string {
+	if !wt.IsMainWorktree(mainWorktreePath) {
+		return ""
+	}
+
+	// Priority 4: Root worktree alias ("root" → main worktree)
+	if worktreeName == "root" {
+		return wt.Path
+	}
+
+	// Priority 5: @ symbol for main worktree ("@" → main worktree)
+	if worktreeName == "@" {
+		return wt.Path
+	}
+
+	// Priority 6: Repository name for root worktree ("giselle" → root worktree)
+	if worktreeName == filepath.Base(wt.Path) {
+		return wt.Path
+	}
+
+	// Priority 7: Legacy completion display format ("wtp(root worktree)" → root worktree)
+	repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
+	if worktreeName == repoRootFormat {
+		return wt.Path
+	}
+
+	// Priority 8: Current completion display format ("giselle@fix-nodes(root worktree)" → root worktree)
+	if strings.HasSuffix(worktreeName, "(root worktree)") {
+		// Extract repo name and branch from format "repo@branch(root worktree)"
+		prefix := strings.TrimSuffix(worktreeName, "(root worktree)")
+		// Check if this matches the worktree by comparing repo name and branch
+		expectedPrefix := filepath.Base(wt.Path) + "@" + wt.Branch
+		if prefix == expectedPrefix {
 			return wt.Path
-		}
-
-		// Priority 4: Root worktree alias ("root" → main worktree)
-		if worktreeName == "root" && wt.IsMainWorktree(mainWorktreePath) {
-			return wt.Path
-		}
-
-		// Priority 5: @ symbol for main worktree ("@" → main worktree)
-		if worktreeName == "@" && wt.IsMainWorktree(mainWorktreePath) {
-			return wt.Path
-		}
-
-		// Priority 6: Repository name for root worktree ("giselle" → root worktree)
-		if worktreeName == filepath.Base(wt.Path) && wt.IsMainWorktree(mainWorktreePath) {
-			return wt.Path
-		}
-
-		// Priority 7: Legacy completion display format ("wtp(root worktree)" → root worktree)
-		repoRootFormat := filepath.Base(wt.Path) + "(root worktree)"
-		if worktreeName == repoRootFormat && wt.IsMainWorktree(mainWorktreePath) {
-			return wt.Path
-		}
-
-		// Priority 8: Current completion display format ("giselle@fix-nodes(root worktree)" → root worktree)
-		if strings.HasSuffix(worktreeName, "(root worktree)") && wt.IsMainWorktree(mainWorktreePath) {
-			// Extract repo name and branch from format "repo@branch(root worktree)"
-			prefix := strings.TrimSuffix(worktreeName, "(root worktree)")
-			// Check if this matches the worktree by comparing repo name and branch
-			expectedPrefix := filepath.Base(wt.Path) + "@" + wt.Branch
-			if prefix == expectedPrefix {
-				return wt.Path
-			}
 		}
 	}
 
