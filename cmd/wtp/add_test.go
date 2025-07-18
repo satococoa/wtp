@@ -203,10 +203,9 @@ func TestChangeToWorktree(t *testing.T) {
 		// When: changing to worktree
 		changeToWorktree(&buf, workTreePath)
 
-		// Then: should output cd command and integration hint
+		// Then: should output cd command
 		output := buf.String()
 		assert.Contains(t, output, "cd /path/to/worktree")
-		assert.Contains(t, output, "Enable shell integration")
 	})
 
 	t.Run("should output path directly when shell integration enabled", func(t *testing.T) {
@@ -227,11 +226,9 @@ func TestChangeToWorktree(t *testing.T) {
 		// When: changing to worktree
 		changeToWorktree(&buf, workTreePath)
 
-		// Then: should output only the path
+		// Then: should output nothing (shell function will handle cd)
 		output := buf.String()
-		assert.Equal(t, "/path/to/worktree", output)
-		assert.NotContains(t, output, "cd")
-		assert.NotContains(t, output, "Enable shell integration")
+		assert.Empty(t, output)
 	})
 
 	t.Run("should handle paths with spaces", func(t *testing.T) {

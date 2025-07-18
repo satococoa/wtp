@@ -296,27 +296,38 @@ wtp() {
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
     elif [[ "$1" == "add" ]]; then
-        # Run the add command and capture output
-        local output
-        output=$(WTP_SHELL_INTEGRATION=1 command wtp "$@" 2>&1)
-        local exit_code=$?
-
-        # Check if we should cd (last line is a path)
+        # Run the add command and capture only the last line for cd detection
+        local last_line
+        local exit_code
+        
+        # Run command and capture exit code
+        WTP_SHELL_INTEGRATION=1 command wtp "$@"
+        exit_code=$?
+        
+        # If successful, try to cd to the new worktree
         if [[ $exit_code -eq 0 ]]; then
-            local last_line=$(echo "$output" | tail -n1)
-            if [[ -d "$last_line" ]]; then
-                # Last line is a directory path - cd to it
-                echo "${output%$'\n'*}"  # Print all but last line
-                cd "$last_line"
-            else
-                # Normal output
-                echo "$output"
+            # Extract branch name from arguments (last non-flag argument)
+            local branch_name=""
+            local args=("$@")
+            local i
+            for ((i=${#args[@]}; i>=2; i--)); do
+                if [[ "${args[$i]}" != -* ]]; then
+                    branch_name="${args[$i]}"
+                    break
+                fi
+            done
+            
+            # Try to cd to the worktree
+            if [[ -n "$branch_name" ]]; then
+                local target_dir
+                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$branch_name" 2>/dev/null)
+                if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
+                    cd "$target_dir"
+                fi
             fi
-        else
-            # Error occurred
-            echo "$output" >&2
-            return $exit_code
         fi
+        
+        return $exit_code
     else
         command wtp "$@"
     fi
@@ -531,27 +542,38 @@ wtp() {
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
     elif [[ "$1" == "add" ]]; then
-        # Run the add command and capture output
-        local output
-        output=$(WTP_SHELL_INTEGRATION=1 command wtp "$@" 2>&1)
-        local exit_code=$?
-
-        # Check if we should cd (last line is a path)
+        # Run the add command and capture only the last line for cd detection
+        local last_line
+        local exit_code
+        
+        # Run command and capture exit code
+        WTP_SHELL_INTEGRATION=1 command wtp "$@"
+        exit_code=$?
+        
+        # If successful, try to cd to the new worktree
         if [[ $exit_code -eq 0 ]]; then
-            local last_line=$(echo "$output" | tail -n1)
-            if [[ -d "$last_line" ]]; then
-                # Last line is a directory path - cd to it
-                echo "${output%$'\n'*}"  # Print all but last line
-                cd "$last_line"
-            else
-                # Normal output
-                echo "$output"
+            # Extract branch name from arguments (last non-flag argument)
+            # Use shift and @ to iterate through arguments (compatible with zsh)
+            local branch_name=""
+            shift # skip 'add'
+            while [[ $# -gt 0 ]]; do
+                if [[ "$1" != -* ]]; then
+                    branch_name="$1"
+                fi
+                shift
+            done
+            
+            # Try to cd to the worktree
+            if [[ -n "$branch_name" ]]; then
+                local target_dir
+                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$branch_name" 2>/dev/null)
+                if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
+                    cd "$target_dir"
+                fi
             fi
-        else
-            # Error occurred
-            echo "$output" >&2
-            return $exit_code
         fi
+        
+        return $exit_code
     else
         command wtp "$@"
     fi
@@ -589,26 +611,31 @@ function wtp
             env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
         end
     else if test "$argv[1]" = "add"
-        # Run the add command and capture output
-        set -l output (env WTP_SHELL_INTEGRATION=1 command wtp $argv 2>&1)
+        # Run the add command and capture exit code
+        env WTP_SHELL_INTEGRATION=1 command wtp $argv
         set -l exit_code $status
-
-        # Check if we should cd (last line is a path)
+        
+        # If successful, try to cd to the new worktree
         if test $exit_code -eq 0
-            set -l last_line (echo "$output" | tail -n1)
-            if test -d "$last_line"
-                # Last line is a directory path - cd to it
-                echo "$output" | head -n -1  # Print all but last line
-                cd "$last_line"
-            else
-                # Normal output
-                echo "$output"
+            # Extract branch name from arguments (last non-flag argument)
+            set -l branch_name ""
+            for i in (seq (count $argv) -1 2)
+                if not string match -q -- "-*" $argv[$i]
+                    set branch_name $argv[$i]
+                    break
+                end
             end
-        else
-            # Error occurred
-            echo "$output" >&2
-            return $exit_code
+            
+            # Try to cd to the worktree
+            if test -n "$branch_name"
+                set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $branch_name 2>/dev/null)
+                if test $status -eq 0 -a -n "$target_dir" -a -d "$target_dir"
+                    cd $target_dir
+                end
+            end
         end
+        
+        return $exit_code
     else
         command wtp $argv
     end

@@ -569,10 +569,9 @@ func changeToWorktree(w io.Writer, workTreePath string) {
 	// Check if shell integration is enabled
 	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
 		fmt.Fprintf(w, "To change directory, run: cd %s\n", workTreePath)
-		fmt.Fprintln(w, "(Enable shell integration with: eval \"$(wtp completion zsh)\")")
 		return
 	}
 
-	// Output the path for the shell function to use
-	fmt.Fprint(w, workTreePath)
+	// With shell integration, the shell function will handle the cd
+	// We don't output anything here to avoid interfering with hook output
 }
