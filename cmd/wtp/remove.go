@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/satococoa/wtp/internal/command"
+	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -149,6 +150,60 @@ func removeBranchWithCommandExecutor(
 }
 
 func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (*git.Worktree, error) {
+	var targetWorktree *git.Worktree
+	var availableWorktrees []string
+
+	// Find main worktree path for consistent naming
+	mainWorktreePath := ""
+	for _, wt := range worktrees {
+		if wt.IsMain {
+			mainWorktreePath = wt.Path
+			break
+		}
+	}
+
+	// Load config for consistent worktree naming
+	cfg, err := config.LoadConfig(mainWorktreePath)
+	if err != nil {
+		// Fallback to old behavior if config can't be loaded
+		return findTargetWorktreeFromListFallback(worktrees, worktreeName)
+	}
+
+	for _, wt := range worktrees {
+		// Priority 1: Match by branch name (for prefixes like feature/awesome)
+		if wt.Branch == worktreeName {
+			targetWorktree = &wt
+		}
+
+		// Priority 2: Match by directory name (legacy behavior)
+		wtName := filepath.Base(wt.Path)
+		if wtName == worktreeName {
+			targetWorktree = &wt
+		}
+
+		// Priority 3: Match by worktree name (relative to base_dir)
+		worktreeDisplayName := getWorktreeNameFromPath(wt.Path, cfg, mainWorktreePath, wt.IsMain)
+		if worktreeDisplayName == worktreeName {
+			targetWorktree = &wt
+		}
+
+		// Build available worktrees list using consistent naming
+		availableWorktrees = append(availableWorktrees, worktreeDisplayName)
+
+		// Exit early if we found a match
+		if targetWorktree != nil {
+			break
+		}
+	}
+
+	if targetWorktree == nil {
+		return nil, errors.WorktreeNotFound(worktreeName, availableWorktrees)
+	}
+	return targetWorktree, nil
+}
+
+// findTargetWorktreeFromListFallback provides fallback behavior when config can't be loaded
+func findTargetWorktreeFromListFallback(worktrees []git.Worktree, worktreeName string) (*git.Worktree, error) {
 	var targetWorktree *git.Worktree
 	var availableWorktrees []string
 

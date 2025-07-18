@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
+	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -62,9 +63,15 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Initialize repository to check if we're in a git repo
-	_, err = listNewRepository(cwd)
+	repo, err := listNewRepository(cwd)
 	if err != nil {
 		return errors.NotInGitRepository()
+	}
+
+	// Get main worktree path
+	mainRepoPath, err := repo.(*git.Repository).GetMainWorktreePath()
+	if err != nil {
+		return errors.GitCommandFailed("get main worktree path", err.Error())
 	}
 
 	// Get the writer from cli.Command
@@ -73,12 +80,17 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 		w = os.Stdout
 	}
 
+	// Load config to get base_dir
+	cfg, _ := config.LoadConfig(mainRepoPath)
+
 	// Use CommandExecutor-based implementation
 	executor := listNewExecutor()
-	return listCommandWithCommandExecutor(cmd, w, executor, cwd)
+	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath)
 }
 
-func listCommandWithCommandExecutor(_ *cli.Command, w io.Writer, executor command.Executor, _ string) error {
+func listCommandWithCommandExecutor(
+	_ *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string,
+) error {
 	// Get current working directory
 	cwd, err := listGetwd()
 	if err != nil {
@@ -101,7 +113,7 @@ func listCommandWithCommandExecutor(_ *cli.Command, w io.Writer, executor comman
 	}
 
 	// Display worktrees with relative paths
-	displayWorktreesRelative(w, worktrees, cwd)
+	displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
 	return nil
 }
 
@@ -193,7 +205,9 @@ func getRelativePath(from, to string) string {
 }
 
 // displayWorktreesRelative formats and displays worktree information with relative paths
-func displayWorktreesRelative(w io.Writer, worktrees []git.Worktree, currentPath string) {
+func displayWorktreesRelative(
+	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
+) {
 	termWidth := getTerminalWidth()
 
 	// Minimum widths for columns
@@ -204,6 +218,8 @@ func displayWorktreesRelative(w io.Writer, worktrees []git.Worktree, currentPath
 	// Calculate initial column widths
 	maxBranchLen := 6 // "BRANCH"
 	maxPathLen := 4   // "PATH"
+
+	// Find main worktree path is no longer needed since we pass it from the caller
 
 	// First pass: calculate max widths and prepare display data
 	type displayData struct {
@@ -223,8 +239,14 @@ func displayWorktreesRelative(w io.Writer, worktrees []git.Worktree, currentPath
 			// Main worktree always shows as @
 			pathDisplay = "@ (main worktree)"
 		} else {
-			// Show relative path for non-main worktrees
-			pathDisplay = getRelativePath(currentPath, wt.Path)
+			// Get base_dir path
+			baseDir := cfg.Defaults.BaseDir
+			if !filepath.IsAbs(baseDir) {
+				baseDir = filepath.Join(mainRepoPath, baseDir)
+			}
+
+			// Show relative path from base_dir for non-main worktrees
+			pathDisplay = getRelativePath(baseDir, wt.Path)
 			// If it's just a directory name (no / or ..), use it as is
 			if !strings.Contains(pathDisplay, string(filepath.Separator)) && !strings.HasPrefix(pathDisplay, "..") {
 				pathDisplay = filepath.Base(wt.Path)

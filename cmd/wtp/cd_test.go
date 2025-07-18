@@ -502,6 +502,30 @@ func TestCdCommand_NoWorktrees(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
 }
 
+func TestCdCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
+	mockExec := &mockCdCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n" +
+					"worktree /repo/.worktrees/feat/hogehoge\nHEAD def456\nbranch refs/heads/feat/hogehoge\n\n",
+				Error: nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	err := cdCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "feature-branch")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
+	// Should show worktree names relative to base_dir, not just directory names
+	assert.Contains(t, err.Error(), "feat/hogehoge")
+	// Should NOT show directory names like "hogehoge"
+	assert.NotContains(t, err.Error(), "• hogehoge")
+}
+
 // ===== Edge Cases Tests =====
 
 func TestCdCommand_InternationalCharacters(t *testing.T) {

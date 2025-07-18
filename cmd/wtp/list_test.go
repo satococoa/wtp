@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/satococoa/wtp/internal/command"
+	"github.com/satococoa/wtp/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 )
@@ -106,7 +107,10 @@ func TestListCommand_CommandConstruction(t *testing.T) {
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "../worktrees"},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 			assert.NoError(t, err)
 			// Verify the correct git command was executed
@@ -172,7 +176,10 @@ func TestListCommand_Output(t *testing.T) {
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "../worktrees"},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -214,7 +221,10 @@ func TestListCommand_ExecutionError(t *testing.T) {
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "../worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "git command failed")
@@ -233,7 +243,10 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "../worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -291,7 +304,10 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "../worktrees"},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -356,7 +372,10 @@ func TestListCommand_LongPaths(t *testing.T) {
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "../worktrees"},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -403,7 +422,10 @@ branch refs/heads/feature/test
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "../worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -431,7 +453,10 @@ func TestListCommand_HeaderFormatting(t *testing.T) {
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo")
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "../worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -531,7 +556,10 @@ branch refs/heads/feature/awesome
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "../worktrees"},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo")
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -611,6 +639,29 @@ branch refs/heads/feature
 			},
 			description: "Should show relative paths with .. for outside paths",
 		},
+		{
+			name: "paths relative to main worktree when in subdirectory",
+			mockOutput: `worktree /Users/satoshi/dev/src/github.com/satococoa/giselle
+HEAD 043130cca
+branch refs/heads/main
+
+worktree /Users/satoshi/dev/src/github.com/satococoa/giselle/.worktrees/foobar
+HEAD 043130cca
+branch refs/heads/foobar
+
+worktree /Users/satoshi/dev/src/github.com/satococoa/giselle/.worktrees/hoge
+HEAD 043130cca
+branch refs/heads/hoge
+
+`,
+			currentPath: "/Users/satoshi/dev/src/github.com/satococoa/giselle/.worktrees/foobar",
+			expectedContains: []string{
+				"@ (main worktree)",
+				"foobar*", // Current worktree with marker
+				"hoge",    // Should be "hoge" not "../hoge" when paths are relative to base_dir
+			},
+			description: "Non-main worktrees should show paths relative to base_dir (.worktrees), not current directory",
+		},
 	}
 
 	for _, tt := range tests {
@@ -633,7 +684,24 @@ branch refs/heads/feature
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+			// Extract main repo path from mock output
+			lines := strings.Split(tt.mockOutput, "\n")
+			mainRepoPath := "/Users/satoshi/dev/project" // default
+			if len(lines) > 0 && strings.HasPrefix(lines[0], "worktree ") {
+				mainRepoPath = strings.TrimPrefix(lines[0], "worktree ")
+			}
+
+			// Special handling for the base_dir test case
+			baseDir := "../worktrees"
+			if tt.name == "paths relative to main worktree when in subdirectory" {
+				baseDir = ".worktrees"
+				mainRepoPath = "/Users/satoshi/dev/src/github.com/satococoa/giselle"
+			}
+
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: baseDir},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, mainRepoPath)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -714,7 +782,10 @@ branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
 
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+			cfg := &config.Config{
+				Defaults: config.Defaults{BaseDir: "../worktrees"},
+			}
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo")
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()

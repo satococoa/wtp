@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
 )
@@ -95,6 +96,18 @@ func NewCompletionCommand() *cli.Command {
 						return err
 					}
 
+					// Get main worktree path
+					mainRepoPath, err := repo.GetMainWorktreePath()
+					if err != nil {
+						return err
+					}
+
+					// Load config
+					cfg, err := config.LoadConfig(mainRepoPath)
+					if err != nil {
+						return err
+					}
+
 					// Get all worktrees
 					worktrees, err := repo.GetWorktrees()
 					if err != nil {
@@ -102,7 +115,7 @@ func NewCompletionCommand() *cli.Command {
 					}
 
 					// Print with cd-specific formatting
-					printWorktriesForCd(w, worktrees, cwd)
+					printWorktriesForCd(w, worktrees, cwd, cfg, mainRepoPath)
 					return nil
 				},
 			},
@@ -765,6 +778,18 @@ func printWorktrees(w io.Writer) {
 		return
 	}
 
+	// Get main worktree path
+	mainRepoPath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		return
+	}
+
+	// Load config
+	cfg, err := config.LoadConfig(mainRepoPath)
+	if err != nil {
+		return
+	}
+
 	// Get all worktrees
 	worktrees, err := repo.GetWorktrees()
 	if err != nil {
@@ -773,11 +798,13 @@ func printWorktrees(w io.Writer) {
 
 	// For now, keep the old behavior for backward compatibility
 	// This will be called from hidden __worktrees command
-	printWorktriesForRemove(w, worktrees)
+	printWorktriesForRemove(w, worktrees, cfg, mainRepoPath)
 }
 
 // printWorktriesForCd prints worktrees for cd command with special formatting
-func printWorktriesForCd(w io.Writer, worktrees []git.Worktree, currentPath string) {
+func printWorktriesForCd(
+	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
+) {
 	// Print @ for main worktree
 	for i := range worktrees {
 		wt := &worktrees[i]
@@ -795,7 +822,7 @@ func printWorktriesForCd(w io.Writer, worktrees []git.Worktree, currentPath stri
 	for i := range worktrees {
 		wt := &worktrees[i]
 		if !wt.IsMain {
-			name := filepath.Base(wt.Path)
+			name := getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
 			if wt.Path == currentPath {
 				fmt.Fprintf(w, "%s*\n", name)
 			} else {
@@ -805,13 +832,37 @@ func printWorktriesForCd(w io.Writer, worktrees []git.Worktree, currentPath stri
 	}
 }
 
+// getWorktreeNameFromPath calculates the worktree name from its path
+// For main worktree, returns "@"
+// For other worktrees, returns relative path from base_dir
+func getWorktreeNameFromPath(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) string {
+	if isMain {
+		return "@"
+	}
+
+	// Get base_dir path
+	baseDir := cfg.Defaults.BaseDir
+	if !filepath.IsAbs(baseDir) {
+		baseDir = filepath.Join(mainRepoPath, baseDir)
+	}
+
+	// Calculate relative path from base_dir
+	relPath, err := filepath.Rel(baseDir, worktreePath)
+	if err != nil {
+		// Fallback to directory name
+		return filepath.Base(worktreePath)
+	}
+
+	return relPath
+}
+
 // printWorktriesForRemove prints worktrees for remove command (no main, no markers)
-func printWorktriesForRemove(w io.Writer, worktrees []git.Worktree) {
+func printWorktriesForRemove(w io.Writer, worktrees []git.Worktree, cfg *config.Config, mainRepoPath string) {
 	for i := range worktrees {
 		wt := &worktrees[i]
 		if !wt.IsMain {
-			// Use worktree directory name
-			name := filepath.Base(wt.Path)
+			// Calculate worktree name as relative path from base_dir
+			name := getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
 			fmt.Fprintln(w, name)
 		}
 	}

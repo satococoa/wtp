@@ -360,6 +360,30 @@ func TestRemoveCommand_WorktreeNotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'nonexistent' not found")
 }
 
+func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
+	mockExec := &mockRemoveCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n" +
+					"worktree /repo/.worktrees/feat/hogehoge\nHEAD def456\nbranch refs/heads/feat/hogehoge\n\n",
+				Error: nil,
+			},
+		},
+	}
+
+	cmd := createRemoveTestCLICommand(map[string]interface{}{}, []string{"nonexistent"})
+	var buf bytes.Buffer
+
+	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "nonexistent", false, false, false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree 'nonexistent' not found")
+	// Should show worktree names relative to base_dir, not branch names
+	assert.Contains(t, err.Error(), "feat/hogehoge")
+	// Should show @ for main worktree
+	assert.Contains(t, err.Error(), "@")
+}
+
 func TestRemoveCommand_ExecutionError(t *testing.T) {
 	mockExec := &mockRemoveCommandExecutor{
 		results: []command.Result{

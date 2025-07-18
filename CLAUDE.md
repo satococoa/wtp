@@ -11,6 +11,46 @@ This project was born from a conversation about improving Git's worktree functio
 3. Lack of project-specific initialization hooks
 4. Cumbersome command syntax for common operations
 
+## Worktree Naming Convention
+
+**wtp** uses a consistent naming convention for worktrees across all commands and interfaces:
+
+### Naming Rules
+
+1. **Main worktree**: Always displayed as `@`
+2. **Non-main worktrees**: Displayed as relative path from `base_dir`
+   - Example: If `base_dir` is `.worktrees` and worktree is at `/repo/.worktrees/feat/hogehoge`, the worktree name is `feat/hogehoge`
+
+### Usage Examples
+
+```bash
+# Completion and error messages show consistent names
+wtp remove feat/hogehoge    # Not "hogehoge" 
+wtp cd feat/hogehoge        # Not "hogehoge"
+
+# List command shows the same names
+wtp list
+# PATH                     BRANCH        HEAD
+# ----                     ------        ----
+# @ (main worktree)        main          043130cc
+# feat/hogehoge*           feat/hogehoge 043130cc
+# fix/bug-123              fix/bug-123   def456bb
+```
+
+### Implementation
+
+The `getWorktreeNameFromPath()` function in `cmd/wtp/completion.go` implements this logic:
+
+- Takes worktree path, config, main repo path, and isMain flag
+- Returns `@` for main worktree
+- Returns relative path from `base_dir` for non-main worktrees
+- Falls back to directory name if path calculation fails
+
+This function is used consistently across:
+- Shell completion (`wtp remove`, `wtp cd`)
+- Error messages (worktree not found)
+- Command parsing and resolution
+
 ## Core Design Decisions
 
 ### Why Go Instead of Shell Script?

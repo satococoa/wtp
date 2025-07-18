@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
+	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/urfave/cli/v3"
@@ -92,8 +93,21 @@ func cdCommandWithCommandExecutor(
 	if targetPath == "" {
 		// Get available worktree names for suggestions
 		availableWorktrees := make([]string, 0, len(worktrees))
-		for i := range worktrees {
-			availableWorktrees = append(availableWorktrees, filepath.Base(worktrees[i].Path))
+
+		// Load config and main repo path to get proper worktree names
+		mainRepoPath := findMainWorktreePath(worktrees)
+		cfg, err := config.LoadConfig(mainRepoPath)
+		if err != nil {
+			// Fallback to directory names if config can't be loaded
+			for i := range worktrees {
+				availableWorktrees = append(availableWorktrees, filepath.Base(worktrees[i].Path))
+			}
+		} else {
+			// Use consistent worktree names (relative to base_dir)
+			for i := range worktrees {
+				name := getWorktreeNameFromPath(worktrees[i].Path, cfg, mainRepoPath, worktrees[i].IsMain)
+				availableWorktrees = append(availableWorktrees, name)
+			}
 		}
 		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
