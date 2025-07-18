@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
@@ -78,6 +79,12 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 }
 
 func listCommandWithCommandExecutor(_ *cli.Command, w io.Writer, executor command.Executor, _ string) error {
+	// Get current working directory
+	cwd, err := listGetwd()
+	if err != nil {
+		return errors.DirectoryAccessFailed("access current", ".", err)
+	}
+
 	// Get worktrees using CommandExecutor
 	listCmd := command.GitWorktreeList()
 	result, err := executor.Execute([]command.Command{listCmd})
@@ -93,8 +100,8 @@ func listCommandWithCommandExecutor(_ *cli.Command, w io.Writer, executor comman
 		return nil
 	}
 
-	// Display worktrees
-	displayWorktrees(w, worktrees)
+	// Display worktrees with relative paths
+	displayWorktreesRelative(w, worktrees, cwd)
 	return nil
 }
 
@@ -102,10 +109,16 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	var worktrees []git.Worktree
 	var currentWorktree git.Worktree
+	isFirst := true
 
 	for _, line := range lines {
 		if line == "" {
 			if currentWorktree.Path != "" {
+				// First worktree is always the main worktree
+				if isFirst {
+					currentWorktree.IsMain = true
+					isFirst = false
+				}
 				worktrees = append(worktrees, currentWorktree)
 				currentWorktree = git.Worktree{}
 			}
@@ -124,6 +137,10 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 	}
 
 	if currentWorktree.Path != "" {
+		// First worktree is always the main worktree
+		if isFirst {
+			currentWorktree.IsMain = true
+		}
 		worktrees = append(worktrees, currentWorktree)
 	}
 
@@ -161,8 +178,22 @@ func truncatePath(path string, maxWidth int) string {
 	return path[:startLen] + ellipsis + path[len(path)-endLen:]
 }
 
-// displayWorktrees formats and displays worktree information
-func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
+// getRelativePath calculates the relative path from the current directory
+func getRelativePath(from, to string) string {
+	// Get relative path
+	relPath, err := filepath.Rel(from, to)
+	if err != nil {
+		// If unable to get relative path, return absolute path
+		return to
+	}
+
+	// If path starts with "..", it's outside current directory tree
+	// In this case, we want to show it as relative
+	return relPath
+}
+
+// displayWorktreesRelative formats and displays worktree information with relative paths
+func displayWorktreesRelative(w io.Writer, worktrees []git.Worktree, currentPath string) {
 	termWidth := getTerminalWidth()
 
 	// Minimum widths for columns
@@ -172,11 +203,55 @@ func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 
 	// Calculate initial column widths
 	maxBranchLen := 6 // "BRANCH"
+	maxPathLen := 4   // "PATH"
+
+	// First pass: calculate max widths and prepare display data
+	type displayData struct {
+		path      string
+		branch    string
+		head      string
+		isCurrent bool
+	}
+
+	var displayItems []displayData
+
 	for _, wt := range worktrees {
+		var pathDisplay string
+		var isCurrent bool
+
+		if wt.IsMain {
+			// Main worktree always shows as @
+			pathDisplay = "@ (main worktree)"
+		} else {
+			// Show relative path for non-main worktrees
+			pathDisplay = getRelativePath(currentPath, wt.Path)
+			// If it's just a directory name (no / or ..), use it as is
+			if !strings.Contains(pathDisplay, string(filepath.Separator)) && !strings.HasPrefix(pathDisplay, "..") {
+				pathDisplay = filepath.Base(wt.Path)
+			}
+		}
+
+		// Check if this is the current worktree
+		if wt.Path == currentPath {
+			isCurrent = true
+			pathDisplay += "*"
+		}
+
 		branchDisplay := formatBranchDisplay(wt.Branch)
+
+		if len(pathDisplay) > maxPathLen {
+			maxPathLen = len(pathDisplay)
+		}
 		if len(branchDisplay) > maxBranchLen {
 			maxBranchLen = len(branchDisplay)
 		}
+
+		displayItems = append(displayItems, displayData{
+			path:      pathDisplay,
+			branch:    branchDisplay,
+			head:      wt.HEAD,
+			isCurrent: isCurrent,
+		})
 	}
 
 	// Calculate available width for path column
@@ -204,15 +279,14 @@ func displayWorktrees(w io.Writer, worktrees []git.Worktree) {
 		"----")
 
 	// Print worktrees
-	for _, wt := range worktrees {
-		headShort := wt.HEAD
+	for _, item := range displayItems {
+		headShort := item.head
 		if len(headShort) > headDisplayLength {
 			headShort = headShort[:headDisplayLength]
 		}
 
-		branchDisplay := formatBranchDisplay(wt.Branch)
-		pathDisplay := truncatePath(wt.Path, availableForPath)
-		branchDisplayTrunc := truncatePath(branchDisplay, maxBranchLen)
+		pathDisplay := truncatePath(item.path, availableForPath)
+		branchDisplayTrunc := truncatePath(item.branch, maxBranchLen)
 
 		fmt.Fprintf(w, "%-*s %-*s %s\n", availableForPath, pathDisplay, maxBranchLen, branchDisplayTrunc, headShort)
 	}

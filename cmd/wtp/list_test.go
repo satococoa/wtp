@@ -128,7 +128,7 @@ func TestListCommand_Output(t *testing.T) {
 				"PATH",
 				"BRANCH",
 				"HEAD",
-				"/path/to/worktree",
+				"@ (main worktree)", // Main worktree always shows as @
 				"main",
 				"abc123",
 			},
@@ -141,9 +141,9 @@ func TestListCommand_Output(t *testing.T) {
 				"PATH",
 				"BRANCH",
 				"HEAD",
-				"/path/to/main",
+				"@ (main worktree)",
 				"main",
-				"/path/to/feature",
+				"feature", // Relative path from current directory
 				"feature/test",
 			},
 		},
@@ -151,6 +151,15 @@ func TestListCommand_Output(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Mock current directory as /path/to
+			oldGetwd := listGetwd
+			listGetwd = func() (string, error) {
+				return "/path/to", nil
+			}
+			defer func() {
+				listGetwd = oldGetwd
+			}()
+
 			mockExec := &mockListCommandExecutor{
 				results: []command.Result{
 					{
@@ -259,6 +268,15 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Mock current directory
+			oldGetwd := listGetwd
+			listGetwd = func() (string, error) {
+				return "/tmp", nil
+			}
+			defer func() {
+				listGetwd = oldGetwd
+			}()
+
 			mockOutput := "worktree " + tt.worktreePath + "\nHEAD abc123\nbranch refs/heads/" + tt.branchName + "\n\n"
 
 			mockExec := &mockListCommandExecutor{
@@ -277,8 +295,10 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 
 			assert.NoError(t, err)
 			output := buf.String()
-			assert.Contains(t, output, tt.worktreePath)
+			// Check that the branch name is displayed correctly
 			assert.Contains(t, output, tt.branchName)
+			// Main worktree should show as @
+			assert.Contains(t, output, "@ (main worktree)")
 		})
 	}
 }
@@ -313,6 +333,15 @@ func TestListCommand_LongPaths(t *testing.T) {
 				getTerminalWidth = oldGetTerminalWidth
 			}()
 
+			// Mock current directory
+			oldGetwd := listGetwd
+			listGetwd = func() (string, error) {
+				return "/tmp", nil
+			}
+			defer func() {
+				listGetwd = oldGetwd
+			}()
+
 			mockOutput := "worktree " + tt.path + "\nHEAD abc123\nbranch refs/heads/main\n\n"
 
 			mockExec := &mockListCommandExecutor{
@@ -331,12 +360,22 @@ func TestListCommand_LongPaths(t *testing.T) {
 
 			assert.NoError(t, err)
 			output := buf.String()
-			assert.Contains(t, output, tt.path)
+			// Main worktree should show as @
+			assert.Contains(t, output, "@ (main worktree)")
 		})
 	}
 }
 
 func TestListCommand_MixedWorktreeStates(t *testing.T) {
+	// Mock current directory as /path/to
+	oldGetwd := listGetwd
+	listGetwd = func() (string, error) {
+		return "/path/to", nil
+	}
+	defer func() {
+		listGetwd = oldGetwd
+	}()
+
 	// Test with worktrees in different states (detached HEAD, etc.)
 	mockOutput := `worktree /path/to/main
 HEAD abc123
@@ -370,9 +409,9 @@ branch refs/heads/feature/test
 	output := buf.String()
 
 	// Check that all worktrees are displayed
-	assert.Contains(t, output, "/path/to/main")
-	assert.Contains(t, output, "/path/to/detached")
-	assert.Contains(t, output, "/path/to/feature")
+	assert.Contains(t, output, "@ (main worktree)")
+	assert.Contains(t, output, "detached")
+	assert.Contains(t, output, "feature")
 	assert.Contains(t, output, "main")
 	assert.Contains(t, output, "feature/test")
 	// Should show "(detached HEAD)" for detached HEAD
@@ -507,6 +546,104 @@ type mockError struct {
 
 func (e *mockError) Error() string {
 	return e.message
+}
+
+func TestListCommand_RelativePathDisplay(t *testing.T) {
+	tests := []struct {
+		name             string
+		mockOutput       string
+		currentPath      string
+		expectedContains []string
+		description      string
+	}{
+		{
+			name: "main worktree should display as @",
+			mockOutput: `worktree /Users/satoshi/dev/project
+HEAD abc123
+branch refs/heads/main
+
+worktree /Users/satoshi/dev/project/.worktrees/feature
+HEAD def456
+branch refs/heads/feature/test
+
+`,
+			currentPath: "/Users/satoshi/dev/project/.worktrees/feature",
+			expectedContains: []string{
+				"@ (main worktree)",
+				"feature",
+				"*", // Current worktree marker
+			},
+			description: "Main worktree should show as @ (main worktree) and current should have *",
+		},
+		{
+			name: "relative paths from parent directory",
+			mockOutput: `worktree /Users/satoshi/dev/project
+HEAD abc123
+branch refs/heads/main
+
+worktree /Users/satoshi/dev/project-feature
+HEAD def456
+branch refs/heads/feature
+
+`,
+			currentPath: "/Users/satoshi/dev",
+			expectedContains: []string{
+				"project",
+				"project-feature",
+			},
+			description: "Should show relative paths from current directory",
+		},
+		{
+			name: "paths outside current directory tree",
+			mockOutput: `worktree /Users/satoshi/project1
+HEAD abc123
+branch refs/heads/main
+
+worktree /Users/alice/project2
+HEAD def456
+branch refs/heads/feature
+
+`,
+			currentPath: "/Users/satoshi/dev",
+			expectedContains: []string{
+				"@ (main worktree)", // Main worktree always shows as @
+				"../../alice/project2",
+			},
+			description: "Should show relative paths with .. for outside paths",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock current directory
+			oldGetwd := listGetwd
+			listGetwd = func() (string, error) {
+				return tt.currentPath, nil
+			}
+			defer func() {
+				listGetwd = oldGetwd
+			}()
+
+			mockExec := &mockListCommandExecutor{
+				results: []command.Result{
+					{Output: tt.mockOutput, Error: nil},
+				},
+			}
+
+			var buf bytes.Buffer
+			cmd := &cli.Command{}
+
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo")
+
+			assert.NoError(t, err, tt.description)
+			output := buf.String()
+
+			// Check expected content is present
+			for _, expected := range tt.expectedContains {
+				assert.Contains(t, output, expected, "Expected to find: %s", expected)
+			}
+		})
+	}
 }
 
 func TestListCommand_TerminalWidthTruncation(t *testing.T) {

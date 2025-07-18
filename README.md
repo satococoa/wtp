@@ -23,7 +23,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
   - [x] Remove worktree only (git worktree compatible)
   - [x] Remove with branch (`--with-branch` option for convenience)
   - [x] Force removal (`--force` option)
-- [x] `wtp list` - List all worktrees with status
+- [x] `wtp list` - List all worktrees with relative paths and current worktree marker
 - [x] `wtp cd` - Change directory to worktree (requires shell integration)
 
 ### Advanced Features
@@ -162,6 +162,13 @@ wtp add --path /custom/location foobar/foo
 ```bash
 # List all worktrees
 wtp list
+
+# Example output:
+# PATH                      BRANCH           HEAD
+# ----                      ------           ----
+# @ (main worktree)*        main             c72c7800
+# feature-auth              feature/auth     def45678
+# ../project-hotfix         hotfix/urgent    abc12345
 
 # Remove worktree only (by worktree directory name)
 wtp remove auth
