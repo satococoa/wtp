@@ -339,7 +339,7 @@ func TestAppendExplicitPathArgs(t *testing.T) {
 // since the function needs a cli.Command interface
 func callAppendExplicitPathArgs(initialArgs, cmdArgs []string, branch, track, branchName string) []string {
 	// Create a simple CLI command with the args we need
-	cmd := createTestCLICommandWithArgs(map[string]interface{}{
+	cmd := createTestCLICommandWithArgs(map[string]any{
 		"branch": branch,
 		"track":  track,
 	}, cmdArgs)
@@ -347,7 +347,7 @@ func callAppendExplicitPathArgs(initialArgs, cmdArgs []string, branch, track, br
 }
 
 // Helper to create CLI command with specific args
-func createTestCLICommandWithArgs(flags map[string]interface{}, args []string) *cli.Command {
+func createTestCLICommandWithArgs(flags map[string]any, args []string) *cli.Command {
 	app := &cli.Command{
 		Name: "test",
 		Commands: []*cli.Command{
@@ -486,7 +486,7 @@ func TestResolveWorktreePath(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: tt.baseDir},
 			}
-			cmd := createTestCLICommand(map[string]interface{}{
+			cmd := createTestCLICommand(map[string]any{
 				"path": tt.pathFlag,
 			}, []string{tt.branchName})
 
@@ -503,35 +503,35 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 		name         string
 		workTreePath string
 		branchName   string
-		flags        map[string]interface{}
+		flags        map[string]any
 		want         []string
 	}{
 		{
 			name:         "simple branch",
 			workTreePath: "/path/to/worktree",
 			branchName:   "feature",
-			flags:        map[string]interface{}{},
+			flags:        map[string]any{},
 			want:         []string{"worktree", "add", "/path/to/worktree", "feature"},
 		},
 		{
 			name:         "with force flag",
 			workTreePath: "/path/to/worktree",
 			branchName:   "feature",
-			flags:        map[string]interface{}{"force": true},
+			flags:        map[string]any{"force": true},
 			want:         []string{"worktree", "add", "--force", "/path/to/worktree", "feature"},
 		},
 		{
 			name:         "with new branch flag",
 			workTreePath: "/path/to/worktree",
 			branchName:   "new-feature",
-			flags:        map[string]interface{}{"branch": "new-feature"},
+			flags:        map[string]any{"branch": "new-feature"},
 			want:         []string{"worktree", "add", "-b", "new-feature", "/path/to/worktree"},
 		},
 		{
 			name:         "detached HEAD",
 			workTreePath: "/path/to/worktree",
 			branchName:   "",
-			flags:        map[string]interface{}{"detach": true},
+			flags:        map[string]any{"detach": true},
 			want:         []string{"worktree", "add", "--detach", "/path/to/worktree"},
 		},
 	}
@@ -578,14 +578,14 @@ func TestBuildGitWorktreeArgs(t *testing.T) {
 func TestAddCommand_CommandConstruction(t *testing.T) {
 	tests := []struct {
 		name             string
-		flags            map[string]interface{}
+		flags            map[string]any
 		args             []string
 		expectedCommands []command.Command
 		expectError      bool
 	}{
 		{
 			name: "basic worktree creation",
-			flags: map[string]interface{}{
+			flags: map[string]any{
 				"branch": "feature/test",
 			},
 			args: []string{"feature/test"},
@@ -597,7 +597,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 		},
 		{
 			name: "worktree with force flag",
-			flags: map[string]interface{}{
+			flags: map[string]any{
 				"force":  true,
 				"branch": "feature/test",
 			},
@@ -610,7 +610,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 		},
 		{
 			name: "new branch creation",
-			flags: map[string]interface{}{
+			flags: map[string]any{
 				"branch": "new-feature",
 			},
 			args: []string{"main"},
@@ -667,7 +667,7 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := createTestCLICommand(map[string]interface{}{"branch": tt.branchName}, []string{tt.branchName})
+			cmd := createTestCLICommand(map[string]any{"branch": tt.branchName}, []string{tt.branchName})
 			var buf bytes.Buffer
 			mockExec := &mockCommandExecutor{}
 
@@ -688,13 +688,13 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 func TestAddCommand_ValidationErrors(t *testing.T) {
 	tests := []struct {
 		name          string
-		flags         map[string]interface{}
+		flags         map[string]any
 		args          []string
 		expectedError string
 	}{
 		{
 			name:          "no branch name",
-			flags:         map[string]interface{}{},
+			flags:         map[string]any{},
 			args:          []string{},
 			expectedError: "branch name is required",
 		},
@@ -713,7 +713,7 @@ func TestAddCommand_ValidationErrors(t *testing.T) {
 func TestAddCommand_ExecutionError(t *testing.T) {
 	mockExec := &mockCommandExecutor{shouldFail: true}
 	var buf bytes.Buffer
-	cmd := createTestCLICommand(map[string]interface{}{"branch": "feature/auth"}, []string{"feature/auth"})
+	cmd := createTestCLICommand(map[string]any{"branch": "feature/auth"}, []string{"feature/auth"})
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 	}
@@ -753,7 +753,7 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockExec := &mockCommandExecutor{}
 			var buf bytes.Buffer
-			cmd := createTestCLICommand(map[string]interface{}{"branch": tt.branchName}, []string{tt.branchName})
+			cmd := createTestCLICommand(map[string]any{"branch": tt.branchName}, []string{tt.branchName})
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 			}
@@ -795,7 +795,7 @@ func TestAddCommand_PathHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := map[string]interface{}{
+			flags := map[string]any{
 				"branch": tt.branchName,
 			}
 			if tt.customPath != "" {
@@ -820,7 +820,7 @@ func TestAddCommand_PathHandling(t *testing.T) {
 
 // ===== Helper Functions =====
 
-func createTestCLICommand(flags map[string]interface{}, args []string) *cli.Command {
+func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
 	app := &cli.Command{
 		Name: "test",
 		Commands: []*cli.Command{
@@ -997,7 +997,7 @@ func TestShouldChangeDirectory_Integration(t *testing.T) {
 		cfg := &config.Config{
 			Defaults: config.Defaults{CDAfterCreate: true},
 		}
-		cmd := createTestCLICommand(map[string]interface{}{"no-cd": true}, []string{"test-branch"})
+		cmd := createTestCLICommand(map[string]any{"no-cd": true}, []string{"test-branch"})
 
 		// When: checking if should change directory
 		result := shouldChangeDirectory(cmd, cfg)
@@ -1011,7 +1011,7 @@ func TestShouldChangeDirectory_Integration(t *testing.T) {
 		cfg := &config.Config{
 			Defaults: config.Defaults{CDAfterCreate: true},
 		}
-		cmd := createTestCLICommand(map[string]interface{}{}, []string{"test-branch"})
+		cmd := createTestCLICommand(map[string]any{}, []string{"test-branch"})
 
 		// When: checking if should change directory
 		result := shouldChangeDirectory(cmd, cfg)
@@ -1098,7 +1098,7 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 		branchName    string
 		gitOutput     string
 		expectedError string
-		expectedType  interface{}
+		expectedType  any
 	}{
 		{
 			name:          "branch not found error",

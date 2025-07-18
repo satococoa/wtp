@@ -16,10 +16,10 @@ func TestHookOutputStreaming(t *testing.T) {
 	repo := env.CreateTestRepo("hook-streaming")
 
 	// Create config with a hook that outputs with delays
-	config := map[string]interface{}{
+	config := map[string]any{
 		"version": "1",
-		"hooks": map[string]interface{}{
-			"post_create": []map[string]interface{}{
+		"hooks": map[string]any{
+			"post_create": []map[string]any{
 				{
 					"type":    "command",
 					"command": "echo 'Starting hook...'; sleep 0.1; echo 'Processing...'; sleep 0.1; echo 'Completed!'",

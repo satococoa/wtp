@@ -128,12 +128,12 @@ func AssertWorktreeNotExists(t *testing.T, repo *TestRepo, path string) {
 	}
 }
 
-func AssertEqual(t *testing.T, expected, actual interface{}) {
+func AssertEqual(t *testing.T, expected, actual any) {
 	t.Helper()
 	assert.Equal(t, expected, actual)
 }
 
-func AssertNotEqual(t *testing.T, notExpected, actual interface{}) {
+func AssertNotEqual(t *testing.T, notExpected, actual any) {
 	t.Helper()
 	assert.NotEqual(t, notExpected, actual)
 }
