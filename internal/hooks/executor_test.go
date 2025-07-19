@@ -668,3 +668,474 @@ echo "Line 3"
 		assert.True(t, gap2 >= 50*time.Millisecond, "Expected at least 50ms between Line 2 and Line 3, got %v", gap2)
 	}
 }
+
+func TestExecutePostCreateHooks_CopyDirectoryRecursively(t *testing.T) {
+	// Test that directories are copied recursively with nested structure preserved
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create source directory with nested structure
+	srcDir := filepath.Join(repoRoot, "templates")
+	err = os.MkdirAll(filepath.Join(srcDir, "subdir"), directoryPermissions)
+	require.NoError(t, err)
+
+	// Create files in source directory
+	err = os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: "templates",
+					To:   "copied-templates",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check that directory and files were copied
+	dstFile1 := filepath.Join(worktreeDir, "copied-templates", "file1.txt")
+	content1, err := os.ReadFile(dstFile1)
+	require.NoError(t, err)
+	assert.Equal(t, "content1", string(content1))
+
+	dstFile2 := filepath.Join(worktreeDir, "copied-templates", "subdir", "file2.txt")
+	content2, err := os.ReadFile(dstFile2)
+	require.NoError(t, err)
+	assert.Equal(t, "content2", string(content2))
+
+	// Verify output contains progress messages
+	output := buf.String()
+	assert.Contains(t, output, "Copying: templates → copied-templates")
+}
+
+func TestExecutePostCreateHooks_CopyFilePreservesPermissions(t *testing.T) {
+	// Test that file permissions are preserved during copy operations
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create source file with specific permissions
+	srcFile := filepath.Join(repoRoot, "script.sh")
+	err = os.WriteFile(srcFile, []byte("#!/bin/bash\necho hello"), 0755)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: "script.sh",
+					To:   "copied-script.sh",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check that file permissions were preserved
+	dstFile := filepath.Join(worktreeDir, "copied-script.sh")
+	dstInfo, err := os.Stat(dstFile)
+	require.NoError(t, err)
+	
+	srcInfo, err := os.Stat(srcFile)
+	require.NoError(t, err)
+	
+	assert.Equal(t, srcInfo.Mode(), dstInfo.Mode())
+}
+
+func TestExecutePostCreateHooks_CopyWithAbsolutePaths(t *testing.T) {
+	// Test that copy hooks work with absolute source and destination paths
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	externalDir := filepath.Join(tempDir, "external")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(externalDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create source file in external directory
+	srcFile := filepath.Join(externalDir, "external.txt")
+	srcContent := "external content"
+	err = os.WriteFile(srcFile, []byte(srcContent), 0644)
+	require.NoError(t, err)
+
+	// Create destination directory outside worktree
+	outputDir := filepath.Join(tempDir, "output")
+	err = os.MkdirAll(outputDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: srcFile, // absolute path
+					To:   filepath.Join(outputDir, "result.txt"), // absolute path
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check that file was copied to absolute destination
+	dstFile := filepath.Join(outputDir, "result.txt")
+	dstContent, err := os.ReadFile(dstFile)
+	require.NoError(t, err)
+	assert.Equal(t, srcContent, string(dstContent))
+}
+
+// Error handling tests for copyFile function
+func TestExecutor_copyFile_SourceFileOpenError(t *testing.T) {
+	executor := NewExecutor(nil, "/test/repo")
+	
+	// Try to copy non-existent file
+	err := executor.copyFile("/nonexistent/source.txt", "/tmp/dest.txt")
+	
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to open source file")
+}
+
+func TestExecutor_copyFile_DestinationCreateError(t *testing.T) {
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "source.txt")
+	
+	// Create source file
+	err := os.WriteFile(srcFile, []byte("test content"), 0644)
+	require.NoError(t, err)
+	
+	executor := NewExecutor(nil, "/test/repo")
+	
+	// Try to create file in non-existent directory without creating parent dirs
+	invalidDest := "/nonexistent/directory/dest.txt"
+	err = executor.copyFile(srcFile, invalidDest)
+	
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create destination file")
+}
+
+func TestExecutor_copyFile_PermissionGetError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Permission test not applicable on Windows")
+	}
+	
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "source.txt")
+	dstFile := filepath.Join(tempDir, "dest.txt")
+	
+	// Create source file
+	err := os.WriteFile(srcFile, []byte("test content"), 0644)
+	require.NoError(t, err)
+	
+	executor := NewExecutor(nil, "/test/repo")
+	
+	// Copy the file first
+	err = executor.copyFile(srcFile, dstFile)
+	require.NoError(t, err)
+	
+	// Remove source to trigger stat error in copyFile
+	err = os.Remove(srcFile)
+	require.NoError(t, err)
+	
+	// Try to copy again - should fail at getting source file info
+	err = executor.copyFile(srcFile, dstFile+"2")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to open source file")
+}
+
+// Error handling tests for copyDir function
+func TestExecutor_copyDir_SourceDirectoryNotExist(t *testing.T) {
+	executor := NewExecutor(nil, "/test/repo")
+	
+	// Try to copy non-existent directory
+	err := executor.copyDir("/nonexistent/source", "/tmp/dest")
+	
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to stat source directory")
+}
+
+func TestExecutor_copyDir_DestinationCreateError(t *testing.T) {
+	tempDir := t.TempDir()
+	srcDir := filepath.Join(tempDir, "source")
+	
+	// Create source directory
+	err := os.MkdirAll(srcDir, directoryPermissions)
+	require.NoError(t, err)
+	
+	executor := NewExecutor(nil, "/test/repo")
+	
+	// Try to create directory where parent doesn't exist and we can't create it
+	invalidDest := "/root/nonexistent/dest" // Should fail on most systems
+	err = executor.copyDir(srcDir, invalidDest)
+	
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create destination directory")
+}
+
+func TestExecutor_copyDir_ReadDirectoryError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Permission test not applicable on Windows")
+	}
+	
+	tempDir := t.TempDir()
+	srcDir := filepath.Join(tempDir, "source")
+	dstDir := filepath.Join(tempDir, "dest")
+	
+	// Create source directory
+	err := os.MkdirAll(srcDir, directoryPermissions)
+	require.NoError(t, err)
+	
+	// Remove read permission from source directory
+	err = os.Chmod(srcDir, 0200) // write-only
+	require.NoError(t, err)
+	
+	// Restore permissions after test
+	defer func() {
+		_ = os.Chmod(srcDir, directoryPermissions)
+	}()
+	
+	executor := NewExecutor(nil, "/test/repo")
+	
+	err = executor.copyDir(srcDir, dstDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read source directory")
+}
+
+func TestExecutor_copyDir_NestedDirectorySuccess(t *testing.T) {
+	// Test successful recursive directory copying with multiple levels
+	tempDir := t.TempDir()
+	srcDir := filepath.Join(tempDir, "source")
+	dstDir := filepath.Join(tempDir, "dest")
+	
+	// Create nested source structure
+	level1 := filepath.Join(srcDir, "level1")
+	level2 := filepath.Join(level1, "level2")
+	err := os.MkdirAll(level2, directoryPermissions)
+	require.NoError(t, err)
+	
+	// Create files at different levels
+	err = os.WriteFile(filepath.Join(srcDir, "root.txt"), []byte("root content"), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(level1, "level1.txt"), []byte("level1 content"), 0644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(level2, "level2.txt"), []byte("level2 content"), 0644)
+	require.NoError(t, err)
+	
+	executor := NewExecutor(nil, "/test/repo")
+	
+	err = executor.copyDir(srcDir, dstDir)
+	assert.NoError(t, err)
+	
+	// Verify all files were copied correctly
+	rootContent, err := os.ReadFile(filepath.Join(dstDir, "root.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "root content", string(rootContent))
+	
+	level1Content, err := os.ReadFile(filepath.Join(dstDir, "level1", "level1.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "level1 content", string(level1Content))
+	
+	level2Content, err := os.ReadFile(filepath.Join(dstDir, "level1", "level2", "level2.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "level2 content", string(level2Content))
+}
+
+func TestExecutor_copyDir_FailsWhenNestedFileCannotBeCopied(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Permission test not applicable on Windows")
+	}
+	
+	tempDir := t.TempDir()
+	srcDir := filepath.Join(tempDir, "source")
+	dstDir := filepath.Join(tempDir, "dest")
+	
+	// Create source directory with nested structure
+	nestedDir := filepath.Join(srcDir, "nested")
+	err := os.MkdirAll(nestedDir, directoryPermissions)
+	require.NoError(t, err)
+	
+	// Create a file that we'll make unreadable
+	unreadableFile := filepath.Join(nestedDir, "unreadable.txt")
+	err = os.WriteFile(unreadableFile, []byte("content"), 0644)
+	require.NoError(t, err)
+	
+	// Remove read permission from the file
+	err = os.Chmod(unreadableFile, 0000)
+	require.NoError(t, err)
+	
+	// Restore permissions after test
+	defer func() {
+		_ = os.Chmod(unreadableFile, 0644)
+	}()
+	
+	executor := NewExecutor(nil, "/test/repo")
+	
+	err = executor.copyDir(srcDir, dstDir)
+	assert.Error(t, err)
+	// The error should propagate from the nested copyFile call
+}
+
+// Edge case tests
+func TestExecutePostCreateHooks_CopyEmptyFile(t *testing.T) {
+	// Test copying empty files (edge case for io.Copy)
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create empty source file
+	srcFile := filepath.Join(repoRoot, "empty.txt")
+	err = os.WriteFile(srcFile, []byte(""), 0644)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: "empty.txt",
+					To:   "copied-empty.txt",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check that empty file was copied
+	dstFile := filepath.Join(worktreeDir, "copied-empty.txt")
+	dstContent, err := os.ReadFile(dstFile)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(dstContent))
+}
+
+func TestExecutePostCreateHooks_CopyEmptyDirectory(t *testing.T) {
+	// Test copying empty directories (edge case for directory iteration)
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create empty source directory
+	srcDir := filepath.Join(repoRoot, "empty-dir")
+	err = os.MkdirAll(srcDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: "empty-dir",
+					To:   "copied-empty-dir",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check that empty directory was copied
+	dstDir := filepath.Join(worktreeDir, "copied-empty-dir")
+	dstInfo, err := os.Stat(dstDir)
+	require.NoError(t, err)
+	assert.True(t, dstInfo.IsDir())
+
+	// Verify directory is empty
+	entries, err := os.ReadDir(dstDir)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestExecutePostCreateHooks_CopyFileWithSpecialCharacters(t *testing.T) {
+	// Test copying files with special characters in names
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	// Create directories
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	// Create source file with special characters (that are filesystem-safe)
+	specialName := "file-with-spaces and_underscores.txt"
+	srcFile := filepath.Join(repoRoot, specialName)
+	err = os.WriteFile(srcFile, []byte("special content"), 0644)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: specialName,
+					To:   "copied-" + specialName,
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	// Check that file with special characters was copied
+	dstFile := filepath.Join(worktreeDir, "copied-"+specialName)
+	dstContent, err := os.ReadFile(dstFile)
+	require.NoError(t, err)
+	assert.Equal(t, "special content", string(dstContent))
+}
