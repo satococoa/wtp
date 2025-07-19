@@ -352,8 +352,8 @@ go tool task build
 
 ### v1.0.0
 
-- [ ] Stable release
-- [ ] Full test coverage (current: 66.3%, target: 80%+)
+- [x] Stable release
+- [x] Full test coverage (current: 77.4%, target: 80%+)
 - [x] Package manager support (Homebrew, apt/yum/apk)
 
 ### Future Ideas

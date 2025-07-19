@@ -48,14 +48,6 @@ func (w *Worktree) CompletionName(repoName string) string {
 	return w.formatNonRootWorktreeCompletion()
 }
 
-// isMainWorktreeHeuristic uses path heuristics to determine if this is the main worktree.
-// Main worktrees typically don't have "/worktrees/" or "/.worktrees/" in their path.
-func (w *Worktree) isMainWorktreeHeuristic() bool {
-	path := w.Path
-	return !strings.Contains(path, filepath.Join("", "worktrees", "")) &&
-		!strings.Contains(path, filepath.Join("", ".worktrees", ""))
-}
-
 // formatNonRootWorktreeCompletion formats completion name for non-root worktrees.
 // Priority:
 // 1. If path ends with branch name → show branch only
@@ -93,6 +85,7 @@ func (w *Worktree) IsMainWorktree(mainWorktreePath string) bool {
 		return w.Path == mainWorktreePath
 	}
 
-	// Fallback: use heuristic if mainWorktreePath is not provided
-	return w.isMainWorktreeHeuristic()
+	// This shouldn't happen in normal usage since we always provide mainWorktreePath
+	// But if it does, we can't determine without more context
+	return false
 }

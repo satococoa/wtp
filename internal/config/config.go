@@ -39,6 +39,7 @@ type Hook struct {
 const (
 	ConfigFileName        = ".wtp.yml"
 	CurrentVersion        = "1.0"
+	DefaultBaseDir        = "../worktrees"
 	HookTypeCopy          = "copy"
 	HookTypeCommand       = "command"
 	configFilePermissions = 0o600
@@ -105,7 +106,7 @@ func (c *Config) Validate() error {
 
 	// Set default base_dir if not specified
 	if c.Defaults.BaseDir == "" {
-		c.Defaults.BaseDir = "../worktrees"
+		c.Defaults.BaseDir = DefaultBaseDir
 	}
 
 	// Validate hooks

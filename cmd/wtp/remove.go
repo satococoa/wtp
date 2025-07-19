@@ -165,8 +165,12 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 	// Load config for consistent worktree naming
 	cfg, err := config.LoadConfig(mainWorktreePath)
 	if err != nil {
-		// Fallback to old behavior if config can't be loaded
-		return findTargetWorktreeFromListFallback(worktrees, worktreeName)
+		// If config can't be loaded, use default config
+		cfg = &config.Config{
+			Defaults: config.Defaults{
+				BaseDir: config.DefaultBaseDir,
+			},
+		}
 	}
 
 	for _, wt := range worktrees {
@@ -194,47 +198,6 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 
 		// Build available worktrees list using consistent naming (excluding main worktree)
 		availableWorktrees = append(availableWorktrees, worktreeDisplayName)
-
-		// Exit early if we found a match
-		if targetWorktree != nil {
-			break
-		}
-	}
-
-	if targetWorktree == nil {
-		return nil, errors.WorktreeNotFound(worktreeName, availableWorktrees)
-	}
-	return targetWorktree, nil
-}
-
-// findTargetWorktreeFromListFallback provides fallback behavior when config can't be loaded
-func findTargetWorktreeFromListFallback(worktrees []git.Worktree, worktreeName string) (*git.Worktree, error) {
-	var targetWorktree *git.Worktree
-	var availableWorktrees []string
-
-	for _, wt := range worktrees {
-		// Skip main worktree - it cannot be removed
-		if wt.IsMain {
-			continue
-		}
-
-		// Priority 1: Match by branch name (for prefixes like feature/awesome)
-		if wt.Branch == worktreeName {
-			targetWorktree = &wt
-		}
-
-		// Priority 2: Match by directory name (legacy behavior)
-		wtName := filepath.Base(wt.Path)
-		if wtName == worktreeName {
-			targetWorktree = &wt
-		}
-
-		// Build available worktrees list - prefer branch name if available (excluding main worktree)
-		if wt.Branch != "" {
-			availableWorktrees = append(availableWorktrees, wt.Branch)
-		} else {
-			availableWorktrees = append(availableWorktrees, wtName)
-		}
 
 		// Exit early if we found a match
 		if targetWorktree != nil {
