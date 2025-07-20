@@ -319,21 +319,18 @@ func TestValidateAddInput(t *testing.T) {
 func TestResolveWorktreePath(t *testing.T) {
 	tests := []struct {
 		name         string
-		pathFlag     string
 		branchName   string
 		baseDir      string
 		expectedPath string
 	}{
 		{
 			name:         "default path from branch name",
-			pathFlag:     "",
 			branchName:   "feature/auth",
 			baseDir:      "/test/worktrees",
 			expectedPath: "/test/worktrees/feature/auth",
 		},
 		{
 			name:         "branch with nested structure",
-			pathFlag:     "",
 			branchName:   "team/backend/feature",
 			baseDir:      "/worktrees",
 			expectedPath: "/worktrees/team/backend/feature",
@@ -345,9 +342,7 @@ func TestResolveWorktreePath(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: tt.baseDir},
 			}
-			cmd := createTestCLICommand(map[string]any{
-				"path": tt.pathFlag,
-			}, []string{tt.branchName})
+			cmd := createTestCLICommand(map[string]any{}, []string{tt.branchName})
 
 			path, _ := resolveWorktreePath(cfg, "/test/repo", tt.branchName, cmd)
 			assert.Equal(t, tt.expectedPath, path)

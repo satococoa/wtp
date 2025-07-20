@@ -103,7 +103,7 @@ func TestWorktreeRemoval(t *testing.T) {
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCount(t, repo, 2)
 
-		output, err := repo.RunWTP("remove", "remove")
+		output, err := repo.RunWTP("remove", "feature/remove")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 		framework.AssertWorktreeCount(t, repo, 1)
@@ -143,12 +143,12 @@ func TestWorktreeRemoval(t *testing.T) {
 			env.WriteFile(worktreePath+"/dirty.txt", "uncommitted changes")
 		}
 
-		output, err := repo.RunWTP("remove", "--force", "force-remove")
+		output, err := repo.RunWTP("remove", "--force", "feature/force-remove")
 		framework.AssertNoError(t, err)
 		framework.AssertOutputContains(t, output, "Removed worktree")
 	})
 
-	t.Run("RemoveWithDifferentBaseDir", func(t *testing.T) {
+	t.Run("RemoveOnlyWorksWithinBaseDir", func(t *testing.T) {
 		repo := env.CreateTestRepo("remove-different-basedir")
 
 		// Create worktree with default location
@@ -156,17 +156,18 @@ func TestWorktreeRemoval(t *testing.T) {
 
 		// Create config with different base_dir
 		configContent := `version: 1
-base_dir: custom-location`
+defaults:
+  base_dir: custom-location`
 		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
 
-		// Remove should still work because it uses git worktree list
+		// Remove should NOT work because worktree is outside the configured base_dir
 		output, err := repo.RunWTP("remove", "remove-test")
-		framework.AssertNoError(t, err)
-		framework.AssertOutputContains(t, output, "Removed worktree")
+		framework.AssertError(t, err)
+		framework.AssertOutputContains(t, output, "not found")
 
-		// Verify worktree is gone
+		// Verify worktree is still there since remove failed
 		worktreePath := env.TmpDir() + "/worktrees/feature/remove-test"
-		framework.AssertFalse(t, env.FileExists(worktreePath), "Worktree should be removed")
+		framework.AssertTrue(t, env.FileExists(worktreePath), "Worktree should still exist")
 	})
 }
 

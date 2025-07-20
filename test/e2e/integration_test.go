@@ -52,7 +52,7 @@ defaults:
 		assert.Contains(t, featureWorktreePath, "my-custom-worktrees", "Worktree should be created in custom base_dir")
 	})
 
-	t.Run("RemoveFindsWorktreeRegardlessOfConfig", func(t *testing.T) {
+	t.Run("RemoveOnlyManagesWorktreesUnderBaseDir", func(t *testing.T) {
 		repo := env.CreateTestRepo("remove-config-test")
 
 		// Create initial config
@@ -75,11 +75,11 @@ defaults:
 `
 		repo.WriteConfig(newConfig)
 
-		// Remove should still find the worktree even though config changed
+		// Remove should NOT find the worktree because it's outside the new base_dir
 		output, err := repo.RunWTP("remove", "movable")
-		framework.AssertNoError(t, err)
-		framework.AssertOutputContains(t, output, "Removed worktree")
-		framework.AssertWorktreeCount(t, repo, 1)
+		framework.AssertError(t, err)
+		framework.AssertOutputContains(t, output, "not found")
+		framework.AssertWorktreeCount(t, repo, 2) // Still 2 because remove failed
 	})
 
 	t.Run("ListShowsAllWorktreesRegardlessOfConfig", func(t *testing.T) {

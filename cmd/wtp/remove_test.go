@@ -384,10 +384,8 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree 'nonexistent' not found")
-	// Should show worktree names relative to base_dir, not branch names
-	assert.Contains(t, err.Error(), "feat/hogehoge")
-	// Should NOT show @ for main worktree in remove command (main worktree cannot be removed)
-	assert.NotContains(t, err.Error(), "@")
+	// Should show "No worktrees found" since the only non-main worktree is unmanaged
+	assert.Contains(t, err.Error(), "No worktrees found")
 }
 
 func TestRemoveCommand_ExecutionError(t *testing.T) {
@@ -469,7 +467,7 @@ func TestRemoveCommand_InternationalCharacters(t *testing.T) {
 }
 
 func TestRemoveCommand_PathWithSpaces(t *testing.T) {
-	worktreePath := "/path/with spaces/feature-branch"
+	worktreePath := "/path/to/main/../worktrees/feature branch"
 	mockOutput := "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 		"worktree " + worktreePath + "\nHEAD def456\nbranch refs/heads/feature-branch\n\n"
 
@@ -486,10 +484,10 @@ func TestRemoveCommand_PathWithSpaces(t *testing.T) {
 		},
 	}
 
-	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature-branch"})
+	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature branch"})
 	var buf bytes.Buffer
 
-	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo", "feature-branch", false, false, false)
+	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/path/to/main", "feature branch", false, false, false)
 
 	assert.NoError(t, err)
 	// Verify the correct path was passed to git command
