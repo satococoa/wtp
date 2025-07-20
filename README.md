@@ -5,43 +5,47 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 
 ## Features
 
-### Core Commands
+### Streamlined Worktree Management
 
-- [x] `wtp init` - Initialize configuration file
-- [x] `wtp add` - Clean and unambiguous worktree creation
-  - [x] **Automatic path generation**: `wtp add feature/auth` (no redundant
-        typing)
-  - [x] **Explicit path support**: `wtp add --path /custom/path feature/auth`
-        (no ambiguity)
-  - [x] **Transparent wrapper**: All git worktree options supported
-  - [x] **Automatic remote tracking**: Tracks remote branches when local branch
-        doesn't exist
-  - [x] **Multiple remote handling**: Detects and reports when branch exists in
-        multiple remotes
-  - [x] Post-create hooks execution
-- [x] `wtp remove` - Remove worktree
-  - [x] Remove worktree only (git worktree compatible)
-  - [x] Remove with branch (`--with-branch` option for convenience)
-  - [x] Force removal (`--force` option)
-- [x] `wtp list` - List all worktrees with relative paths and current worktree marker
-- [x] `wtp cd` - Change directory to worktree (requires shell integration)
+**wtp** eliminates the friction from Git's worktree workflow with intelligent defaults and thoughtful automation:
 
-### Advanced Features
+- **Smart path generation** - No more typing redundant paths. `wtp add feature/auth` automatically creates the worktree at `../worktrees/feature/auth`
+- **Consistent organization** - All worktrees are organized under your configured base directory for easy management
+- **Seamless Git integration** - All native `git worktree` options work transparently, so you never lose functionality
+- **Quick navigation** - Switch between worktrees instantly with `wtp cd feature/auth` (shell integration required)
 
-- [x] **Post-create hooks**
-  - [x] Copy files from main worktree
-  - [x] Execute commands
-- [x] **Shell completion** (with custom completion for branches and worktrees)
-  - [x] Bash completion with branch/worktree name completion
-  - [x] Zsh completion with branch/worktree name completion
-  - [x] Fish completion with branch/worktree name completion
-- [x] **Cross-platform support**
-  - [x] Linux (x86_64, ARM64)
-  - [x] macOS (Apple Silicon only)
-- [x] **Better error messages**
-  - [x] Contextual error descriptions with clear causes
-  - [x] Actionable suggestions for resolution
-  - [x] Examples and helpful tips
+### Intelligent Automation
+
+**wtp** handles the tedious parts of worktree management automatically:
+
+- **Automatic remote tracking** - When you run `wtp add feature/remote-branch`, it automatically tracks the remote branch if no local branch exists
+- **Multi-remote detection** - If a branch exists in multiple remotes, wtp shows a helpful error with explicit instructions rather than guessing
+- **Post-creation setup** - Configure hooks to automatically copy configuration files, install dependencies, or run setup commands in new worktrees
+
+### Enhanced Developer Experience
+
+**wtp** makes worktree management feel natural and intuitive:
+
+- **Rich shell completion** - Tab-complete branch names, worktree names, and command options in Bash, Zsh, and Fish
+- **Clear error messages** - When something goes wrong, get contextual explanations with actionable suggestions and examples
+- **Consistent interface** - Commands use the same naming conventions and patterns throughout, making them easy to remember
+- **Visual feedback** - `wtp list` shows your worktrees with clear indicators for the current location and branch status
+
+### Project Customization
+
+**wtp** adapts to your project's specific needs:
+
+- **Configuration-driven** - Set up per-project defaults in `.wtp.yml` for consistent behavior across your team
+- **Flexible hooks** - Copy environment files, run database migrations, or execute any setup commands when creating worktrees
+- **Directory organization** - Choose your preferred worktree layout and base directory structure
+
+### Cross-Platform Support
+
+**wtp** works consistently across development environments:
+
+- **Native binaries** - Single executable with no runtime dependencies for Linux (x86_64, ARM64) and macOS (Apple Silicon)
+- **Shell agnostic** - Completion and shell integration support for Bash, Zsh, and Fish
+- **Git compatibility** - Works with Git 2.17+ across all supported platforms
 
 ## Requirements
 
@@ -114,8 +118,8 @@ wtp add -b feature/new-feature
 # → Creates worktree at ../worktrees/hotfix/urgent
 wtp add -b hotfix/urgent abc1234
 
-# Use all git worktree options
-# → Creates worktree at ../worktrees/feature/test
+# Create new branch tracking a different remote branch
+# → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
 wtp add -b feature/test --track origin/main
 
 # Remote branch handling examples:
@@ -138,24 +142,6 @@ wtp add --no-cd feature/auth      # Never change directory
 # Without flags, uses cd_after_create setting from .wtp.yml
 ```
 
-### Explicit Path Specification (Full Flexibility)
-
-```bash
-# Create worktree at custom absolute path
-wtp add --path /tmp/experiment feature/auth
-
-# Create worktree at custom relative path
-wtp add --path ./custom-location feature/auth
-
-# Create detached HEAD worktree from commit
-wtp add --path /tmp/debug --detach abc1234
-
-# All git worktree options work with explicit paths
-wtp add --path /tmp/test --force feature/auth
-
-# No ambiguity: foobar/foo is always treated as branch name
-wtp add --path /custom/location foobar/foo
-```
 
 ### Management Commands
 
@@ -167,16 +153,16 @@ wtp list
 # PATH                      BRANCH           HEAD
 # ----                      ------           ----
 # @ (main worktree)*        main             c72c7800
-# feature-auth              feature/auth     def45678
+# feature/auth              feature/auth     def45678
 # ../project-hotfix         hotfix/urgent    abc12345
 
-# Remove worktree only (by worktree directory name)
-wtp remove auth
-wtp remove --force auth  # Force removal even if dirty
+# Remove worktree only (by worktree name)
+wtp remove feature/auth
+wtp remove --force feature/auth  # Force removal even if dirty
 
 # Remove worktree and its branch
-wtp remove --with-branch auth              # Only if branch is merged
-wtp remove --with-branch --force-branch auth  # Force branch deletion
+wtp remove --with-branch feature/auth              # Only if branch is merged
+wtp remove --with-branch --force-branch feature/auth  # Force branch deletion
 ```
 
 ## Configuration
@@ -251,8 +237,8 @@ This enables:
 Once shell integration is enabled, you can quickly change to any worktree:
 
 ```bash
-# Change to a worktree by its directory name
-wtp cd auth
+# Change to a worktree by its name
+wtp cd feature/auth
 
 # Change to the root worktree using the '@' shorthand
 wtp cd @

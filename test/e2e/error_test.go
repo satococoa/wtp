@@ -164,57 +164,6 @@ func TestErrorMessagesValidation(t *testing.T) {
 	})
 }
 
-func TestGitCommandErrors(t *testing.T) {
-	env := framework.NewTestEnvironment(t)
-	defer env.Cleanup()
-
-	t.Run("GitCommandFailure", func(t *testing.T) {
-		repo := env.CreateTestRepo("error-git-command")
-
-		// Try to add worktree with invalid path characters
-		output, err := repo.RunWTP("add", "--path", "/dev/null/invalid", "-b", "test")
-		framework.AssertError(t, err)
-
-		// Debug: Print the actual output
-		t.Logf("Actual output: %q", output)
-
-		framework.AssertTrue(t,
-			strings.Contains(output, "failed") ||
-				strings.Contains(output, "error") ||
-				strings.Contains(output, "Original error:"),
-			"Should show git command failure")
-
-		// Should provide helpful context
-		framework.AssertTrue(t,
-			strings.Contains(output, "Tip:") ||
-				strings.Contains(output, "Details:") ||
-				strings.Contains(output, "git command"),
-			"Should provide context for git command failure")
-	})
-
-	t.Run("PermissionDenied", func(t *testing.T) {
-		repo := env.CreateTestRepo("error-permission")
-
-		// Create a directory with restricted permissions
-		restrictedPath := env.TmpDir() + "/restricted"
-		env.RunInDir(env.TmpDir(), "mkdir", "-p", restrictedPath)
-		env.RunInDir(env.TmpDir(), "chmod", "000", restrictedPath)
-
-		// Cleanup permission after test
-		defer func() {
-			env.RunInDir(env.TmpDir(), "chmod", "755", restrictedPath)
-		}()
-
-		output, err := repo.RunWTP("add", "--path", restrictedPath+"/worktree", "-b", "test")
-		framework.AssertError(t, err)
-		framework.AssertTrue(t,
-			strings.Contains(output, "permission") ||
-				strings.Contains(output, "denied") ||
-				strings.Contains(output, "failed"),
-			"Should handle permission errors gracefully")
-	})
-}
-
 func TestValidationErrors(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()

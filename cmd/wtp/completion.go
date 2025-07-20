@@ -14,6 +14,49 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// isWorktreeManagedCompletion determines if a worktree is managed by wtp (for completion)
+func isWorktreeManagedCompletion(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) bool {
+	// Main worktree is always managed
+	if isMain {
+		return true
+	}
+
+	// Get base directory - use default config if config is not available
+	if cfg == nil {
+		// Create default config when none is available
+		defaultCfg := &config.Config{
+			Defaults: config.Defaults{
+				BaseDir: "../worktrees",
+			},
+		}
+		cfg = defaultCfg
+	}
+
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
+	// Remove trailing slash if it exists
+	baseDir = strings.TrimSuffix(baseDir, "/")
+
+	// Check if worktree path is under base directory
+	absWorktreePath, err := filepath.Abs(worktreePath)
+	if err != nil {
+		return false
+	}
+
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return false
+	}
+
+	// Check if worktree is within base directory
+	relPath, err := filepath.Rel(absBaseDir, absWorktreePath)
+	if err != nil {
+		return false
+	}
+
+	// If relative path starts with "..", it's outside base directory
+	return !strings.HasPrefix(relPath, "..")
+}
+
 // NewCompletionCommand creates the completion command definition
 func NewCompletionCommand() *cli.Command {
 	return &cli.Command{
@@ -154,7 +197,7 @@ _wtp_completion() {
     if [[ $cur == -* ]]; then
         case "${words[1]}" in
             add)
-                local add_flags="--path --force -f --detach --checkout --lock --reason --orphan"
+                local add_flags="--force -f --detach --checkout --lock --reason --orphan"
                 add_flags="$add_flags --branch -b --track -t --help -h"
                 COMPREPLY=( $(compgen -W "$add_flags" -- "$cur") )
                 ;;
@@ -182,11 +225,6 @@ _wtp_completion() {
 
     # Handle value completion for flags that require arguments
     case "$prev" in
-        --path)
-            # Complete with directories
-            COMPREPLY=( $(compgen -d -- "$cur") )
-            return
-            ;;
         --reason)
             # Complete with common lock reasons
             COMPREPLY=( $(compgen -W "testing debugging maintenance" -- "$cur") )
@@ -232,12 +270,6 @@ _wtp_completion() {
                                     ((i++)) # Skip the branch name value
                                 fi
                                 ;;
-                            --path)
-                                has_path_flag=true
-                                if [[ $((i+1)) -lt $cword ]]; then
-                                    ((i++)) # Skip the path value
-                                fi
-                                ;;
                         esac
                     done
 
@@ -256,7 +288,7 @@ _wtp_completion() {
                             # Skip values that follow flags
                             local prev_word="${words[i-1]}"
                             if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" &&
-                                  "$prev_word" != "--path" && "$prev_word" != "--reason" &&
+                                  "$prev_word" != "--reason" &&
                                   "$prev_word" != "-t" && "$prev_word" != "--track" ]]; then
                                 ((arg_count++))
                             fi
@@ -289,7 +321,7 @@ _wtp_completion() {
                                 if [[ "${words[i]}" != -* ]]; then
                                     local prev_word="${words[i-1]}"
                                     if [[ "$prev_word" != "-b" && "$prev_word" != "--branch" &&
-                                          "$prev_word" != "--path" && "$prev_word" != "--reason" &&
+                                          "$prev_word" != "--reason" &&
                                           "$prev_word" != "-t" && "$prev_word" != "--track" ]]; then
                                         first_arg="${words[i]}"
                                         break
@@ -407,7 +439,6 @@ _wtp() {
             case $words[1] in
                 add)
                     _arguments -C -s \
-                        '--path[Specify explicit path for worktree]:path:_directories' \
                         '(--force -f)'{--force,-f}'[Checkout even if already checked out in other worktree]' \
                         '--detach[Make the new worktree HEAD detached]' \
                         '--checkout[Populate the new worktree (default)]' \
@@ -818,10 +849,10 @@ func printWorktriesForCd(
 		}
 	}
 
-	// Print other worktrees with current marker
+	// Print other worktrees with current marker (managed only)
 	for i := range worktrees {
 		wt := &worktrees[i]
-		if !wt.IsMain {
+		if !wt.IsMain && isWorktreeManagedCompletion(wt.Path, cfg, mainRepoPath, wt.IsMain) {
 			name := getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
 			if wt.Path == currentPath {
 				fmt.Fprintf(w, "%s*\n", name)
@@ -856,11 +887,11 @@ func getWorktreeNameFromPath(worktreePath string, cfg *config.Config, mainRepoPa
 	return relPath
 }
 
-// printWorktriesForRemove prints worktrees for remove command (no main, no markers)
+// printWorktriesForRemove prints worktrees for remove command (no main, no markers, managed only)
 func printWorktriesForRemove(w io.Writer, worktrees []git.Worktree, cfg *config.Config, mainRepoPath string) {
 	for i := range worktrees {
 		wt := &worktrees[i]
-		if !wt.IsMain {
+		if !wt.IsMain && isWorktreeManagedCompletion(wt.Path, cfg, mainRepoPath, wt.IsMain) {
 			// Calculate worktree name as relative path from base_dir
 			name := getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
 			fmt.Fprintln(w, name)

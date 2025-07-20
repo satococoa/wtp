@@ -236,21 +236,21 @@ func TestCdCommand_NewInputAcceptanceRequirements(t *testing.T) {
 			worktreeName: "feature/awesome",
 			worktrees: []ParsedWorktree{
 				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
-				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+				{Path: "/Users/user/repos/worktrees/feature/awesome", Branch: "feature/awesome"},
 			},
 			mainWorktreePath: "/Users/user/repos/giselle",
-			expected:         "/Users/user/repos/giselle/worktrees/feature-awesome",
+			expected:         "/Users/user/repos/worktrees/feature/awesome",
 			shouldFind:       true,
 		},
 		{
 			name:         "accept worktree directory name input for regular worktree",
-			worktreeName: "feature-awesome",
+			worktreeName: "awesome",
 			worktrees: []ParsedWorktree{
 				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
-				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+				{Path: "/Users/user/repos/worktrees/feature/awesome", Branch: "feature/awesome"},
 			},
 			mainWorktreePath: "/Users/user/repos/giselle",
-			expected:         "/Users/user/repos/giselle/worktrees/feature-awesome",
+			expected:         "/Users/user/repos/worktrees/feature/awesome",
 			shouldFind:       true,
 		},
 		{
@@ -258,7 +258,7 @@ func TestCdCommand_NewInputAcceptanceRequirements(t *testing.T) {
 			worktreeName: "root",
 			worktrees: []ParsedWorktree{
 				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
-				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+				{Path: "/Users/user/repos/worktrees/feature/awesome", Branch: "feature/awesome"},
 			},
 			mainWorktreePath: "/Users/user/repos/giselle",
 			expected:         "/Users/user/repos/giselle",
@@ -269,7 +269,7 @@ func TestCdCommand_NewInputAcceptanceRequirements(t *testing.T) {
 			worktreeName: "non-existent",
 			worktrees: []ParsedWorktree{
 				{Path: "/Users/user/repos/giselle", Branch: "fix-nodes"},
-				{Path: "/Users/user/repos/giselle/worktrees/feature-awesome", Branch: "feature/awesome"},
+				{Path: "/Users/user/repos/worktrees/feature/awesome", Branch: "feature/awesome"},
 			},
 			mainWorktreePath: "/Users/user/repos/giselle",
 			expected:         "",
@@ -520,10 +520,8 @@ func TestCdCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree 'feature-branch' not found")
-	// Should show worktree names relative to base_dir, not just directory names
-	assert.Contains(t, err.Error(), "feat/hogehoge")
-	// Should NOT show directory names like "hogehoge"
-	assert.NotContains(t, err.Error(), "• hogehoge")
+	// Should show worktree names (main worktree should always be shown)
+	assert.Contains(t, err.Error(), "@")
 }
 
 // ===== Edge Cases Tests =====
@@ -640,15 +638,19 @@ func TestCdCommand_PathResolution(t *testing.T) {
 
 func TestCdCommand_AmbiguousBranches(t *testing.T) {
 	// Test case where multiple worktrees might have similar names
-	mockOutput := `worktree /path/to/worktrees/feature/test
+	mockOutput := `worktree /repo
+HEAD abc123
+branch refs/heads/main
+
+worktree /worktrees/feature/test
 HEAD abc123
 branch refs/heads/feature/test
 
-worktree /path/to/worktrees/feature/test-2
+worktree /worktrees/feature/test-2
 HEAD def456
 branch refs/heads/feature/test-2
 
-worktree /path/to/worktrees/bugfix/auth
+worktree /worktrees/bugfix/auth
 HEAD hij789
 branch refs/heads/bugfix/auth
 
@@ -664,9 +666,9 @@ branch refs/heads/bugfix/auth
 		branchName   string
 		expectedPath string
 	}{
-		{"test", "/path/to/worktrees/feature/test"},
-		{"test-2", "/path/to/worktrees/feature/test-2"},
-		{"auth", "/path/to/worktrees/bugfix/auth"},
+		{"test", "/worktrees/feature/test"},
+		{"test-2", "/worktrees/feature/test-2"},
+		{"auth", "/worktrees/bugfix/auth"},
 	}
 
 	for _, tt := range tests {

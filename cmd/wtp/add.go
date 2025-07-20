@@ -21,20 +21,15 @@ func NewAddCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "add",
 		Usage:     "Create a new worktree",
-		UsageText: "wtp add [--path <path>] [git-worktree-options...] <branch-name> [<commit-ish>]",
+		UsageText: "wtp add [git-worktree-options...] <branch-name> [<commit-ish>]",
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
 			"  wtp add feature/auth                    # Auto-generate path: ../worktrees/feature/auth\n" +
-			"  wtp add --path /tmp/test feature/auth   # Use explicit path\n" +
 			"  wtp add -b new-feature main             # Create new branch from main\n" +
 			"  wtp add --detach abc1234                # Detached HEAD at commit",
 		ShellComplete: completeBranches,
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:  "path",
-				Usage: "Specify explicit path for worktree (instead of auto-generation)",
-			},
 			&cli.BoolFlag{
 				Name:    "force",
 				Usage:   "Checkout <commit-ish> even if already checked out in other worktree",
@@ -330,7 +325,6 @@ The target directory already exists and is not empty.
 
 Solutions:
   • Use --force flag to overwrite existing directory
-  • Choose a different path with --path flag
   • Remove the existing directory
   • Use a different branch name
 
@@ -431,17 +425,11 @@ func displaySuccessMessage(w io.Writer, branchName, workTreePath string) {
 	}
 }
 
-// resolveWorktreePath determines the worktree path and branch name based on flags and arguments
+// resolveWorktreePath determines the worktree path and branch name based on arguments
 func resolveWorktreePath(
 	cfg *config.Config, repoPath, firstArg string, cmd *cli.Command,
 ) (workTreePath, branchName string) {
-	// Check if explicit path is specified via --path flag
-	if explicitPath := cmd.String("path"); explicitPath != "" {
-		// Explicit path specified - use it as-is, branch name from first argument
-		return explicitPath, firstArg
-	}
-
-	// No explicit path - generate path automatically from branch name
+	// Generate path automatically from branch name
 	branchName = firstArg
 
 	// If -b flag is provided, use that as the branch name for path generation
@@ -456,101 +444,6 @@ func resolveWorktreePath(
 
 	workTreePath = cfg.ResolveWorktreePath(repoPath, branchName)
 	return workTreePath, branchName
-}
-
-func buildGitWorktreeArgs(cmd *cli.Command, workTreePath, branchName string) []string {
-	args := []string{"worktree", "add"}
-
-	// Add basic flags
-	args = appendBasicFlags(args, cmd)
-
-	// Handle branch and track flags
-	track := cmd.String("track")
-	branch := cmd.String("branch")
-	args = appendBranchAndTrackFlags(args, branch, track, branchName, cmd.Bool("detach"))
-
-	// Add worktree path
-	args = append(args, workTreePath)
-
-	// Handle positional arguments
-	args = appendPositionalArgs(args, cmd, branch, track, branchName)
-
-	return args
-}
-
-func appendBasicFlags(args []string, cmd *cli.Command) []string {
-	if cmd.Bool("force") {
-		args = append(args, "--force")
-	}
-	if cmd.Bool("detach") {
-		args = append(args, "--detach")
-	}
-	return args
-}
-
-func appendBranchAndTrackFlags(args []string, branch, track, branchName string, isDetached bool) []string {
-	if branch != "" {
-		args = append(args, "-b", branch)
-	}
-
-	// If tracking a remote branch and no explicit -b flag, add -b automatically
-	if track != "" && branch == "" && !isDetached {
-		// When tracking remote branch, we need to create local branch with -b
-		args = append(args, "--track", "-b", branchName)
-	} else if track != "" {
-		// Add track flag when specified
-		args = append(args, "--track")
-	}
-
-	return args
-}
-
-func appendPositionalArgs(args []string, cmd *cli.Command, branch, track, branchName string) []string {
-	if cmd.String("path") != "" {
-		// Explicit path case
-		return appendExplicitPathArgs(args, cmd, branch, track, branchName)
-	}
-	// Auto-generated path case
-	return appendAutoPathArgs(args, cmd, branch, track, branchName)
-}
-
-func appendExplicitPathArgs(args []string, cmd *cli.Command, branch, track, branchName string) []string {
-	// Only add branch name if not using -b flag (to avoid duplication)
-	if branch == "" && track == "" {
-		args = append(args, branchName)
-	} else if track != "" && branch == "" {
-		// When tracking with -b, need to specify the remote branch
-		args = append(args, track)
-	}
-	if cmd.Args().Len() > 1 {
-		args = append(args, cmd.Args().Slice()[1:]...)
-	}
-	return args
-}
-
-func appendAutoPathArgs(args []string, cmd *cli.Command, branch, track, branchName string) []string {
-	if branch != "" {
-		// Using -b flag: first arg (if any) is the commit-ish to branch from
-		if cmd.Args().Len() > 0 {
-			args = append(args, cmd.Args().Get(0))
-		}
-	} else if track != "" && branch == "" {
-		// When tracking a remote branch (with or without --detach), need to specify remote branch as commit-ish
-		args = append(args, track)
-	} else if track == "" && !cmd.Bool("detach") {
-		// No -b flag and no --track: first arg is branch name (unless detached)
-		args = append(args, branchName)
-	} else if cmd.Bool("detach") && track == "" {
-		// Detached mode without tracking: first arg is the commit-ish
-		if cmd.Args().Len() > 0 {
-			args = append(args, cmd.Args().Get(0))
-		}
-	}
-	// Add any additional arguments (for certain cases)
-	if cmd.Args().Len() > 1 && branch == "" && track == "" {
-		args = append(args, cmd.Args().Slice()[1:]...)
-	}
-	return args
 }
 
 func shouldChangeDirectory(cmd *cli.Command, cfg *config.Config) bool {

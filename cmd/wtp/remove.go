@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/config"
@@ -16,6 +17,49 @@ import (
 
 // Variable to allow mocking in tests
 var removeGetwd = os.Getwd
+
+// isWorktreeManaged determines if a worktree is managed by wtp
+func isWorktreeManaged(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) bool {
+	// Main worktree is always managed
+	if isMain {
+		return true
+	}
+
+	// Get base directory - use default config if config is not available
+	if cfg == nil {
+		// Create default config when none is available
+		defaultCfg := &config.Config{
+			Defaults: config.Defaults{
+				BaseDir: "../worktrees",
+			},
+		}
+		cfg = defaultCfg
+	}
+
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
+	// Remove trailing slash if it exists
+	baseDir = strings.TrimSuffix(baseDir, "/")
+
+	// Check if worktree path is under base directory
+	absWorktreePath, err := filepath.Abs(worktreePath)
+	if err != nil {
+		return false
+	}
+
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return false
+	}
+
+	// Check if worktree is within base directory
+	relPath, err := filepath.Rel(absBaseDir, absWorktreePath)
+	if err != nil {
+		return false
+	}
+
+	// If relative path starts with "..", it's outside base directory
+	return !strings.HasPrefix(relPath, "..")
+}
 
 // NewRemoveCommand creates the remove command definition
 func NewRemoveCommand() *cli.Command {
@@ -179,6 +223,11 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 			continue
 		}
 
+		// Skip unmanaged worktrees - they cannot be removed by wtp
+		if !isWorktreeManaged(wt.Path, cfg, mainWorktreePath, wt.IsMain) {
+			continue
+		}
+
 		// Priority 1: Match by branch name (for prefixes like feature/awesome)
 		if wt.Branch == worktreeName {
 			targetWorktree = &wt
@@ -196,7 +245,7 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 			targetWorktree = &wt
 		}
 
-		// Build available worktrees list using consistent naming (excluding main worktree)
+		// Build available worktrees list using consistent naming (excluding main worktree and unmanaged)
 		availableWorktrees = append(availableWorktrees, worktreeDisplayName)
 
 		// Exit early if we found a match

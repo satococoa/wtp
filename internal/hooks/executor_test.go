@@ -763,10 +763,10 @@ func TestExecutePostCreateHooks_CopyFilePreservesPermissions(t *testing.T) {
 	dstFile := filepath.Join(worktreeDir, "copied-script.sh")
 	dstInfo, err := os.Stat(dstFile)
 	require.NoError(t, err)
-	
+
 	srcInfo, err := os.Stat(srcFile)
 	require.NoError(t, err)
-	
+
 	assert.Equal(t, srcInfo.Mode(), dstInfo.Mode())
 }
 
@@ -801,7 +801,7 @@ func TestExecutePostCreateHooks_CopyWithAbsolutePaths(t *testing.T) {
 			PostCreate: []config.Hook{
 				{
 					Type: config.HookTypeCopy,
-					From: srcFile, // absolute path
+					From: srcFile,                                // absolute path
 					To:   filepath.Join(outputDir, "result.txt"), // absolute path
 				},
 			},
@@ -823,10 +823,10 @@ func TestExecutePostCreateHooks_CopyWithAbsolutePaths(t *testing.T) {
 // Error handling tests for copyFile function
 func TestExecutor_copyFile_SourceFileOpenError(t *testing.T) {
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	// Try to copy non-existent file
 	err := executor.copyFile("/nonexistent/source.txt", "/tmp/dest.txt")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to open source file")
 }
@@ -834,17 +834,17 @@ func TestExecutor_copyFile_SourceFileOpenError(t *testing.T) {
 func TestExecutor_copyFile_DestinationCreateError(t *testing.T) {
 	tempDir := t.TempDir()
 	srcFile := filepath.Join(tempDir, "source.txt")
-	
+
 	// Create source file
 	err := os.WriteFile(srcFile, []byte("test content"), 0644)
 	require.NoError(t, err)
-	
+
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	// Try to create file in non-existent directory without creating parent dirs
 	invalidDest := "/nonexistent/directory/dest.txt"
 	err = executor.copyFile(srcFile, invalidDest)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create destination file")
 }
@@ -853,25 +853,25 @@ func TestExecutor_copyFile_PermissionGetError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Permission test not applicable on Windows")
 	}
-	
+
 	tempDir := t.TempDir()
 	srcFile := filepath.Join(tempDir, "source.txt")
 	dstFile := filepath.Join(tempDir, "dest.txt")
-	
+
 	// Create source file
 	err := os.WriteFile(srcFile, []byte("test content"), 0644)
 	require.NoError(t, err)
-	
+
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	// Copy the file first
 	err = executor.copyFile(srcFile, dstFile)
 	require.NoError(t, err)
-	
+
 	// Remove source to trigger stat error in copyFile
 	err = os.Remove(srcFile)
 	require.NoError(t, err)
-	
+
 	// Try to copy again - should fail at getting source file info
 	err = executor.copyFile(srcFile, dstFile+"2")
 	assert.Error(t, err)
@@ -881,10 +881,10 @@ func TestExecutor_copyFile_PermissionGetError(t *testing.T) {
 // Error handling tests for copyDir function
 func TestExecutor_copyDir_SourceDirectoryNotExist(t *testing.T) {
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	// Try to copy non-existent directory
 	err := executor.copyDir("/nonexistent/source", "/tmp/dest")
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to stat source directory")
 }
@@ -892,17 +892,17 @@ func TestExecutor_copyDir_SourceDirectoryNotExist(t *testing.T) {
 func TestExecutor_copyDir_DestinationCreateError(t *testing.T) {
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "source")
-	
+
 	// Create source directory
 	err := os.MkdirAll(srcDir, directoryPermissions)
 	require.NoError(t, err)
-	
+
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	// Try to create directory where parent doesn't exist and we can't create it
 	invalidDest := "/root/nonexistent/dest" // Should fail on most systems
 	err = executor.copyDir(srcDir, invalidDest)
-	
+
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create destination directory")
 }
@@ -911,26 +911,26 @@ func TestExecutor_copyDir_ReadDirectoryError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Permission test not applicable on Windows")
 	}
-	
+
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "source")
 	dstDir := filepath.Join(tempDir, "dest")
-	
+
 	// Create source directory
 	err := os.MkdirAll(srcDir, directoryPermissions)
 	require.NoError(t, err)
-	
+
 	// Remove read permission from source directory
 	err = os.Chmod(srcDir, 0200) // write-only
 	require.NoError(t, err)
-	
+
 	// Restore permissions after test
 	defer func() {
 		_ = os.Chmod(srcDir, directoryPermissions)
 	}()
-	
+
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	err = executor.copyDir(srcDir, dstDir)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read source directory")
@@ -941,13 +941,13 @@ func TestExecutor_copyDir_NestedDirectorySuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "source")
 	dstDir := filepath.Join(tempDir, "dest")
-	
+
 	// Create nested source structure
 	level1 := filepath.Join(srcDir, "level1")
 	level2 := filepath.Join(level1, "level2")
 	err := os.MkdirAll(level2, directoryPermissions)
 	require.NoError(t, err)
-	
+
 	// Create files at different levels
 	err = os.WriteFile(filepath.Join(srcDir, "root.txt"), []byte("root content"), 0644)
 	require.NoError(t, err)
@@ -955,21 +955,21 @@ func TestExecutor_copyDir_NestedDirectorySuccess(t *testing.T) {
 	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(level2, "level2.txt"), []byte("level2 content"), 0644)
 	require.NoError(t, err)
-	
+
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	err = executor.copyDir(srcDir, dstDir)
 	assert.NoError(t, err)
-	
+
 	// Verify all files were copied correctly
 	rootContent, err := os.ReadFile(filepath.Join(dstDir, "root.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "root content", string(rootContent))
-	
+
 	level1Content, err := os.ReadFile(filepath.Join(dstDir, "level1", "level1.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "level1 content", string(level1Content))
-	
+
 	level2Content, err := os.ReadFile(filepath.Join(dstDir, "level1", "level2", "level2.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "level2 content", string(level2Content))
@@ -979,32 +979,32 @@ func TestExecutor_copyDir_FailsWhenNestedFileCannotBeCopied(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Permission test not applicable on Windows")
 	}
-	
+
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "source")
 	dstDir := filepath.Join(tempDir, "dest")
-	
+
 	// Create source directory with nested structure
 	nestedDir := filepath.Join(srcDir, "nested")
 	err := os.MkdirAll(nestedDir, directoryPermissions)
 	require.NoError(t, err)
-	
+
 	// Create a file that we'll make unreadable
 	unreadableFile := filepath.Join(nestedDir, "unreadable.txt")
 	err = os.WriteFile(unreadableFile, []byte("content"), 0644)
 	require.NoError(t, err)
-	
+
 	// Remove read permission from the file
 	err = os.Chmod(unreadableFile, 0000)
 	require.NoError(t, err)
-	
+
 	// Restore permissions after test
 	defer func() {
 		_ = os.Chmod(unreadableFile, 0644)
 	}()
-	
+
 	executor := NewExecutor(nil, "/test/repo")
-	
+
 	err = executor.copyDir(srcDir, dstDir)
 	assert.Error(t, err)
 	// The error should propagate from the nested copyFile call

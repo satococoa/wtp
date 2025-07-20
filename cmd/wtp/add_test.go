@@ -26,7 +26,7 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotNil(t, cmd.ShellComplete)
 
 	// Check flags exist
-	flagNames := []string{"path", "force", "detach", "branch", "track", "cd", "no-cd"}
+	flagNames := []string{"force", "detach", "branch", "track", "cd", "no-cd"}
 	for _, name := range flagNames {
 		found := false
 		for _, flag := range cmd.Flags {
@@ -96,7 +96,6 @@ func TestPathAlreadyExistsError(t *testing.T) {
 		assert.Contains(t, message, "/existing/path")
 		assert.Contains(t, message, "already exists and is not empty")
 		assert.Contains(t, message, "--force flag")
-		assert.Contains(t, message, "--path flag")
 		assert.Contains(t, message, "Remove the existing directory")
 		assert.Contains(t, message, "directory not empty")
 	})
@@ -255,140 +254,7 @@ func TestChangeToWorktree(t *testing.T) {
 	})
 }
 
-func TestAppendExplicitPathArgs(t *testing.T) {
-	t.Run("should append branch name when no flags are provided", func(t *testing.T) {
-		// Given: no branch or track flags, and a branch name
-		initialArgs := []string{"worktree", "add", "/path/to/worktree"}
-		cmdArgs := []string{"some-branch"}
-
-		// When: appending explicit path args
-		result := callAppendExplicitPathArgs(initialArgs, cmdArgs, "", "", "some-branch")
-
-		// Then: should append the branch name
-		expected := []string{"worktree", "add", "/path/to/worktree", "some-branch"}
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("should not append branch name when -b flag is used", func(t *testing.T) {
-		// Given: branch flag is provided
-		initialArgs := []string{"worktree", "add", "-b", "new-branch", "/path/to/worktree"}
-		cmdArgs := []string{"base-branch"}
-
-		// When: appending explicit path args with branch flag
-		result := callAppendExplicitPathArgs(initialArgs, cmdArgs, "new-branch", "", "base-branch")
-
-		// Then: should not append branch name (already handled by -b flag)
-		expected := []string{"worktree", "add", "-b", "new-branch", "/path/to/worktree"}
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("should append remote branch when track flag is used without -b", func(t *testing.T) {
-		// Given: track flag is provided without branch flag
-		initialArgs := []string{"worktree", "add", "--track", "/path/to/worktree"}
-		cmdArgs := []string{"feature-branch"}
-
-		// When: appending explicit path args with track
-		result := callAppendExplicitPathArgs(initialArgs, cmdArgs, "", "origin/feature-branch", "feature-branch")
-
-		// Then: should append the remote branch
-		expected := []string{"worktree", "add", "--track", "/path/to/worktree", "origin/feature-branch"}
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("should append additional command arguments", func(t *testing.T) {
-		// Given: command has additional arguments beyond the first (commit-ish)
-		initialArgs := []string{"worktree", "add", "/path/to/worktree"}
-		cmdArgs := []string{"branch-name", "commit-hash"}
-
-		// When: appending explicit path args
-		result := callAppendExplicitPathArgs(initialArgs, cmdArgs, "", "", "branch-name")
-
-		// Then: should append branch name and additional args
-		expected := []string{"worktree", "add", "/path/to/worktree", "branch-name", "commit-hash"}
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("should handle empty initial args", func(t *testing.T) {
-		// Given: empty initial args array
-		initialArgs := []string{}
-		cmdArgs := []string{"branch-name"}
-
-		// When: appending explicit path args
-		result := callAppendExplicitPathArgs(initialArgs, cmdArgs, "", "", "branch-name")
-
-		// Then: should create new array with branch name
-		expected := []string{"branch-name"}
-		assert.Equal(t, expected, result)
-	})
-
-	t.Run("should handle command with only one argument", func(t *testing.T) {
-		// Given: command with only branch name argument
-		initialArgs := []string{"worktree", "add", "/path/to/worktree"}
-		cmdArgs := []string{"branch-name"}
-
-		// When: appending explicit path args
-		result := callAppendExplicitPathArgs(initialArgs, cmdArgs, "", "", "branch-name")
-
-		// Then: should only append branch name (no additional args)
-		expected := []string{"worktree", "add", "/path/to/worktree", "branch-name"}
-		assert.Equal(t, expected, result)
-	})
-}
-
-// For testing appendExplicitPathArgs, we need to create a CLI command
-// since the function needs a cli.Command interface
-func callAppendExplicitPathArgs(initialArgs, cmdArgs []string, branch, track, branchName string) []string {
-	// Create a simple CLI command with the args we need
-	cmd := createTestCLICommandWithArgs(map[string]any{
-		"branch": branch,
-		"track":  track,
-	}, cmdArgs)
-	return appendExplicitPathArgs(initialArgs, cmd, branch, track, branchName)
-}
-
 // Helper to create CLI command with specific args
-func createTestCLICommandWithArgs(flags map[string]any, args []string) *cli.Command {
-	app := &cli.Command{
-		Name: "test",
-		Commands: []*cli.Command{
-			{
-				Name: "add",
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "path"},
-					&cli.BoolFlag{Name: "force"},
-					&cli.BoolFlag{Name: "detach"},
-					&cli.StringFlag{Name: "branch"},
-					&cli.StringFlag{Name: "track"},
-					&cli.BoolFlag{Name: "cd"},
-					&cli.BoolFlag{Name: "no-cd"},
-				},
-				Action: func(_ context.Context, _ *cli.Command) error {
-					return nil
-				},
-			},
-		},
-	}
-
-	cmdArgs := []string{"test", "add"}
-	for key, value := range flags {
-		switch v := value.(type) {
-		case bool:
-			if v {
-				cmdArgs = append(cmdArgs, "--"+key)
-			}
-		case string:
-			if v != "" {
-				cmdArgs = append(cmdArgs, "--"+key, v)
-			}
-		}
-	}
-	cmdArgs = append(cmdArgs, args...)
-
-	ctx := context.Background()
-	_ = app.Run(ctx, cmdArgs)
-
-	return app.Commands[0]
-}
 
 // ===== Pure Business Logic Tests =====
 
@@ -466,13 +332,6 @@ func TestResolveWorktreePath(t *testing.T) {
 			expectedPath: "/test/worktrees/feature/auth",
 		},
 		{
-			name:         "explicit path overrides default",
-			pathFlag:     "/custom/path",
-			branchName:   "feature/auth",
-			baseDir:      "/test/worktrees",
-			expectedPath: "/custom/path",
-		},
-		{
 			name:         "branch with nested structure",
 			pathFlag:     "",
 			branchName:   "team/backend/feature",
@@ -497,81 +356,6 @@ func TestResolveWorktreePath(t *testing.T) {
 }
 
 // ===== Command Building Tests =====
-
-func TestBuildGitWorktreeArgs(t *testing.T) {
-	tests := []struct {
-		name         string
-		workTreePath string
-		branchName   string
-		flags        map[string]any
-		want         []string
-	}{
-		{
-			name:         "simple branch",
-			workTreePath: "/path/to/worktree",
-			branchName:   "feature",
-			flags:        map[string]any{},
-			want:         []string{"worktree", "add", "/path/to/worktree", "feature"},
-		},
-		{
-			name:         "with force flag",
-			workTreePath: "/path/to/worktree",
-			branchName:   "feature",
-			flags:        map[string]any{"force": true},
-			want:         []string{"worktree", "add", "--force", "/path/to/worktree", "feature"},
-		},
-		{
-			name:         "with new branch flag",
-			workTreePath: "/path/to/worktree",
-			branchName:   "new-feature",
-			flags:        map[string]any{"branch": "new-feature"},
-			want:         []string{"worktree", "add", "-b", "new-feature", "/path/to/worktree"},
-		},
-		{
-			name:         "detached HEAD",
-			workTreePath: "/path/to/worktree",
-			branchName:   "",
-			flags:        map[string]any{"detach": true},
-			want:         []string{"worktree", "add", "--detach", "/path/to/worktree"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := &cli.Command{
-				Name: "test",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "force"},
-					&cli.BoolFlag{Name: "detach"},
-					&cli.StringFlag{Name: "branch"},
-					&cli.StringFlag{Name: "track"},
-					&cli.StringFlag{Name: "path"},
-				},
-				Action: func(_ context.Context, cmd *cli.Command) error {
-					result := buildGitWorktreeArgs(cmd, tt.workTreePath, tt.branchName)
-					assert.Equal(t, tt.want, result)
-					return nil
-				},
-			}
-
-			args := []string{"test"}
-			for flag, value := range tt.flags {
-				switch v := value.(type) {
-				case bool:
-					if v {
-						args = append(args, "--"+flag)
-					}
-				case string:
-					args = append(args, "--"+flag, v)
-				}
-			}
-
-			ctx := context.Background()
-			err := app.Run(ctx, args)
-			assert.NoError(t, err)
-		})
-	}
-}
 
 // ===== Command Execution Tests =====
 
@@ -768,56 +552,6 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 	}
 }
 
-func TestAddCommand_PathHandling(t *testing.T) {
-	tests := []struct {
-		name         string
-		branchName   string
-		customPath   string
-		expectedPath string
-	}{
-		{
-			name:         "spaces in branch name",
-			branchName:   "feature/with spaces",
-			expectedPath: "/test/worktrees/feature/with spaces",
-		},
-		{
-			name:         "custom path overrides default",
-			branchName:   "feature/auth",
-			customPath:   "/custom/path",
-			expectedPath: "/custom/path",
-		},
-		{
-			name:         "deeply nested branch",
-			branchName:   "team/backend/feature/auth",
-			expectedPath: "/test/worktrees/team/backend/feature/auth",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			flags := map[string]any{
-				"branch": tt.branchName,
-			}
-			if tt.customPath != "" {
-				flags["path"] = tt.customPath
-			}
-
-			mockExec := &mockCommandExecutor{}
-			var buf bytes.Buffer
-			cmd := createTestCLICommand(flags, []string{tt.branchName})
-			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
-			}
-
-			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
-
-			assert.NoError(t, err)
-			expectedArgs := []string{"worktree", "add", "-b", tt.branchName, tt.expectedPath}
-			assert.Equal(t, expectedArgs, mockExec.executedCommands[0].Args)
-		})
-	}
-}
-
 // ===== Helper Functions =====
 
 func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
@@ -827,7 +561,6 @@ func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
 			{
 				Name: "add",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "path"},
 					&cli.BoolFlag{Name: "force"},
 					&cli.BoolFlag{Name: "detach"},
 					&cli.StringFlag{Name: "branch"},

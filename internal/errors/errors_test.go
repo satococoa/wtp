@@ -171,7 +171,7 @@ func TestWorktreeCreationFailed(t *testing.T) {
 				"failed to create worktree at '/path/exists' for branch 'main'",
 				"destination path",
 				"already exists",
-				"--path flag",
+				"Remove the existing directory",
 				"Original error:",
 			},
 		},

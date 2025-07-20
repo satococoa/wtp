@@ -15,6 +15,49 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// isWorktreeManagedCd determines if a worktree is managed by wtp (for cd command)
+func isWorktreeManagedCd(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) bool {
+	// Main worktree is always managed
+	if isMain {
+		return true
+	}
+
+	// Get base directory - use default config if config is not available
+	if cfg == nil {
+		// Create default config when none is available
+		defaultCfg := &config.Config{
+			Defaults: config.Defaults{
+				BaseDir: "../worktrees",
+			},
+		}
+		cfg = defaultCfg
+	}
+
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
+	// Remove trailing slash if it exists
+	baseDir = strings.TrimSuffix(baseDir, "/")
+
+	// Check if worktree path is under base directory
+	absWorktreePath, err := filepath.Abs(worktreePath)
+	if err != nil {
+		return false
+	}
+
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return false
+	}
+
+	// Check if worktree is within base directory
+	relPath, err := filepath.Rel(absBaseDir, absWorktreePath)
+	if err != nil {
+		return false
+	}
+
+	// If relative path starts with "..", it's outside base directory
+	return !strings.HasPrefix(relPath, "..")
+}
+
 // NewCdCommand creates the cd command definition
 func NewCdCommand() *cli.Command {
 	return &cli.Command{
@@ -100,13 +143,19 @@ func cdCommandWithCommandExecutor(
 		if err != nil {
 			// Fallback to directory names if config can't be loaded
 			for i := range worktrees {
-				availableWorktrees = append(availableWorktrees, filepath.Base(worktrees[i].Path))
+				// Only include managed worktrees
+				if isWorktreeManagedCd(worktrees[i].Path, nil, mainRepoPath, worktrees[i].IsMain) {
+					availableWorktrees = append(availableWorktrees, filepath.Base(worktrees[i].Path))
+				}
 			}
 		} else {
 			// Use consistent worktree names (relative to base_dir)
 			for i := range worktrees {
-				name := getWorktreeNameFromPath(worktrees[i].Path, cfg, mainRepoPath, worktrees[i].IsMain)
-				availableWorktrees = append(availableWorktrees, name)
+				// Only include managed worktrees
+				if isWorktreeManagedCd(worktrees[i].Path, cfg, mainRepoPath, worktrees[i].IsMain) {
+					name := getWorktreeNameFromPath(worktrees[i].Path, cfg, mainRepoPath, worktrees[i].IsMain)
+					availableWorktrees = append(availableWorktrees, name)
+				}
 			}
 		}
 		return errors.WorktreeNotFound(worktreeName, availableWorktrees)
@@ -152,6 +201,11 @@ func resolveCdWorktreePath(worktreeName string, worktrees []git.Worktree, mainWo
 
 // tryDirectMatches attempts direct name matches
 func tryDirectMatches(wt *git.Worktree, worktreeName string, cfg *config.Config, mainWorktreePath string) string {
+	// Skip unmanaged worktrees - they cannot be navigated to by wtp
+	if !isWorktreeManagedCd(wt.Path, cfg, mainWorktreePath, wt.IsMain) {
+		return ""
+	}
+
 	// Priority 1: Exact branch name match (supports prefixes like "feature/awesome")
 	if wt.Branch == worktreeName {
 		return wt.Path

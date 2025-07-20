@@ -159,6 +159,49 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 	return worktrees
 }
 
+// isWorktreeManagedList determines if a worktree is managed by wtp (for list command)
+func isWorktreeManagedList(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) bool {
+	// Main worktree is always managed
+	if isMain {
+		return true
+	}
+
+	// Get base directory - use default config if config is not available
+	if cfg == nil {
+		// Create default config when none is available
+		defaultCfg := &config.Config{
+			Defaults: config.Defaults{
+				BaseDir: "../worktrees",
+			},
+		}
+		cfg = defaultCfg
+	}
+
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
+	// Remove trailing slash if it exists
+	baseDir = strings.TrimSuffix(baseDir, "/")
+
+	// Check if worktree path is under base directory
+	absWorktreePath, err := filepath.Abs(worktreePath)
+	if err != nil {
+		return false
+	}
+
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return false
+	}
+
+	// Check if worktree is within base directory
+	relPath, err := filepath.Rel(absBaseDir, absWorktreePath)
+	if err != nil {
+		return false
+	}
+
+	// If relative path starts with "..", it's outside base directory
+	return !strings.HasPrefix(relPath, "..")
+}
+
 // formatBranchDisplay formats branch name for display, following Git conventions
 func formatBranchDisplay(branch string) string {
 	if branch == detachedKeyword {
@@ -204,6 +247,7 @@ func displayWorktreesRelative(
 	// Calculate initial column widths
 	maxBranchLen := 6 // "BRANCH"
 	maxPathLen := 4   // "PATH"
+	maxStatusLen := 6 // "STATUS"
 
 	// Find main worktree path is no longer needed since we pass it from the caller
 
@@ -212,6 +256,7 @@ func displayWorktreesRelative(
 		path      string
 		branch    string
 		head      string
+		status    string
 		isCurrent bool
 	}
 
@@ -241,31 +286,43 @@ func displayWorktreesRelative(
 
 		branchDisplay := formatBranchDisplay(wt.Branch)
 
+		// Determine management status
+		var statusDisplay string
+		if isWorktreeManagedList(wt.Path, cfg, mainRepoPath, wt.IsMain) {
+			statusDisplay = "managed"
+		} else {
+			statusDisplay = "unmanaged"
+		}
+
 		if len(pathDisplay) > maxPathLen {
 			maxPathLen = len(pathDisplay)
 		}
 		if len(branchDisplay) > maxBranchLen {
 			maxBranchLen = len(branchDisplay)
 		}
+		if len(statusDisplay) > maxStatusLen {
+			maxStatusLen = len(statusDisplay)
+		}
 
 		displayItems = append(displayItems, displayData{
 			path:      pathDisplay,
 			branch:    branchDisplay,
 			head:      wt.HEAD,
+			status:    statusDisplay,
 			isCurrent: isCurrent,
 		})
 	}
 
 	// Calculate available width for path column
-	// Total = path + spacing + branch + spacing + head
-	availableForPath := termWidth - spacing - maxBranchLen - spacing - headWidth
+	// Total = path + spacing + branch + spacing + status + spacing + head
+	availableForPath := termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
 
 	// If branch column is too wide, limit it as well
-	maxAvailableForBranch := termWidth - minPathWidth - spacing - spacing - headWidth
+	maxAvailableForBranch := termWidth - minPathWidth - spacing - maxStatusLen - spacing - spacing - headWidth
 	if maxBranchLen > maxAvailableForBranch {
 		maxBranchLen = maxAvailableForBranch
 		// Recalculate path width with truncated branch width
-		availableForPath = termWidth - spacing - maxBranchLen - spacing - headWidth
+		availableForPath = termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
 	}
 
 	// Ensure minimum path width
@@ -274,10 +331,11 @@ func displayWorktreesRelative(
 	}
 
 	// Print header
-	fmt.Fprintf(w, "%-*s %-*s %s\n", availableForPath, "PATH", maxBranchLen, "BRANCH", "HEAD")
-	fmt.Fprintf(w, "%-*s %-*s %s\n",
+	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n", availableForPath, "PATH", maxBranchLen, "BRANCH", maxStatusLen, "STATUS", "HEAD")
+	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
 		availableForPath, strings.Repeat("-", pathHeaderDashes),
 		maxBranchLen, strings.Repeat("-", branchHeaderDashes),
+		maxStatusLen, strings.Repeat("-", len("STATUS")),
 		"----")
 
 	// Print worktrees
@@ -289,7 +347,12 @@ func displayWorktreesRelative(
 
 		pathDisplay := truncatePath(item.path, availableForPath)
 		branchDisplayTrunc := truncatePath(item.branch, maxBranchLen)
+		statusDisplayTrunc := truncatePath(item.status, maxStatusLen)
 
-		fmt.Fprintf(w, "%-*s %-*s %s\n", availableForPath, pathDisplay, maxBranchLen, branchDisplayTrunc, headShort)
+		fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
+			availableForPath, pathDisplay,
+			maxBranchLen, branchDisplayTrunc,
+			maxStatusLen, statusDisplayTrunc,
+			headShort)
 	}
 }

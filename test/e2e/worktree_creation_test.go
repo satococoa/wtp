@@ -74,28 +74,6 @@ func TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree(t *
 //
 // Business Value: Provides flexibility for different team workflows and project
 // structures, accommodating various developer preferences and constraints.
-func TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation(t *testing.T) {
-	// Given: User wants to create worktree at a specific path
-	// And: User specifies both path and branch
-	env := framework.NewTestEnvironment(t)
-	defer env.Cleanup()
-
-	repo := env.CreateTestRepo("user-custom-path")
-	// Create the feature branch
-	repo.CreateBranch("feature/auth")
-
-	customPath := env.TmpDir() + "/custom-location"
-
-	// When: User runs "wtp add --path /custom/path feature/auth"
-	output, err := repo.RunWTP("add", "--path", customPath, "feature/auth")
-
-	// Then: Worktree should be created at the specified path
-	framework.AssertNoError(t, err)
-	framework.AssertWorktreeCreated(t, output, "feature/auth")
-
-	// And: Custom path should exist
-	framework.AssertWorktreeExists(t, repo, customPath)
-}
 
 // TestUserCreatesWorktree_WithoutBranchName_ShouldShowBranchRequiredError tests
 // input validation from the user's perspective.

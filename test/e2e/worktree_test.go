@@ -57,17 +57,6 @@ func TestWorktreeCreation(t *testing.T) {
 		framework.AssertWorktreeExists(t, repo, "hotfix")
 	})
 
-	t.Run("CustomPath", func(t *testing.T) {
-		repo := env.CreateTestRepo("worktree-custom-path")
-		repo.CreateBranch("feature/custom")
-
-		customPath := env.TmpDir() + "/custom-worktree"
-		output, err := repo.RunWTP("add", "--path", customPath, "feature/custom")
-		framework.AssertNoError(t, err)
-		framework.AssertWorktreeCreated(t, output, "feature/custom")
-		framework.AssertWorktreeExists(t, repo, customPath)
-	})
-
 	t.Run("DetachedHead", func(t *testing.T) {
 		repo := env.CreateTestRepo("worktree-detached")
 
@@ -85,10 +74,10 @@ func TestWorktreeCreation(t *testing.T) {
 		_, err := repo.RunWTP("add", "feature/force")
 		framework.AssertNoError(t, err)
 
-		customPath := env.TmpDir() + "/force-worktree"
-		output, err := repo.RunWTP("add", "--path", customPath, "--force", "feature/force")
+		// Try to add the same branch again with --force
+		output, err := repo.RunWTP("add", "--force", "-b", "feature/force2", "feature/force")
 		framework.AssertNoError(t, err)
-		framework.AssertWorktreeCreated(t, output, "feature/force")
+		framework.AssertWorktreeCreated(t, output, "feature/force2")
 	})
 
 	t.Run("BranchWithSlashes", func(t *testing.T) {

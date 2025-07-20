@@ -108,7 +108,6 @@ Solutions:
 
 Cause: Target directory already exists
 Solutions:
-  • Choose a different path with --path flag
   • Remove the existing directory
   • Use a different branch name`
 	}

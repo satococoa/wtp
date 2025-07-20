@@ -109,30 +109,4 @@ defaults:
 		framework.AssertOutputContains(t, output, "feature/b")
 		framework.AssertWorktreeCount(t, repo, 3) // main + 2 features
 	})
-
-	t.Run("ExplicitPathOverridesConfig", func(t *testing.T) {
-		repo := env.CreateTestRepo("explicit-path-test")
-
-		// Create config with base_dir
-		config := `version: 1.0
-defaults:
-  base_dir: "../config-worktrees"
-`
-		repo.WriteConfig(config)
-		repo.CreateBranch("feature/explicit")
-
-		// Add worktree with explicit path
-		explicitPath := env.TmpDir() + "/explicit-location"
-		output, err := repo.RunWTP("add", "--path", explicitPath, "feature/explicit")
-		framework.AssertNoError(t, err)
-		framework.AssertWorktreeCreated(t, output, "feature/explicit")
-
-		// Verify worktree was created at explicit path, not config path
-		framework.AssertWorktreeExists(t, repo, explicitPath)
-
-		// Remove using worktree name should still work
-		output, err = repo.RunWTP("remove", "explicit-location")
-		framework.AssertNoError(t, err)
-		framework.AssertOutputContains(t, output, "Removed worktree")
-	})
 }
