@@ -225,9 +225,9 @@ func TestChangeToWorktree(t *testing.T) {
 		// When: changing to worktree
 		changeToWorktree(&buf, workTreePath)
 
-		// Then: should output nothing (shell function will handle cd)
+		// Then: should output the path for shell to cd
 		output := buf.String()
-		assert.Empty(t, output)
+		assert.Equal(t, "/path/to/worktree\n", output)
 	})
 
 	t.Run("should handle paths with spaces", func(t *testing.T) {
@@ -370,7 +370,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 			args: []string{"feature/test"},
 			expectedCommands: []command.Command{{
 				Name: "git",
-				Args: []string{"worktree", "add", "-b", "feature/test", "/test/worktrees/feature/test"},
+				Args: []string{"worktree", "add", "-b", "feature/test", "/test/worktrees/feature/test", "feature/test"},
 			}},
 			expectError: false,
 		},
@@ -383,7 +383,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 			args: []string{"feature/test"},
 			expectedCommands: []command.Command{{
 				Name: "git",
-				Args: []string{"worktree", "add", "--force", "-b", "feature/test", "/test/worktrees/feature/test"},
+				Args: []string{"worktree", "add", "--force", "-b", "feature/test", "/test/worktrees/feature/test", "feature/test"},
 			}},
 			expectError: false,
 		},
@@ -395,7 +395,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 			args: []string{"main"},
 			expectedCommands: []command.Command{{
 				Name: "git",
-				Args: []string{"worktree", "add", "-b", "new-feature", "/test/worktrees/new-feature"},
+				Args: []string{"worktree", "add", "-b", "new-feature", "/test/worktrees/new-feature", "main"},
 			}},
 			expectError: false,
 		},
@@ -541,7 +541,7 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Len(t, mockExec.executedCommands, 1)
-			assert.Equal(t, []string{"worktree", "add", "-b", tt.branchName, tt.expectedPath},
+			assert.Equal(t, []string{"worktree", "add", "-b", tt.branchName, tt.expectedPath, tt.branchName},
 				mockExec.executedCommands[0].Args)
 		})
 	}

@@ -157,7 +157,7 @@ func TestTrackFlagBehavior(t *testing.T) {
 		output, err := repo.RunWTP("add", "--track", "origin/nonexistent", "local-branch")
 		framework.AssertError(t, err)
 		framework.AssertTrue(t,
-			strings.Contains(output, "failed") || strings.Contains(output, "error"),
+			strings.Contains(output, "failed") || strings.Contains(output, "error") || strings.Contains(output, "not found"),
 			"Should fail when tracking non-existent remote")
 	})
 

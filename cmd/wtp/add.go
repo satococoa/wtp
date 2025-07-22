@@ -465,6 +465,6 @@ func changeToWorktree(w io.Writer, workTreePath string) {
 		return
 	}
 
-	// With shell integration, the shell function will handle the cd
-	// We don't output anything here to avoid interfering with hook output
+	// With shell integration, output the path for the shell to cd
+	fmt.Fprintln(w, workTreePath)
 }

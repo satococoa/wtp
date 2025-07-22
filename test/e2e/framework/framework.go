@@ -221,6 +221,16 @@ func (r *TestRepo) CreateBranch(name string) {
 	r.env.runInDir(r.path, "git", "branch", name)
 }
 
+func (r *TestRepo) CheckoutBranch(name string) {
+	r.env.runInDir(r.path, "git", "checkout", name)
+}
+
+func (r *TestRepo) CommitFile(filename, content, message string) {
+	r.env.writeFile(filepath.Join(r.path, filename), content)
+	r.env.runInDir(r.path, "git", "add", filename)
+	r.env.runInDir(r.path, "git", "commit", "-m", message)
+}
+
 func (r *TestRepo) AddRemote(name, url string) {
 	r.env.runInDir(r.path, "git", "remote", "add", name, url)
 }
@@ -272,6 +282,11 @@ func (r *TestRepo) CurrentBranch() string {
 
 func (r *TestRepo) GetCommitHash() string {
 	output := r.env.runInDir(r.path, "git", "rev-parse", "HEAD")
+	return strings.TrimSpace(output)
+}
+
+func (r *TestRepo) GetBranchCommitHash(branch string) string {
+	output := r.env.runInDir(r.path, "git", "rev-parse", branch)
 	return strings.TrimSpace(output)
 }
 

@@ -33,8 +33,8 @@ func GitWorktreeAdd(path, commitish string, opts GitWorktreeAddOptions) Command 
 	// Add path
 	args = append(args, path)
 
-	// Add commitish only if not creating a new branch or if explicitly provided
-	if opts.Branch == "" && commitish != "" {
+	// Add commitish if provided
+	if commitish != "" {
 		args = append(args, commitish)
 	}
 

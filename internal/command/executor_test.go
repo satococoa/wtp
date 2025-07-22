@@ -172,7 +172,9 @@ func TestCommandBuilder(t *testing.T) {
 
 		// Then: command should have correct structure
 		assert.Equal(t, "git", cmd.Name)
-		assert.Equal(t, []string{"worktree", "add", "--force", "-b", "new-feature", "../worktrees/feature"}, cmd.Args)
+		assert.Equal(t,
+			[]string{"worktree", "add", "--force", "-b", "new-feature", "../worktrees/feature", "feature"},
+			cmd.Args)
 	})
 
 	t.Run("should build git worktree remove command", func(t *testing.T) {
