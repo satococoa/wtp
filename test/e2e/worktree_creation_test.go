@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/satococoa/wtp/test/e2e/framework"
@@ -128,113 +127,6 @@ func TestUserCreatesWorktree_WhenPathAlreadyExists_ShouldRequireForceFlag(t *tes
 	// Then: User should receive guidance about the conflict
 	framework.AssertError(t, err)
 	framework.AssertOutputContains(t, output, "already exists")
-}
-
-// TestUserCreatesWorktree_WithCDAfterCreate_ShouldOutputPath tests
-// the cd_after_create configuration behavior.
-//
-// User Story: As a developer, when I have cd_after_create enabled in my config,
-// I want wtp to output the path when creating a worktree in shell integration mode.
-//
-// Business Value: Allows seamless directory switching after worktree creation
-// when using shell integration, improving developer workflow.
-func TestUserCreatesWorktree_WithCDAfterCreate_ShouldOutputPath(t *testing.T) {
-	// Given: User has cd_after_create enabled in config
-	// And: Shell integration is enabled
-	env := framework.NewTestEnvironment(t)
-	defer env.Cleanup()
-
-	repo := env.CreateTestRepo("user-cd-after-create")
-	repo.CreateBranch("feature/test")
-
-	// Create config with cd_after_create enabled
-	config := `defaults:
-  cd_after_create: true
-`
-	repo.WriteConfig(config)
-
-	// When: User runs "wtp add feature/test" with shell integration
-	t.Setenv("WTP_SHELL_INTEGRATION", "1")
-	output, err := repo.RunWTP("add", "feature/test")
-
-	// Then: Command should succeed
-	framework.AssertNoError(t, err)
-
-	// And: Output should end with just the worktree path for shell to cd
-	// (without any prefix like "Created worktree...")
-
-	// The output should end with the bare path
-	// Check if the output ends with a line containing only the path
-	lines := strings.Split(output, "\n")
-
-	// Find the last non-empty line
-	var lastLine string
-	for i := len(lines) - 1; i >= 0; i-- {
-		if strings.TrimSpace(lines[i]) != "" {
-			lastLine = lines[i]
-			break
-		}
-	}
-
-	// The last line should be JUST the path, nothing else
-	// It should be a valid absolute path ending with the worktree directory
-	framework.AssertTrue(t,
-		lastLine == strings.TrimSpace(lastLine) && // No extra whitespace
-			strings.HasPrefix(lastLine, "/") && // Absolute path
-			strings.HasSuffix(lastLine, "/worktrees/feature/test"), // Correct ending
-		"Last line should be ONLY the worktree path when cd_after_create is true with shell integration")
-}
-
-// TestUserCreatesWorktree_WithNoCDFlag_ShouldNotOutputPath tests
-// that --no-cd flag overrides cd_after_create config.
-//
-// User Story: As a developer, when I use --no-cd flag, I don't want to change
-// directory even if cd_after_create is enabled in config.
-//
-// Business Value: Provides flexibility to override default behavior when needed
-// for specific workflows or automation scripts.
-func TestUserCreatesWorktree_WithNoCDFlag_ShouldNotOutputPath(t *testing.T) {
-	// Given: User has cd_after_create enabled in config
-	// And: Shell integration is enabled
-	env := framework.NewTestEnvironment(t)
-	defer env.Cleanup()
-
-	repo := env.CreateTestRepo("user-no-cd-flag")
-	repo.CreateBranch("feature/test")
-
-	// Create config with cd_after_create enabled
-	config := `defaults:
-  cd_after_create: true
-`
-	repo.WriteConfig(config)
-
-	// When: User runs "wtp add --no-cd feature/test" with shell integration
-	t.Setenv("WTP_SHELL_INTEGRATION", "1")
-	output, err := repo.RunWTP("add", "--no-cd", "feature/test")
-
-	// Then: Command should succeed
-	framework.AssertNoError(t, err)
-
-	// And: Output should NOT end with a bare path line
-	// The last line should be the success message, not a standalone path
-
-	// Check that output doesn't end with a bare path
-	// (path should only appear as part of the "Created worktree..." message)
-	lines := strings.Split(output, "\n")
-
-	// Find the last non-empty line
-	var lastLine string
-	for i := len(lines) - 1; i >= 0; i-- {
-		if strings.TrimSpace(lines[i]) != "" {
-			lastLine = lines[i]
-			break
-		}
-	}
-
-	// The last line should NOT be just a path (it should be the "Created worktree..." message)
-	framework.AssertTrue(t,
-		strings.HasPrefix(lastLine, "Created worktree"),
-		"With --no-cd flag, last line should be the success message, not a bare path")
 }
 
 // TestUserCreatesWorktree_WithBranchFromSpecificCommit tests

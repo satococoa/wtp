@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,7 +25,7 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotNil(t, cmd.ShellComplete)
 
 	// Check flags exist
-	flagNames := []string{"force", "detach", "branch", "track", "cd", "no-cd"}
+	flagNames := []string{"force", "detach", "branch", "track"}
 	for _, name := range flagNames {
 		found := false
 		for _, flag := range cmd.Flags {
@@ -180,77 +179,6 @@ func TestSetupRepoAndConfig(t *testing.T) {
 		assert.NotNil(t, repo)
 		assert.NotNil(t, cfg)
 		assert.NotEmpty(t, mainRepoPath)
-	})
-}
-
-func TestChangeToWorktree(t *testing.T) {
-	t.Run("should output cd command when shell integration disabled", func(t *testing.T) {
-		// Given: shell integration is disabled
-		oldEnv := os.Getenv("WTP_SHELL_INTEGRATION")
-		defer func() {
-			if oldEnv != "" {
-				os.Setenv("WTP_SHELL_INTEGRATION", oldEnv)
-			} else {
-				os.Unsetenv("WTP_SHELL_INTEGRATION")
-			}
-		}()
-		os.Unsetenv("WTP_SHELL_INTEGRATION")
-
-		var buf bytes.Buffer
-		workTreePath := "/path/to/worktree"
-
-		// When: changing to worktree
-		changeToWorktree(&buf, workTreePath)
-
-		// Then: should output cd command
-		output := buf.String()
-		assert.Contains(t, output, "cd /path/to/worktree")
-	})
-
-	t.Run("should output path directly when shell integration enabled", func(t *testing.T) {
-		// Given: shell integration is enabled
-		oldEnv := os.Getenv("WTP_SHELL_INTEGRATION")
-		defer func() {
-			if oldEnv != "" {
-				os.Setenv("WTP_SHELL_INTEGRATION", oldEnv)
-			} else {
-				os.Unsetenv("WTP_SHELL_INTEGRATION")
-			}
-		}()
-		os.Setenv("WTP_SHELL_INTEGRATION", "1")
-
-		var buf bytes.Buffer
-		workTreePath := "/path/to/worktree"
-
-		// When: changing to worktree
-		changeToWorktree(&buf, workTreePath)
-
-		// Then: should output the path for shell to cd
-		output := buf.String()
-		assert.Equal(t, "/path/to/worktree\n", output)
-	})
-
-	t.Run("should handle paths with spaces", func(t *testing.T) {
-		// Given: shell integration is disabled and path has spaces
-		oldEnv := os.Getenv("WTP_SHELL_INTEGRATION")
-		defer func() {
-			if oldEnv != "" {
-				os.Setenv("WTP_SHELL_INTEGRATION", oldEnv)
-			} else {
-				os.Unsetenv("WTP_SHELL_INTEGRATION")
-			}
-		}()
-		os.Unsetenv("WTP_SHELL_INTEGRATION")
-
-		var buf bytes.Buffer
-		workTreePath := "/path/to/my worktree"
-
-		// When: changing to worktree
-		changeToWorktree(&buf, workTreePath)
-
-		// Then: should output path correctly
-		output := buf.String()
-		assert.Contains(t, output, "cd /path/to/my worktree")
 	})
 }
 
@@ -716,36 +644,6 @@ func TestExecutePostCreateHooks_Integration(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to execute hook")
 		assert.Contains(t, buf.String(), "Executing post-create hooks")
-	})
-}
-
-func TestShouldChangeDirectory_Integration(t *testing.T) {
-	t.Run("should respect command flags over config", func(t *testing.T) {
-		// Given: config with CDAfterCreate=true but command has --no-cd
-		cfg := &config.Config{
-			Defaults: config.Defaults{CDAfterCreate: true},
-		}
-		cmd := createTestCLICommand(map[string]any{"no-cd": true}, []string{"test-branch"})
-
-		// When: checking if should change directory
-		result := shouldChangeDirectory(cmd, cfg)
-
-		// Then: command flag should override config
-		assert.False(t, result)
-	})
-
-	t.Run("should use config default when no flags", func(t *testing.T) {
-		// Given: config with CDAfterCreate=true and no command flags
-		cfg := &config.Config{
-			Defaults: config.Defaults{CDAfterCreate: true},
-		}
-		cmd := createTestCLICommand(map[string]any{}, []string{"test-branch"})
-
-		// When: checking if should change directory
-		result := shouldChangeDirectory(cmd, cfg)
-
-		// Then: should use config default
-		assert.True(t, result)
 	})
 }
 

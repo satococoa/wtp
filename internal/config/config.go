@@ -17,8 +17,7 @@ type Config struct {
 
 // Defaults represents default configuration values
 type Defaults struct {
-	BaseDir       string `yaml:"base_dir,omitempty"`
-	CDAfterCreate bool   `yaml:"cd_after_create,omitempty"`
+	BaseDir string `yaml:"base_dir,omitempty"`
 }
 
 // Hooks represents the post-create hooks configuration

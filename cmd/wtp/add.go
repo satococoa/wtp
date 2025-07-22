@@ -49,14 +49,6 @@ func NewAddCommand() *cli.Command {
 				Usage:   "Set upstream branch",
 				Aliases: []string{"t"},
 			},
-			&cli.BoolFlag{
-				Name:  "cd",
-				Usage: "Change directory to the new worktree after creation",
-			},
-			&cli.BoolFlag{
-				Name:  "no-cd",
-				Usage: "Do not change directory to the new worktree after creation",
-			},
 		},
 		Action: addCommand,
 	}
@@ -155,12 +147,6 @@ func addCommandWithCommandExecutor(
 	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
 		// Log warning but don't fail the entire operation
 		fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
-	}
-
-	// Change directory if requested
-	if shouldChangeDirectory(cmd, cfg) {
-		fmt.Fprintln(w)
-		changeToWorktree(w, workTreePath)
 	}
 
 	return nil
@@ -444,27 +430,4 @@ func resolveWorktreePath(
 
 	workTreePath = cfg.ResolveWorktreePath(repoPath, branchName)
 	return workTreePath, branchName
-}
-
-func shouldChangeDirectory(cmd *cli.Command, cfg *config.Config) bool {
-	// Check command-line flags first
-	if cmd.Bool("cd") {
-		return true
-	}
-	if cmd.Bool("no-cd") {
-		return false
-	}
-	// Fall back to config setting
-	return cfg.Defaults.CDAfterCreate
-}
-
-func changeToWorktree(w io.Writer, workTreePath string) {
-	// Check if shell integration is enabled
-	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
-		fmt.Fprintf(w, "To change directory, run: cd %s\n", workTreePath)
-		return
-	}
-
-	// With shell integration, output the path for the shell to cd
-	fmt.Fprintln(w, workTreePath)
 }
