@@ -593,7 +593,6 @@ func verifyStreamingTiming(t *testing.T, sw *streamingWriter) {
 	}
 }
 
-
 func TestExecutePostCreateHooks_CopyDirectoryRecursively(t *testing.T) {
 	// Test that directories are copied recursively with nested structure preserved
 	tempDir := t.TempDir()
