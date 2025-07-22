@@ -55,9 +55,6 @@ defaults:
   # Base directory for worktrees (relative to repository root)
   base_dir: ../worktrees
 
-  # Automatically change to the new worktree directory after creation
-  cd_after_create: true
-
 # Hooks that run after creating a worktree
 hooks:
   post_create:

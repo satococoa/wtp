@@ -139,7 +139,6 @@ func TestInitCommand_Success(t *testing.T) {
 	assert.Contains(t, contentStr, "version: \"1.0\"")
 	assert.Contains(t, contentStr, "defaults:")
 	assert.Contains(t, contentStr, "base_dir: ../worktrees")
-	assert.Contains(t, contentStr, "cd_after_create: true")
 	assert.Contains(t, contentStr, "hooks:")
 	assert.Contains(t, contentStr, "post_create:")
 
