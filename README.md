@@ -3,49 +3,54 @@
 A powerful Git worktree management tool that extends git's worktree
 functionality with automated setup, branch tracking, and project-specific hooks.
 
-## Features
+## Features - Why wtp Instead of git-worktree?
 
-### Streamlined Worktree Management
+### 🚀 No More Path Gymnastics
 
-**wtp** eliminates the friction from Git's worktree workflow with intelligent defaults and thoughtful automation:
+**git-worktree pain:**
+`git worktree add ../project-worktrees/feature/auth feature/auth` **wtp
+solution:** `wtp add feature/auth`
 
-- **Smart path generation** - No more typing redundant paths. `wtp add feature/auth` automatically creates the worktree at `../worktrees/feature/auth`
-- **Consistent organization** - All worktrees are organized under your configured base directory for easy management
-- **Seamless Git integration** - All native `git worktree` options work transparently, so you never lose functionality
-- **Quick navigation** - Switch between worktrees instantly with `wtp cd feature/auth` (shell integration required)
+wtp automatically generates sensible paths based on branch names. Your
+`feature/auth` branch goes to `../worktrees/feature/auth` - no redundant typing,
+no path errors.
 
-### Intelligent Automation
+### 🧹 Clean Branch Management
 
-**wtp** handles the tedious parts of worktree management automatically:
+**git-worktree pain:** Remove worktree, then manually delete the branch. Forget
+the second step? Orphaned branches accumulate. **wtp solution:**
+`wtp remove --with-branch feature/done` - One command removes both
 
-- **Automatic remote tracking** - When you run `wtp add feature/remote-branch`, it automatically tracks the remote branch if no local branch exists
-- **Multi-remote detection** - If a branch exists in multiple remotes, wtp shows a helpful error with explicit instructions rather than guessing
-- **Post-creation setup** - Configure hooks to automatically copy configuration files, install dependencies, or run setup commands in new worktrees
+Keep your repository clean. When a feature is truly done, remove both the
+worktree and its branch in one atomic operation. No more forgotten branches
+cluttering your repo.
 
-### Enhanced Developer Experience
+### 🛠️ Zero-Setup Development Environments
 
-**wtp** makes worktree management feel natural and intuitive:
+**git-worktree pain:** Create worktree → Copy .env → Install deps → Run
+migrations → Finally start coding **wtp solution:** Configure once in
+`.wtp.yml`, then every `wtp add` runs your setup automatically
 
-- **Rich shell completion** - Tab-complete branch names, worktree names, and command options in Bash, Zsh, and Fish
-- **Clear error messages** - When something goes wrong, get contextual explanations with actionable suggestions and examples
-- **Consistent interface** - Commands use the same naming conventions and patterns throughout, making them easy to remember
-- **Visual feedback** - `wtp list` shows your worktrees with clear indicators for the current location and branch status
+```yaml
+hooks:
+  post_create:
+    - type: copy
+      from: ".env.example"
+      to: ".env"
+    - type: command
+      command: "npm install && npm run db:setup"
+```
 
-### Project Customization
+Perfect for microservices, monorepos, or any project with complex setup
+requirements.
 
-**wtp** adapts to your project's specific needs:
+### 📍 Instant Worktree Navigation
 
-- **Configuration-driven** - Set up per-project defaults in `.wtp.yml` for consistent behavior across your team
-- **Flexible hooks** - Copy environment files, run database migrations, or execute any setup commands when creating worktrees
-- **Directory organization** - Choose your preferred worktree layout and base directory structure
+**git-worktree pain:** `cd ../../../worktrees/feature/auth` (if you remember the
+path) **wtp solution:** `wtp cd feature/auth` with tab completion
 
-### Cross-Platform Support
-
-**wtp** works consistently across development environments:
-
-- **Native binaries** - Single executable with no runtime dependencies for Linux (x86_64, ARM64) and macOS (Apple Silicon)
-- **Shell agnostic** - Completion and shell integration support for Bash, Zsh, and Fish
-- **Git compatibility** - Works with Git 2.17+ across all supported platforms
+Jump between worktrees instantly. Use `wtp cd @` to return to your main
+worktree. No more terminal tab confusion.
 
 ## Requirements
 
@@ -141,7 +146,6 @@ wtp add --cd feature/auth        # Always change to new worktree
 wtp add --no-cd feature/auth      # Never change directory
 # Without flags, uses cd_after_create setting from .wtp.yml
 ```
-
 
 ### Management Commands
 
@@ -312,41 +316,6 @@ go tool task build
 ./wtp --help
 ```
 
-## Roadmap
-
-### v0.1.0 (MVP) ✅ COMPLETED
-
-- [x] Basic commands (add, remove, list)
-- [x] Local branch support
-- [x] Remote branch tracking
-- [x] Configuration file support
-- [x] Post-create hooks
-
-### v0.2.0
-
-- [x] Shell completion (with custom branch/worktree completion)
-- [x] Init command for configuration
-- [x] Branch creation (`-b` flag)
-- [x] Hybrid approach (automatic + explicit path support)
-
-### v0.3.0
-
-- [x] Remove with branch (`--with-branch` option)
-- [x] Shell integration (cd command)
-- [x] Multiple remote handling
-- [x] Better error messages
-
-### v1.0.0
-
-- [x] Stable release
-- [x] Full test coverage (current: 77.4%, target: 80%+)
-- [x] Package manager support (Homebrew, apt/yum/apk)
-
-### Future Ideas
-
-- [ ] `git wtp status` - Show status of all worktrees
-- [ ] `git wtp foreach` - Run command in all worktrees
-- [ ] `git wtp clean` - Remove merged worktrees
 
 ## License
 
