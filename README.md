@@ -63,6 +63,12 @@ worktree. No more terminal tab confusion.
   - Zsh
   - Fish
 
+## Releases
+
+View all releases and changelogs: [GitHub Releases](https://github.com/satococoa/wtp/releases)
+
+Latest stable version: [v0.4.0](https://github.com/satococoa/wtp/releases/latest)
+
 ## Installation
 
 ### Using Homebrew (macOS/Linux)
