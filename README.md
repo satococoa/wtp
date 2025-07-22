@@ -67,7 +67,7 @@ worktree. No more terminal tab confusion.
 
 View all releases and changelogs: [GitHub Releases](https://github.com/satococoa/wtp/releases)
 
-Latest stable version: [v0.4.0](https://github.com/satococoa/wtp/releases/latest)
+Latest stable version: [v1.0.0](https://github.com/satococoa/wtp/releases/latest)
 
 ## Installation
 
