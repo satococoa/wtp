@@ -94,11 +94,17 @@ func (e *TestEnvironment) CreateTestRepo(name string) *TestRepo {
 	e.run("git", "init", repoDir)
 	e.runInDir(repoDir, "git", "config", "user.name", "Test User")
 	e.runInDir(repoDir, "git", "config", "user.email", "test@example.com")
+	
+	// Ensure the default branch is 'main' regardless of global git config
+	e.runInDir(repoDir, "git", "config", "init.defaultBranch", "main")
 
 	readmePath := filepath.Join(repoDir, "README.md")
 	e.writeFile(readmePath, "# Test Repository")
 	e.runInDir(repoDir, "git", "add", ".")
 	e.runInDir(repoDir, "git", "commit", "-m", "Initial commit")
+	
+	// Explicitly rename the branch to main if it's not already
+	e.runInDir(repoDir, "git", "branch", "-m", "main")
 
 	return &TestRepo{
 		env:  e,

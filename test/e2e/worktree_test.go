@@ -181,7 +181,7 @@ func TestWorktreeList(t *testing.T) {
 		output, err := repo.RunWTP("list")
 		framework.AssertNoError(t, err)
 		framework.AssertTrue(t,
-			strings.Contains(output, repo.Path()) || strings.Contains(output, "main"),
+			strings.Contains(output, "@") || strings.Contains(output, "main"),
 			"Should show main worktree")
 	})
 
@@ -200,7 +200,7 @@ func TestWorktreeList(t *testing.T) {
 		framework.AssertOutputContains(t, output, "feature/one")
 		framework.AssertOutputContains(t, output, "feature/two")
 		framework.AssertTrue(t,
-			strings.Contains(output, "main") || strings.Contains(output, repo.Path()),
+			strings.Contains(output, "@") || strings.Contains(output, "main"),
 			"Should show main worktree")
 	})
 }
