@@ -118,16 +118,16 @@ WTP_SHELL_INTEGRATION=1 go run ../cmd/wtp cd @
 
 This approach is faster for iterative development and testing.
 
-## TDD Approach for Bug Fixes
+## TDD Approach for Development
 
-When fixing bugs, always follow the Test-Driven Development (TDD) cycle:
+For all development work (bug fixes and new features), always follow the Test-Driven Development (TDD) cycle:
 
 ### 1. 🔴 RED - Write a Failing Test First
 
-Before fixing any bug, write a test that reproduces the problem:
+Before implementing any code change, write a test that describes the expected behavior:
 
 ```go
-// Example: Hook output streaming bug
+// Example: Bug fix - Hook output streaming
 func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
     // Create a writer that tracks when writes occur
     sw := &streamingWriter{}
@@ -140,6 +140,22 @@ func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
         t.Error("Output should be streamed in real-time")
     }
 }
+
+// Example: New feature - Template support
+func TestAddCommand_WithTemplate(t *testing.T) {
+    // Arrange: Mock template resolver
+    mockResolver := &mockTemplateResolver{
+        template: &Template{Name: "go-service", Files: []string{".env", "Dockerfile"}},
+    }
+    
+    // Act: Add worktree with template
+    err := addCmd.Execute([]string{"--template", "go-service", "feature/auth"})
+    
+    // Assert: Template files are created
+    assert.NoError(t, err)
+    assert.FileExists(t, filepath.Join(worktreeDir, ".env"))
+    assert.FileExists(t, filepath.Join(worktreeDir, "Dockerfile"))
+}
 ```
 
 ### 2. 🟢 GREEN - Write Minimal Code to Pass
@@ -147,12 +163,24 @@ func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
 Implement just enough to make the test pass:
 
 ```go
-// Fix: Direct output to writer instead of buffering
+// Bug fix: Direct output to writer instead of buffering
 func (e *Executor) ExecutePostCreateHooks(w io.Writer, path string) error {
     // Stream output directly to writer
     cmd.Stdout = w
     cmd.Stderr = w
     return cmd.Run()
+}
+
+// New feature: Add template support to add command
+func (cmd *AddCommand) Execute(args []string) error {
+    if cmd.templateName != "" {
+        template, err := cmd.templateResolver.Resolve(cmd.templateName)
+        if err != nil {
+            return err
+        }
+        return cmd.applyTemplate(template, cmd.worktreePath)
+    }
+    // ... existing logic
 }
 ```
 
@@ -164,21 +192,22 @@ Once tests pass, refactor for clarity and maintainability:
 - Improve naming
 - Add documentation
 
-### Benefits of TDD for Bug Fixes
+### Benefits of TDD for All Development
 
-1. **Regression Prevention**: Test ensures bug doesn't reappear
-2. **Clear Understanding**: Test documents expected behavior
-3. **Focused Fix**: Only write code needed to pass test
-4. **Safe Refactoring**: Tests protect against breaking changes
-5. **Better Design**: TDD often leads to cleaner APIs
+1. **Regression Prevention**: Tests ensure bugs don't reappear and features work as expected
+2. **Clear Understanding**: Tests document expected behavior before implementation
+3. **Focused Development**: Only write code needed to pass tests (no over-engineering)
+4. **Safe Refactoring**: Tests protect against breaking changes during improvements
+5. **Better Design**: TDD often leads to cleaner, more testable APIs
+6. **Faster Feedback**: Quick validation that implementation meets requirements
 
 ### Guidelines
 
-- **Never skip the RED phase**: Ensure test fails before fixing
-- **Keep tests focused**: One test per bug/behavior
+- **Never skip the RED phase**: Ensure test fails before implementing
+- **Keep tests focused**: One test per feature/behavior/bug
 - **Test behavior, not implementation**: Focus on what, not how
 - **Use meaningful assertions**: Clearly express expectations
-- **Consider edge cases**: Test boundary conditions
+- **Consider edge cases**: Test boundary conditions and error scenarios
 
 ## Testing Strategy
 
