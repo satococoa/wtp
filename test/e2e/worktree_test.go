@@ -57,27 +57,20 @@ func TestWorktreeCreation(t *testing.T) {
 		framework.AssertWorktreeExists(t, repo, "hotfix")
 	})
 
-	t.Run("DetachedHead", func(t *testing.T) {
-		repo := env.CreateTestRepo("worktree-detached")
+	// DetachedHead functionality has been removed from simplified interface
+	// This test is no longer applicable
 
-		commit := repo.GetCommitHash()[:7]
+	t.Run("BranchConflict", func(t *testing.T) {
+		repo := env.CreateTestRepo("worktree-conflict")
+		repo.CreateBranch("feature/conflict")
 
-		_, err := repo.RunWTP("add", "--detach", commit)
-		framework.AssertNoError(t, err)
-		framework.AssertWorktreeExists(t, repo, commit)
-	})
-
-	t.Run("ForceCheckout", func(t *testing.T) {
-		repo := env.CreateTestRepo("worktree-force")
-		repo.CreateBranch("feature/force")
-
-		_, err := repo.RunWTP("add", "feature/force")
+		_, err := repo.RunWTP("add", "feature/conflict")
 		framework.AssertNoError(t, err)
 
-		// Try to add the same branch again with --force
-		output, err := repo.RunWTP("add", "--force", "-b", "feature/force2", "feature/force")
-		framework.AssertNoError(t, err)
-		framework.AssertWorktreeCreated(t, output, "feature/force2")
+		// Try to add the same branch again (should fail without --force flag which is removed)
+		output, err := repo.RunWTP("add", "feature/conflict")
+		framework.AssertError(t, err)
+		framework.AssertOutputContains(t, output, "already exists")
 	})
 
 	t.Run("BranchWithSlashes", func(t *testing.T) {

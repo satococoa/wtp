@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/satococoa/wtp/internal/command"
@@ -21,33 +22,19 @@ func NewAddCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "add",
 		Usage:     "Create a new worktree",
-		UsageText: "wtp add [git-worktree-options...] <branch-name> [<commit-ish>]",
+		UsageText: "wtp add <existing-branch> | -b <new-branch> [<commit>]",
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
-			"  wtp add feature/auth                    # Auto-generate path: ../worktrees/feature/auth\n" +
-			"  wtp add -b new-feature main             # Create new branch from main\n" +
-			"  wtp add --detach abc1234                # Detached HEAD at commit",
+			"  wtp add feature/auth                    # Create worktree from existing branch\n" +
+			"  wtp add -b new-feature                  # Create new branch and worktree\n" +
+			"  wtp add -b hotfix/urgent main           # Create new branch from main commit",
 		ShellComplete: completeBranches,
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    "force",
-				Usage:   "Checkout <commit-ish> even if already checked out in other worktree",
-				Aliases: []string{"f"},
-			},
-			&cli.BoolFlag{
-				Name:  "detach",
-				Usage: "Make the new worktree's HEAD detached",
-			},
 			&cli.StringFlag{
 				Name:    "branch",
 				Usage:   "Create new branch",
 				Aliases: []string{"b"},
-			},
-			&cli.StringFlag{
-				Name:    "track",
-				Usage:   "Set upstream branch",
-				Aliases: []string{"t"},
 			},
 		},
 		Action: addCommand,
@@ -88,38 +75,13 @@ func addCommandWithCommandExecutor(
 	if cmd.Args().Len() > 0 {
 		firstArg = cmd.Args().Get(0)
 	}
+
 	workTreePath, branchName := resolveWorktreePath(cfg, mainRepoPath, firstArg, cmd)
 
 	// Resolve branch if needed
-	var resolvedTrack string
-	// Only auto-resolve branch when:
-	// 1. Not creating a new branch (-b flag)
-	// 2. Not explicitly tracking a remote (--track flag)
-	// 3. Not in detached mode (--detach flag)
-	// 4. Branch name is provided
-	if cmd.String("branch") == "" && cmd.String("track") == "" && !cmd.Bool("detach") && branchName != "" {
-		repo, err := git.NewRepository(mainRepoPath)
-		if err != nil {
-			return err
-		}
-
-		// Check if branch exists locally or in remotes
-		resolvedBranch, isRemote, err := repo.ResolveBranch(branchName)
-		if err != nil {
-			// Check if it's a multiple branches error
-			if strings.Contains(err.Error(), "exists in multiple remotes") {
-				return &MultipleBranchesError{
-					BranchName: branchName,
-					GitError:   err,
-				}
-			}
-			return err
-		}
-
-		// If it's a remote branch, we need to set up tracking
-		if isRemote {
-			resolvedTrack = resolvedBranch
-		}
+	resolvedTrack, err := resolveBranchTracking(cmd, branchName, mainRepoPath)
+	if err != nil {
+		return err
 	}
 
 	// Build git worktree command using the new command builder
@@ -141,7 +103,7 @@ func addCommandWithCommandExecutor(
 	}
 
 	// Display success message
-	displaySuccessMessage(w, branchName, workTreePath)
+	displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath)
 
 	// Execute post-create hooks
 	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
@@ -153,28 +115,27 @@ func addCommandWithCommandExecutor(
 }
 
 // buildWorktreeCommand builds a git worktree command using the new command package
-func buildWorktreeCommand(cmd *cli.Command, workTreePath, _, resolvedTrack string) command.Command {
+func buildWorktreeCommand(
+	cmd *cli.Command, workTreePath, _, resolvedTrack string,
+) command.Command {
 	opts := command.GitWorktreeAddOptions{
-		Force:  cmd.Bool("force"),
-		Detach: cmd.Bool("detach"),
 		Branch: cmd.String("branch"),
-		Track:  cmd.String("track"),
 	}
 
-	// Use resolved track if provided and no explicit track flag
-	if resolvedTrack != "" && opts.Track == "" {
+	// Use resolved track if provided
+	if resolvedTrack != "" {
 		opts.Track = resolvedTrack
 	}
 
 	var commitish string
 
 	// Handle different argument patterns based on flags
-	if opts.Track != "" {
-		// When using --track, the commitish is the remote branch specified in --track
-		commitish = opts.Track
+	if resolvedTrack != "" {
+		// When using resolved tracking, the commitish is the remote branch
+		commitish = resolvedTrack
 		// If there's an argument, it's the local branch name (not used as commitish)
 		if cmd.Args().Len() > 0 && opts.Branch == "" {
-			// The first argument is the branch name when using --track without -b
+			// The first argument is the branch name when using resolved tracking without -b
 			opts.Branch = cmd.Args().Get(0)
 		}
 	} else if cmd.Args().Len() > 0 {
@@ -348,31 +309,7 @@ func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreeP
 
 func validateAddInput(cmd *cli.Command) error {
 	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
-		return errors.BranchNameRequired("wtp add <branch-name>")
-	}
-
-	// Check for conflicting flags
-	if cmd.String("branch") != "" && cmd.Bool("detach") {
-		return fmt.Errorf(`conflicting flags: cannot use both -b/--branch and --detach
-
-The -b/--branch flag creates a new branch, while --detach creates a detached HEAD.
-These options are incompatible.
-
-Choose one:
-  • Use -b to create and checkout a new branch
-  • Use --detach to checkout in detached HEAD state`)
-	}
-
-	// Check for --track with --detach without -b
-	if cmd.String("track") != "" && cmd.Bool("detach") && cmd.String("branch") == "" {
-		return fmt.Errorf(`--track can only be used if a new branch is created
-
-The --track flag sets up tracking for a new branch, but --detach creates a detached HEAD.
-To use --track, you must also use -b to create a new branch.
-
-Examples:
-  • wtp add --track origin/main -b my-branch
-  • wtp add --detach origin/main (without tracking)`)
+		return errors.BranchNameRequired("wtp add <existing-branch> | -b <new-branch> [<commit>]")
 	}
 
 	return nil
@@ -403,12 +340,46 @@ func setupRepoAndConfig() (*git.Repository, *config.Config, string, error) {
 	return repo, cfg, mainRepoPath, nil
 }
 
-func displaySuccessMessage(w io.Writer, branchName, workTreePath string) {
+// displaySuccessMessage is a convenience wrapper for displaySuccessMessageWithCommitish
+func displaySuccessMessage(w io.Writer, branchName, workTreePath string, cfg *config.Config, mainRepoPath string) {
+	displaySuccessMessageWithCommitish(w, branchName, workTreePath, "", cfg, mainRepoPath)
+}
+
+func displaySuccessMessageWithCommitish(
+	w io.Writer, branchName, workTreePath, commitish string, cfg *config.Config, mainRepoPath string,
+) {
+	fmt.Fprintln(w, "✅ Worktree created successfully!")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "📁 Location: %s\n", workTreePath)
+
 	if branchName != "" {
-		fmt.Fprintf(w, "Created worktree '%s' at %s\n", branchName, workTreePath)
-	} else {
-		fmt.Fprintf(w, "Created worktree at %s\n", workTreePath)
+		fmt.Fprintf(w, "🌿 Branch: %s\n", branchName)
+	} else if commitish != "" {
+		fmt.Fprintf(w, "🏷️  Commit: %s\n", commitish)
 	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "💡 To switch to the new worktree, run:")
+
+	// Use the consistent worktree naming logic
+	isMain := isMainWorktree(workTreePath, mainRepoPath)
+	worktreeName := getWorktreeNameFromPath(workTreePath, cfg, mainRepoPath, isMain)
+	fmt.Fprintf(w, "   wtp cd %s\n", worktreeName)
+}
+
+// isMainWorktree checks if the given path is the main worktree
+func isMainWorktree(workTreePath, mainRepoPath string) bool {
+	absWorkTreePath, err := filepath.Abs(workTreePath)
+	if err != nil {
+		return false
+	}
+
+	absMainRepoPath, err := filepath.Abs(mainRepoPath)
+	if err != nil {
+		return false
+	}
+
+	return absWorkTreePath == absMainRepoPath
 }
 
 // resolveWorktreePath determines the worktree path and branch name based on arguments
@@ -430,4 +401,39 @@ func resolveWorktreePath(
 
 	workTreePath = cfg.ResolveWorktreePath(repoPath, branchName)
 	return workTreePath, branchName
+}
+
+// resolveBranchTracking handles branch resolution and tracking setup
+func resolveBranchTracking(
+	cmd *cli.Command, branchName string, mainRepoPath string,
+) (string, error) {
+	// Only auto-resolve branch when not creating a new branch and branch name exists
+	if cmd.String("branch") != "" || branchName == "" {
+		return "", nil
+	}
+
+	repo, err := git.NewRepository(mainRepoPath)
+	if err != nil {
+		return "", err
+	}
+
+	// Check if branch exists locally or in remotes
+	resolvedBranch, isRemote, err := repo.ResolveBranch(branchName)
+	if err != nil {
+		// Check if it's a multiple branches error
+		if strings.Contains(err.Error(), "exists in multiple remotes") {
+			return "", &MultipleBranchesError{
+				BranchName: branchName,
+				GitError:   err,
+			}
+		}
+		return "", err
+	}
+
+	// If it's a remote branch, we need to set up tracking
+	if isRemote {
+		return resolvedBranch, nil
+	}
+
+	return "", nil
 }

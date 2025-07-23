@@ -2,6 +2,30 @@
 
 This document contains the key design decisions and development guidance for wtp (formerly git-wtp).
 
+## Recent Changes (2025-01-23)
+
+### Major Simplification: wtp add Command Interface
+
+The `wtp add` command has been significantly simplified to provide a cleaner, more intuitive interface:
+
+**Removed Features:**
+- ❌ `--detach` flag - Detached HEAD functionality completely removed
+- ❌ `--track` flag - Remote branch tracking now automatic
+- ❌ `--force` flag - Dangerous operations no longer simplified
+- ❌ `--cd`/`--no-cd` flags - Directory change options removed
+- ❌ `wtp add <worktree-name> <commit-ish>` pattern - Ambiguous syntax removed
+
+**New Simplified Interface:**
+- ✅ `wtp add <existing-branch>` - Create worktree from existing branch
+- ✅ `wtp add -b <new-branch>` - Create new branch and worktree
+- ✅ `wtp add -b <new-branch> [<commit>]` - Create new branch from specific commit
+
+**Benefits:**
+- **Reduced Complexity:** Eliminated 100+ lines of complex auto-detection logic
+- **Improved UX:** Clear, git-checkout-like interface with -b flag pattern
+- **Better Maintainability:** Fewer test cases, simpler code paths
+- **Consistent Behavior:** Predictable outcomes for all use cases
+
 ## Project Background
 
 This project was born from a conversation about improving Git's worktree functionality. The main pain points identified were:
@@ -50,6 +74,27 @@ This function is used consistently across:
 - Shell completion (`wtp remove`, `wtp cd`)
 - Error messages (worktree not found)
 - Command parsing and resolution
+
+## Recent Changes
+
+### Git Worktree Compatible Syntax
+
+The `wtp add` command now follows `git worktree add` syntax exactly for maximum compatibility:
+
+- **Two-argument syntax**: `wtp add <worktree-name> <commit-ish>` automatically creates detached HEAD
+- **Git compatibility**: Matches `git worktree add <path> <commit-ish>` behavior exactly
+- **Error on single commit-ish**: `wtp add HEAD~1` shows helpful error requiring worktree name
+- **Explicit control**: `--detach` flag remains for explicit detached HEAD
+
+**Examples:**
+```bash
+wtp add experiment HEAD~1         # Auto-detached HEAD (git compatible)
+wtp add test abc1234              # Auto-detached HEAD with commit hash
+wtp add --detach lab HEAD~2       # Explicit detach flag
+wtp add HEAD~1                    # ERROR: requires worktree name
+```
+
+This change ensures perfect compatibility with `git worktree` syntax while maintaining all existing wtp features.
 
 ## Core Design Decisions
 

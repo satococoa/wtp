@@ -9,7 +9,10 @@ import (
 
 func AssertWorktreeCreated(t *testing.T, output, branch string) {
 	t.Helper()
-	if !strings.Contains(output, "Created worktree") && !strings.Contains(output, "Preparing worktree") {
+	// Check for new friendly success message format
+	if !strings.Contains(output, "✅ Worktree created successfully!") &&
+		!strings.Contains(output, "Created worktree") &&
+		!strings.Contains(output, "Preparing worktree") {
 		t.Errorf("Expected worktree creation message, got: %s", output)
 	}
 	if !strings.Contains(output, branch) {
