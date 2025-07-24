@@ -126,7 +126,7 @@ func WorktreeRemovalFailed(path string, gitError error) error {
 		suggestions = append(suggestions,
 			"Check if the worktree path is correct",
 			"Run 'wtp list' to see available worktrees")
-	} else if strings.Contains(errorStr, "working tree is dirty") {
+	} else if strings.Contains(errorStr, "contains modified or untracked files") {
 		suggestions = append(suggestions,
 			"Commit or stash changes in the worktree first",
 			"Use '--force' flag to remove anyway")

@@ -152,9 +152,17 @@ func removeCommandWithCommandExecutor(
 
 	// Remove worktree using CommandExecutor
 	removeCmd := command.GitWorktreeRemove(targetWorktree.Path, force)
-	_, err = executor.Execute([]command.Command{removeCmd})
+	result, err = executor.Execute([]command.Command{removeCmd})
 	if err != nil {
 		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
+	}
+	if len(result.Results) > 0 && result.Results[0].Error != nil {
+		gitOutput := result.Results[0].Output
+		if gitOutput != "" {
+			combinedError := fmt.Errorf("%v: %s", result.Results[0].Error, gitOutput)
+			return errors.WorktreeRemovalFailed(targetWorktree.Path, combinedError)
+		}
+		return errors.WorktreeRemovalFailed(targetWorktree.Path, result.Results[0].Error)
 	}
 	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path)
 
@@ -185,9 +193,17 @@ func removeBranchWithCommandExecutor(
 	forceBranch bool,
 ) error {
 	branchCmd := command.GitBranchDelete(branchName, forceBranch)
-	_, err := executor.Execute([]command.Command{branchCmd})
+	result, err := executor.Execute([]command.Command{branchCmd})
 	if err != nil {
 		return errors.BranchRemovalFailed(branchName, err, forceBranch)
+	}
+	if len(result.Results) > 0 && result.Results[0].Error != nil {
+		gitOutput := result.Results[0].Output
+		if gitOutput != "" {
+			combinedError := fmt.Errorf("%v: %s", result.Results[0].Error, gitOutput)
+			return errors.BranchRemovalFailed(branchName, combinedError, forceBranch)
+		}
+		return errors.BranchRemovalFailed(branchName, result.Results[0].Error, forceBranch)
 	}
 	fmt.Fprintf(w, "Removed branch '%s'\n", branchName)
 	return nil

@@ -410,6 +410,191 @@ func TestRemoveCommand_ExecutionError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to remove worktree")
 }
 
+func TestRemoveCommand_DirtyWorktree(t *testing.T) {
+	tests := []struct {
+		name          string
+		forceFlag     bool
+		gitError      string
+		shouldSucceed bool
+		expectedMsg   []string
+	}{
+		{
+			name:      "remove dirty worktree without force fails",
+			forceFlag: false,
+			gitError: "fatal: '/path/to/worktrees/dirty-feature' " +
+				"contains modified or untracked files, use --force to delete it",
+			shouldSucceed: false,
+			expectedMsg: []string{
+				"failed to remove worktree",
+				"contains modified or untracked files",
+				"Use '--force' flag to remove anyway",
+			},
+		},
+		{
+			name:          "remove dirty worktree with force succeeds",
+			forceFlag:     true,
+			gitError:      "", // No error when force is used
+			shouldSucceed: true,
+			expectedMsg: []string{
+				"Removed worktree",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mockResults []command.Result
+
+			// First result is always the worktree list
+			mockResults = append(mockResults, command.Result{
+				Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
+					"worktree /path/to/worktrees/dirty-feature\nHEAD def456\nbranch refs/heads/dirty-feature\n\n",
+				Error: nil,
+			})
+
+			// Second result is the remove command
+			if tt.shouldSucceed {
+				mockResults = append(mockResults, command.Result{
+					Output: "success",
+					Error:  nil,
+				})
+			} else {
+				mockResults = append(mockResults, command.Result{
+					Output: tt.gitError,
+					Error:  &mockRemoveError{message: tt.gitError},
+				})
+			}
+
+			mockExec := &mockRemoveCommandExecutor{
+				results: mockResults,
+			}
+
+			flags := map[string]any{}
+			if tt.forceFlag {
+				flags["force"] = true
+			}
+
+			cmd := createRemoveTestCLICommand(flags, []string{"dirty-feature"})
+			var buf bytes.Buffer
+
+			err := removeCommandWithCommandExecutor(
+				cmd, &buf, mockExec, "/test/repo", "dirty-feature", tt.forceFlag, false, false)
+
+			if tt.shouldSucceed {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+
+			output := buf.String()
+			for _, expected := range tt.expectedMsg {
+				if tt.shouldSucceed {
+					assert.Contains(t, output, expected)
+				} else {
+					assert.Contains(t, err.Error(), expected)
+				}
+			}
+		})
+	}
+}
+
+func TestRemoveCommand_BranchRemovalWithUnmergedCommits(t *testing.T) {
+	tests := []struct {
+		name            string
+		forceBranchFlag bool
+		branchError     string
+		shouldSucceed   bool
+		expectedMsg     []string
+	}{
+		{
+			name:            "remove unmerged branch without force fails",
+			forceBranchFlag: false,
+			branchError: "error: The branch 'feature-unmerged' is not fully merged.\n" +
+				"If you are sure you want to delete it, run 'git branch -D feature-unmerged'.",
+			shouldSucceed: false,
+			expectedMsg: []string{
+				"failed to remove branch",
+				"not fully merged",
+				"Use '--force-branch' to delete anyway",
+			},
+		},
+		{
+			name:            "remove unmerged branch with force succeeds",
+			forceBranchFlag: true,
+			branchError:     "", // No error when force is used
+			shouldSucceed:   true,
+			expectedMsg: []string{
+				"Removed branch",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mockResults []command.Result
+
+			// First result is the worktree list
+			mockResults = append(mockResults,
+				command.Result{
+					Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
+						"worktree /path/to/worktrees/feature-unmerged\nHEAD def456\nbranch refs/heads/feature-unmerged\n\n",
+					Error: nil,
+				},
+				command.Result{
+					Output: "success",
+					Error:  nil,
+				})
+
+			// Third result is the branch delete
+
+			// Third result is the branch delete
+			if tt.shouldSucceed {
+				mockResults = append(mockResults, command.Result{
+					Output: "Deleted branch feature-unmerged (was def456).",
+					Error:  nil,
+				})
+			} else {
+				mockResults = append(mockResults, command.Result{
+					Output: tt.branchError,
+					Error:  &mockRemoveError{message: tt.branchError},
+				})
+			}
+
+			mockExec := &mockRemoveCommandExecutor{
+				results: mockResults,
+			}
+
+			flags := map[string]any{
+				"branch": true,
+			}
+			if tt.forceBranchFlag {
+				flags["force-branch"] = true
+			}
+
+			cmd := createRemoveTestCLICommand(flags, []string{"feature-unmerged"})
+			var buf bytes.Buffer
+
+			err := removeCommandWithCommandExecutor(
+				cmd, &buf, mockExec, "/test/repo", "feature-unmerged", false, true, tt.forceBranchFlag)
+
+			if tt.shouldSucceed {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+
+			output := buf.String()
+			for _, expected := range tt.expectedMsg {
+				if tt.shouldSucceed {
+					assert.Contains(t, output, expected)
+				} else {
+					assert.Contains(t, err.Error(), expected)
+				}
+			}
+		})
+	}
+}
+
 // ===== Edge Cases Tests =====
 
 func TestRemoveCommand_InternationalCharacters(t *testing.T) {
@@ -564,6 +749,7 @@ func createRemoveTestCLICommand(flags map[string]any, args []string) *cli.Comman
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "force"},
 					&cli.BoolFlag{Name: "branch"},
+					&cli.BoolFlag{Name: "force-branch"},
 				},
 				Action: func(_ context.Context, _ *cli.Command) error {
 					return nil
