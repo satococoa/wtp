@@ -131,7 +131,7 @@ wtp add -b hotfix/urgent abc1234
 
 # Create new branch tracking a different remote branch
 # → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
-wtp add -b feature/test --track origin/main
+wtp add -b feature/test origin/main
 
 # Remote branch handling examples:
 
@@ -145,11 +145,7 @@ wtp add feature/remote-only
 wtp add feature/shared
 
 # Explicitly specify which remote to track
-wtp add --track upstream/feature/shared feature/shared
-
-# Control directory change behavior
-wtp add --cd feature/auth        # Always change to new worktree
-wtp add --no-cd feature/auth      # Never change directory
+wtp add -b feature/shared upstream/feature/shared
 ```
 
 ### Management Commands

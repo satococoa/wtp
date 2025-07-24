@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/satococoa/wtp/test/e2e/framework"
@@ -44,7 +43,8 @@ func TestRemoteBranchHandling(t *testing.T) {
 		repo.CreateRemoteBranch("origin", "explicit-branch")
 		repo.CreateRemoteBranch("upstream", "explicit-branch")
 
-		output, err := repo.RunWTP("add", "--track", "origin/explicit-branch", "explicit-branch")
+		// With new simplified interface, create new branch from specific remote
+		output, err := repo.RunWTP("add", "-b", "explicit-branch", "origin/explicit-branch")
 		framework.AssertNoError(t, err)
 		framework.AssertWorktreeCreated(t, output, "explicit-branch")
 		framework.AssertWorktreeExists(t, repo, "explicit-branch")
@@ -145,42 +145,30 @@ func TestRemoteConfiguration(t *testing.T) {
 	})
 }
 
-func TestTrackFlagBehavior(t *testing.T) {
+func TestSimplifiedInterfaceBehavior(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	t.Run("TrackWithoutRemote", func(t *testing.T) {
-		repo := env.CreateTestRepo("track-without-remote")
-		repo.CreateBranch("local-branch")
-
-		// --track should fail without remote branch
-		output, err := repo.RunWTP("add", "--track", "origin/nonexistent", "local-branch")
-		framework.AssertError(t, err)
-		framework.AssertTrue(t,
-			strings.Contains(output, "failed") || strings.Contains(output, "error") || strings.Contains(output, "not found"),
-			"Should fail when tracking non-existent remote")
-	})
-
-	t.Run("TrackDifferentBranchName", func(t *testing.T) {
-		repo := env.CreateTestRepo("track-different-name")
+	t.Run("NewBranchFromRemote", func(t *testing.T) {
+		repo := env.CreateTestRepo("new-from-remote")
 		repo.AddRemote("origin", "https://example.com/repo.git")
-		repo.CreateRemoteBranch("origin", "remote-name")
+		repo.CreateRemoteBranch("origin", "remote-feature")
 
-		// Create worktree with different local name
-		output, err := repo.RunWTP("add", "--track", "origin/remote-name", "local-name")
+		// Create new branch from remote using simplified interface
+		output, err := repo.RunWTP("add", "-b", "local-feature", "origin/remote-feature")
 		framework.AssertNoError(t, err)
-		framework.AssertWorktreeCreated(t, output, "local-name")
-		framework.AssertWorktreeExists(t, repo, "local-name")
+		framework.AssertWorktreeCreated(t, output, "local-feature")
+		framework.AssertWorktreeExists(t, repo, "local-feature")
 	})
 
-	t.Run("TrackWithDetach", func(t *testing.T) {
-		repo := env.CreateTestRepo("track-detach")
-		repo.AddRemote("origin", "https://example.com/repo.git")
-		repo.CreateRemoteBranch("origin", "remote-detach")
+	t.Run("NewBranchFromCommit", func(t *testing.T) {
+		repo := env.CreateTestRepo("new-from-commit")
+		repo.CreateBranch("source-branch")
 
-		// --track with --detach should fail (git limitation)
-		output, err := repo.RunWTP("add", "--track", "origin/remote-detach", "--detach", "detached-tracking")
-		framework.AssertError(t, err)
-		framework.AssertOutputContains(t, output, "track can only be used if a new branch is created")
+		// Create new branch from specific commit
+		output, err := repo.RunWTP("add", "-b", "new-branch", "main")
+		framework.AssertNoError(t, err)
+		framework.AssertWorktreeCreated(t, output, "new-branch")
+		framework.AssertWorktreeExists(t, repo, "new-branch")
 	})
 }

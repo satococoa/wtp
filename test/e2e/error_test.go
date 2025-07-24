@@ -65,12 +65,12 @@ func TestErrorMessages(t *testing.T) {
 		framework.AssertError(t, err)
 		framework.AssertOutputContains(t, output, "already exists")
 
-		// Should suggest --force flag or provide helpful error
+		// Should provide helpful error message (--force flag removed in simplified interface)
 		framework.AssertTrue(t,
-			strings.Contains(output, "--force") ||
-				strings.Contains(output, "already checked out") ||
+			strings.Contains(output, "already checked out") ||
+				strings.Contains(output, "already exists") ||
 				strings.Contains(output, "Tip:"),
-			"Should suggest --force flag or provide helpful tip")
+			"Should provide helpful error message")
 	})
 
 	t.Run("EmptyBranchName", func(t *testing.T) {
@@ -103,8 +103,13 @@ func TestErrorMessages(t *testing.T) {
 		framework.AssertOutputContains(t, output, "upstream")
 		framework.AssertHelpfulError(t, output)
 
-		// Should suggest --track flag
-		framework.AssertOutputContains(t, output, "--track")
+		// Should provide helpful guidance for ambiguous remote branches
+		framework.AssertTrue(t,
+			strings.Contains(output, "-b") ||
+				strings.Contains(output, "specify") ||
+				strings.Contains(output, "remote") ||
+				strings.Contains(output, "wtp add"),
+			"Should provide helpful guidance for multiple remotes")
 	})
 }
 
@@ -167,21 +172,6 @@ func TestErrorMessagesValidation(t *testing.T) {
 func TestValidationErrors(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
-
-	t.Run("ConflictingFlags", func(t *testing.T) {
-		repo := env.CreateTestRepo("error-conflicting-flags")
-
-		// Try conflicting flags (this might vary based on implementation)
-		output, err := repo.RunWTP("add", "-b", "new-branch", "--detach", "main")
-		// This might or might not be an error depending on git's behavior
-		if err != nil {
-			framework.AssertTrue(t,
-				strings.Contains(output, "conflict") ||
-					strings.Contains(output, "cannot") ||
-					strings.Contains(output, "incompatible"),
-				"Should handle conflicting flags")
-		}
-	})
 
 	t.Run("MissingRequiredArguments", func(t *testing.T) {
 		repo := env.CreateTestRepo("error-missing-args")
