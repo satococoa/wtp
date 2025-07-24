@@ -57,9 +57,6 @@ func TestWorktreeCreation(t *testing.T) {
 		framework.AssertWorktreeExists(t, repo, "hotfix")
 	})
 
-	// DetachedHead functionality has been removed from simplified interface
-	// This test is no longer applicable
-
 	t.Run("BranchConflict", func(t *testing.T) {
 		repo := env.CreateTestRepo("worktree-conflict")
 		repo.CreateBranch("feature/conflict")

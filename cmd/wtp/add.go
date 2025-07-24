@@ -22,7 +22,7 @@ func NewAddCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "add",
 		Usage:     "Create a new worktree",
-		UsageText: "wtp add <existing-branch> | -b <new-branch> [<commit>]",
+		UsageText: "wtp add <existing-branch>\n       wtp add -b <new-branch> [<commit>]",
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
