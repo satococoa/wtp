@@ -10,7 +10,7 @@ import (
 
 // Version information (set by GoReleaser)
 var (
-	version = "dev"
+	version = "1.1.0"
 	_       = "none"    // commit - set by GoReleaser but not used
 	_       = "unknown" // date - set by GoReleaser but not used
 )
