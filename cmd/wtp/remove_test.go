@@ -547,7 +547,6 @@ func TestRemoveCommand_BranchRemovalWithUnmergedCommits(t *testing.T) {
 
 			// Third result is the branch delete
 
-			// Third result is the branch delete
 			if tt.shouldSucceed {
 				mockResults = append(mockResults, command.Result{
 					Output: "Deleted branch feature-unmerged (was def456).",
