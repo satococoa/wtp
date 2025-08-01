@@ -656,6 +656,9 @@ wtp() {
             local worktree_name=""
             local found_b=0
             
+            # Save original arguments for reuse
+            local orig_args=("$@")
+            
             # Create a copy of arguments for parsing
             set -- "$@"
             shift # skip 'add'
@@ -675,7 +678,7 @@ wtp() {
             
             # If no -b option, find the last non-flag argument
             if [[ $found_b -eq 0 ]]; then
-                set -- "$@"
+                set -- "${orig_args[@]}"
                 shift # skip 'add' again
                 while [[ $# -gt 0 ]]; do
                     if [[ "$1" != -* ]]; then
