@@ -385,21 +385,35 @@ wtp() {
         
         # If successful, try to cd to the new worktree
         if [[ $exit_code -eq 0 ]]; then
-            # Extract branch name from arguments (last non-flag argument)
-            local branch_name=""
+            # Extract worktree name from arguments
+            local worktree_name=""
             local args=("$@")
             local i
-            for ((i=${#args[@]}; i>=2; i--)); do
-                if [[ "${args[$i]}" != -* ]]; then
-                    branch_name="${args[$i]}"
-                    break
+            
+            # First, check for -b/--branch option
+            for ((i=2; i<=${#args[@]}; i++)); do
+                if [[ "${args[$i]}" == "-b" || "${args[$i]}" == "--branch" ]]; then
+                    if [[ $((i+1)) -le ${#args[@]} ]]; then
+                        worktree_name="${args[$((i+1))]}"
+                        break
+                    fi
                 fi
             done
             
+            # If no -b option, use the last non-flag argument
+            if [[ -z "$worktree_name" ]]; then
+                for ((i=${#args[@]}; i>=2; i--)); do
+                    if [[ "${args[$i]}" != -* ]]; then
+                        worktree_name="${args[$i]}"
+                        break
+                    fi
+                done
+            fi
+            
             # Try to cd to the worktree
-            if [[ -n "$branch_name" ]]; then
+            if [[ -n "$worktree_name" ]]; then
                 local target_dir
-                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$branch_name" 2>/dev/null)
+                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$worktree_name" 2>/dev/null)
                 if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
                     cd "$target_dir"
                 fi
@@ -638,21 +652,43 @@ wtp() {
         
         # If successful, try to cd to the new worktree
         if [[ $exit_code -eq 0 ]]; then
-            # Extract branch name from arguments (last non-flag argument)
-            # Use shift and @ to iterate through arguments (compatible with zsh)
-            local branch_name=""
+            # Extract worktree name from arguments
+            local worktree_name=""
+            local found_b=0
+            
+            # Create a copy of arguments for parsing
+            set -- "$@"
             shift # skip 'add'
+            
+            # First, check for -b/--branch option
             while [[ $# -gt 0 ]]; do
-                if [[ "$1" != -* ]]; then
-                    branch_name="$1"
+                if [[ "$1" == "-b" || "$1" == "--branch" ]]; then
+                    shift
+                    if [[ $# -gt 0 ]]; then
+                        worktree_name="$1"
+                        found_b=1
+                        break
+                    fi
                 fi
                 shift
             done
             
+            # If no -b option, find the last non-flag argument
+            if [[ $found_b -eq 0 ]]; then
+                set -- "$@"
+                shift # skip 'add' again
+                while [[ $# -gt 0 ]]; do
+                    if [[ "$1" != -* ]]; then
+                        worktree_name="$1"
+                    fi
+                    shift
+                done
+            fi
+            
             # Try to cd to the worktree
-            if [[ -n "$branch_name" ]]; then
+            if [[ -n "$worktree_name" ]]; then
                 local target_dir
-                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$branch_name" 2>/dev/null)
+                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$worktree_name" 2>/dev/null)
                 if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
                     cd "$target_dir"
                 fi
@@ -703,18 +739,34 @@ function wtp
         
         # If successful, try to cd to the new worktree
         if test $exit_code -eq 0
-            # Extract branch name from arguments (last non-flag argument)
-            set -l branch_name ""
-            for i in (seq (count $argv) -1 2)
-                if not string match -q -- "-*" $argv[$i]
-                    set branch_name $argv[$i]
-                    break
+            # Extract worktree name from arguments
+            set -l worktree_name ""
+            set -l found_b 0
+            
+            # First, check for -b/--branch option
+            for i in (seq 2 (count $argv))
+                if test "$argv[$i]" = "-b" -o "$argv[$i]" = "--branch"
+                    if test (math $i + 1) -le (count $argv)
+                        set worktree_name $argv[(math $i + 1)]
+                        set found_b 1
+                        break
+                    end
+                end
+            end
+            
+            # If no -b option, find the last non-flag argument
+            if test $found_b -eq 0
+                for i in (seq (count $argv) -1 2)
+                    if not string match -q -- "-*" $argv[$i]
+                        set worktree_name $argv[$i]
+                        break
+                    end
                 end
             end
             
             # Try to cd to the worktree
-            if test -n "$branch_name"
-                set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $branch_name 2>/dev/null)
+            if test -n "$worktree_name"
+                set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $worktree_name 2>/dev/null)
                 if test $status -eq 0 -a -n "$target_dir" -a -d "$target_dir"
                     cd $target_dir
                 end
