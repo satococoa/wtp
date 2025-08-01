@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/satococoa/wtp/internal/config"
 )
@@ -123,8 +124,15 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 	}
 	cmd.Dir = workDir
 
-	// Set environment variables
-	cmd.Env = os.Environ()
+	// Set environment variables (filter out WTP_SHELL_INTEGRATION)
+	env := os.Environ()
+	filtered := make([]string, 0, len(env))
+	for _, e := range env {
+		if !strings.HasPrefix(e, "WTP_SHELL_INTEGRATION=") {
+			filtered = append(filtered, e)
+		}
+	}
+	cmd.Env = filtered
 	for key, value := range hook.Env {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
 	}
