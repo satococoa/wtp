@@ -15,7 +15,7 @@
 - Format: `go tool task fmt` (gofmt + goimports).
 - E2E tests: `go tool task test-e2e` (uses built binary; override with `WTP_E2E_BINARY=/abs/path/wtp`).
 - Direct build (no Task): `go build -o wtp ./cmd/wtp`.
- - Dev cycle: `go tool task dev` (runs fmt, lint, test).
+- Dev cycle: `go tool task dev` (runs fmt, lint, test).
 
 ## Coding Style & Naming
 - Follow standard Go style (tabs, gofmt) and idioms; package names are short and lowercase.
