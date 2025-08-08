@@ -144,7 +144,7 @@ func TestInitCommand_Success(t *testing.T) {
 
 	// Check for example hooks
 	assert.Contains(t, contentStr, "type: copy")
-	assert.Contains(t, contentStr, "from: .env.example")
+	assert.Contains(t, contentStr, "from: .env")
 	assert.Contains(t, contentStr, "to: .env")
 	assert.Contains(t, contentStr, "type: command")
 	assert.Contains(t, contentStr, "command: wtp")

@@ -58,22 +58,31 @@ defaults:
 # Hooks that run after creating a worktree
 hooks:
   post_create:
-    # Example: Copy environment file
-    - type: copy
-      from: .env.example
-      to: .env
+    # Example: Copy gitignored files from MAIN worktree to new worktree
+    # Note: 'from' is relative to main worktree, 'to' is relative to new worktree
+    # - type: copy
+    #   from: .env        # Copy actual .env file (gitignored)
+    #   to: .env
 
     # Example: Run a command to show all worktrees
     - type: command
       command: wtp list
 
     # More examples (commented out):
-    # - type: command
-    #   command: echo "Created new worktree!"
-    # - type: command
-    #   command: ls -la
+    
+    # Copy AI context files (typically gitignored):
+    # - type: copy
+    #   from: .claude     # Claude AI context
+    #   to: .claude
+    # - type: copy
+    #   from: .cursor/    # Cursor IDE settings
+    #   to: .cursor/
+    
+    # Run setup commands:
     # - type: command
     #   command: npm install
+    # - type: command
+    #   command: echo "Created new worktree!"
 `
 
 	// Write configuration file with comments

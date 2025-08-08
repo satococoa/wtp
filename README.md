@@ -182,14 +182,15 @@ defaults:
 
 hooks:
   post_create:
-    # Copy files from repository root to new worktree
+    # Copy gitignored files from main worktree to new worktree
+    # Note: 'from' is relative to main worktree, 'to' is relative to new worktree
     - type: copy
-      from: ".env.example"
+      from: ".env"  # Copy actual .env file (gitignored)
       to: ".env"
 
     - type: copy
-      from: "config/database.yml.example"
-      to: "config/database.yml"
+      from: ".claude"  # Copy AI context file (gitignored)
+      to: ".claude"
 
     # Execute commands in the new worktree
     - type: command
@@ -201,6 +202,36 @@ hooks:
       command: "make db:setup"
       work_dir: "."
 ```
+
+### Copy Hooks: Main Worktree Reference
+
+Copy hooks are designed to help you bootstrap new worktrees using files from your main worktree (even if they are gitignored):
+
+- `from`: path is always resolved relative to the main worktree.
+- `to`: path is resolved relative to the newly created worktree.
+- Supports files and directories, including entries ignored by Git (e.g., `.env`, `.claude`, `.cursor/`).
+
+Examples:
+
+```yaml
+hooks:
+  post_create:
+    # Copy local env and AI context from MAIN worktree into the new worktree
+    - type: copy
+      from: ".env"
+      to: ".env"
+
+    - type: copy
+      from: ".claude"
+      to: ".claude"
+
+    # Directory copy also works
+    - type: copy
+      from: ".cursor/"
+      to: ".cursor/"
+```
+
+This behavior applies regardless of where you run `wtp add` from (main worktree or any other worktree).
 
 ## Shell Integration
 
