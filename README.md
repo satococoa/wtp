@@ -357,7 +357,6 @@ go tool task build
 # Run locally
 ./wtp --help
 ```
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
