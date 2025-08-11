@@ -350,8 +350,8 @@ func TestShellIntegrationRequired(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "shell integration")
 	assert.Contains(t, err.Error(), "eval")
-	assert.Contains(t, err.Error(), "wtp completion")
-	assert.Contains(t, err.Error(), "Setup:")
+	assert.Contains(t, err.Error(), "wtp shell")
+	assert.Contains(t, err.Error(), "RECOMMENDED SETUP")
 }
 
 func TestUnsupportedShell(t *testing.T) {
@@ -422,7 +422,7 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 		{
 			name:     "ShellIntegrationRequired contains setup",
 			errorFn:  ShellIntegrationRequired,
-			keywords: []string{"Setup:", "eval", "completion"},
+			keywords: []string{"RECOMMENDED SETUP", "eval", "wtp shell"},
 		},
 	}
 

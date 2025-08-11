@@ -246,11 +246,18 @@ Solutions:
 func ShellIntegrationRequired() error {
 	msg := `cd command requires shell integration
 
-Setup:
-  • Enable shell integration: eval "$(wtp completion <shell>)"
-  • Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+RECOMMENDED SETUP (full functionality):
+  • Add to your ~/.zshrc: eval "$(wtp shell zsh)"
+  • Add to your ~/.bashrc: eval "$(wtp shell bash)"  
+  • Add to your ~/.config/fish/config.fish: wtp shell fish | source
 
-Help: Run 'wtp completion --help' for more details`
+This provides both tab completion and cd functionality with auto-cd support.
+
+LEGACY SETUP (completion only):
+  • eval "$(wtp completion <shell>)" - tab completion only
+
+Migration Guide: The 'wtp completion' command now only provides tab completion.
+For full shell integration including 'wtp cd' functionality, please migrate to 'wtp shell'`
 	return errors.New(msg)
 }
 

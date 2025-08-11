@@ -248,18 +248,36 @@ or any other worktree).
 
 ## Shell Integration
 
-### Quick Setup (Recommended)
+### Full Integration (Recommended)
 
-#### If installed via Homebrew or Package Manager
+For the complete wtp experience with tab completion, `wtp cd` functionality, and auto-cd after `wtp add`:
 
-Shell completions are automatically installed and should work immediately! No
-manual setup required.
+```bash
+# Bash: Add to ~/.bashrc
+eval "$(wtp shell bash)"
 
-#### Manual Setup
+# Zsh: Add to ~/.zshrc
+eval "$(wtp shell zsh)"
 
-If you installed wtp manually, add the following to your shell configuration
-file:
+# Fish: Add to ~/.config/fish/config.fish
+wtp shell fish | source
+```
 
+This provides:
+- Tab completion for all wtp commands, flags, and options
+- Branch name completion for `wtp add`
+- Worktree name completion for `wtp remove` and `wtp cd`
+- The `wtp cd` command for quick navigation between worktrees
+- Auto-cd functionality: automatically change to new worktree after `wtp add`
+
+### Tab Completion Only
+
+If you only need tab completion without the `wtp cd` functionality:
+
+#### Homebrew Users (Automatic)
+If installed via Homebrew, tab completion is automatically available! No setup required.
+
+#### Manual Setup (Completion Only)
 ```bash
 # Bash: Add to ~/.bashrc
 eval "$(wtp completion bash)"
@@ -271,26 +289,22 @@ eval "$(wtp completion zsh)"
 wtp completion fish | source
 ```
 
-This enables:
-
-- Tab completion for all wtp commands, flags, and options
-- Branch name completion for `wtp add`
-- Worktree name completion for `wtp remove` and `wtp cd`
-- The `wtp cd` command for quick navigation to worktrees
-
 ### Using the cd Command
 
-Once shell integration is enabled, you can quickly change to any worktree:
+With full shell integration enabled (`wtp shell`), you can quickly navigate between worktrees:
 
 ```bash
 # Change to a worktree by its name
 wtp cd feature/auth
 
-# Change to the root worktree using the '@' shorthand
+# Change to the main worktree using the '@' shorthand
 wtp cd @
 
 # Tab completion works!
 wtp cd <TAB>
+
+# Auto-cd after creating new worktrees
+wtp add feature/new-thing  # Automatically changes to the new worktree
 ```
 
 ## Worktree Structure

@@ -65,10 +65,11 @@ func NewCdCommand() *cli.Command {
 		Usage: "Change directory to worktree (requires shell integration)",
 		Description: "Change the current working directory to the specified worktree. " +
 			"This command requires shell integration to be set up first.\n\n" +
-			"To enable shell integration, add the following to your shell config:\n" +
-			"  Bash: eval \"$(wtp completion bash)\"\n" +
-			"  Zsh:  eval \"$(wtp completion zsh)\"\n" +
-			"  Fish: wtp completion fish | source",
+			"RECOMMENDED: To enable full shell integration, add to your shell config:\n" +
+			"  Bash: eval \"$(wtp shell bash)\"\n" +
+			"  Zsh:  eval \"$(wtp shell zsh)\"\n" +
+			"  Fish: wtp shell fish | source\n\n" +
+			"This provides both tab completion and cd functionality with auto-cd support.",
 		ArgsUsage: "<worktree-name>",
 		Action:    cdToWorktree,
 	}
