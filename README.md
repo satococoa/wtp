@@ -34,11 +34,19 @@ migrations → Finally start coding **wtp solution:** Configure once in
 ```yaml
 hooks:
   post_create:
+    # Copy real files from the MAIN worktree into the NEW worktree
     - type: copy
-      from: ".env.example"
-      to: ".env"
+      from: ".env" # Allowed even if gitignored. 'from' is always relative to the MAIN worktree
+      to: ".env" # Destination is relative to the NEW worktree
+
+    # Prefer explicit, single-step setup commands
     - type: command
-      command: "npm install && npm run db:setup"
+      command: "npm ci" # Example for Node.js (replace with your build/deps tool)
+    - type: command
+      command: "npm run db:setup"
+    # Alternative: using make or a task runner
+    # - type: command
+    #   command: "make bootstrap"
 ```
 
 Perfect for microservices, monorepos, or any project with complex setup
@@ -65,9 +73,11 @@ worktree. No more terminal tab confusion.
 
 ## Releases
 
-View all releases and changelogs: [GitHub Releases](https://github.com/satococoa/wtp/releases)
+View all releases and changelogs:
+[GitHub Releases](https://github.com/satococoa/wtp/releases)
 
-Latest stable version: [See releases](https://github.com/satococoa/wtp/releases/latest)
+Latest stable version:
+[See releases](https://github.com/satococoa/wtp/releases/latest)
 
 ## Installation
 
@@ -185,11 +195,11 @@ hooks:
     # Copy gitignored files from main worktree to new worktree
     # Note: 'from' is relative to main worktree, 'to' is relative to new worktree
     - type: copy
-      from: ".env"  # Copy actual .env file (gitignored)
+      from: ".env" # Copy actual .env file (gitignored)
       to: ".env"
 
     - type: copy
-      from: ".claude"  # Copy AI context file (gitignored)
+      from: ".claude" # Copy AI context file (gitignored)
       to: ".claude"
 
     # Execute commands in the new worktree
@@ -205,11 +215,13 @@ hooks:
 
 ### Copy Hooks: Main Worktree Reference
 
-Copy hooks are designed to help you bootstrap new worktrees using files from your main worktree (even if they are gitignored):
+Copy hooks are designed to help you bootstrap new worktrees using files from
+your main worktree (even if they are gitignored):
 
 - `from`: path is always resolved relative to the main worktree.
 - `to`: path is resolved relative to the newly created worktree.
-- Supports files and directories, including entries ignored by Git (e.g., `.env`, `.claude`, `.cursor/`).
+- Supports files and directories, including entries ignored by Git (e.g.,
+  `.env`, `.claude`, `.cursor/`).
 
 Examples:
 
@@ -231,7 +243,8 @@ hooks:
       to: ".cursor/"
 ```
 
-This behavior applies regardless of where you run `wtp add` from (main worktree or any other worktree).
+This behavior applies regardless of where you run `wtp add` from (main worktree
+or any other worktree).
 
 ## Shell Integration
 
@@ -344,8 +357,6 @@ go tool task build
 # Run locally
 ./wtp --help
 ```
-
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
