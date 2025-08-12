@@ -17,8 +17,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-const cdFileMode = 0o600
-
 // NewAddCommand creates the add command definition
 func NewAddCommand() *cli.Command {
 	return &cli.Command{
@@ -111,14 +109,6 @@ func addCommandWithCommandExecutor(
 	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
 		// Log warning but don't fail the entire operation
 		fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
-	}
-
-	// Write worktree path to cd file if WTP_CD_FILE is set (for shell integration)
-	if cdFile := os.Getenv("WTP_CD_FILE"); cdFile != "" {
-		if err := os.WriteFile(cdFile, []byte(workTreePath), cdFileMode); err != nil {
-			// Log warning but don't fail - cd is optional
-			fmt.Fprintf(w, "Warning: Could not enable auto-cd: %v\n", err)
-		}
 	}
 
 	return nil

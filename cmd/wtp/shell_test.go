@@ -29,7 +29,6 @@ func TestShellBash(t *testing.T) {
 	assert.Contains(t, output, "complete -F _wtp_completion wtp")
 	assert.Contains(t, output, "wtp shell integration")
 	assert.Contains(t, output, "wtp() {")
-	assert.Contains(t, output, "WTP_CD_FILE")
 }
 
 func TestShellZsh(t *testing.T) {
@@ -52,7 +51,6 @@ func TestShellZsh(t *testing.T) {
 	assert.Contains(t, output, "compdef _wtp wtp")
 	assert.Contains(t, output, "wtp shell integration")
 	assert.Contains(t, output, "wtp() {")
-	assert.Contains(t, output, "WTP_CD_FILE")
 }
 
 func TestShellFish(t *testing.T) {
@@ -74,7 +72,6 @@ func TestShellFish(t *testing.T) {
 	assert.Contains(t, output, "complete")
 	assert.Contains(t, output, "wtp shell integration")
 	assert.Contains(t, output, "function wtp")
-	assert.Contains(t, output, "WTP_CD_FILE")
 }
 
 func TestShellHelp(t *testing.T) {

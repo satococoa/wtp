@@ -14,8 +14,7 @@ func NewShellCommand() *cli.Command {
 		Name:  "shell",
 		Usage: "Generate shell integration script (includes completion + cd functionality)",
 		Description: "Generate shell integration scripts that provide both tab completion and " +
-			"cd functionality with auto-cd support for wtp add. This is the recommended way " +
-			"to enable full wtp functionality.",
+			"cd functionality. This is the recommended way to enable full wtp functionality.",
 		Commands: []*cli.Command{
 			{
 				Name:        "bash",
@@ -99,7 +98,7 @@ _wtp_completion() {
 
 complete -F _wtp_completion wtp
 
-# Shell integration with WTP_CD_FILE protocol
+# Shell integration for cd command
 wtp() {
     if [[ "$1" == "cd" ]]; then
         if [[ -z "$2" ]]; then
@@ -113,35 +112,6 @@ wtp() {
         else
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
-    elif [[ "$1" == "add" ]]; then
-        # Create temporary file for cd protocol
-        local _wtp_tmp
-        _wtp_tmp=$(mktemp 2>/dev/null) || {
-            _wtp_tmp="/tmp/wtp_cd_$$_$(date +%s)"
-            touch "$_wtp_tmp" 2>/dev/null || {
-                echo "Warning: Could not create temporary file for auto-cd" >&2
-                command wtp "$@"
-                return $?
-            }
-        }
-        
-        # Run wtp add with WTP_CD_FILE
-        WTP_CD_FILE="$_wtp_tmp" command wtp "$@"
-        local exit_code=$?
-        
-        # If successful and cd file has content, change directory
-        if [[ $exit_code -eq 0 && -s "$_wtp_tmp" ]]; then
-            local target_dir
-            target_dir=$(cat "$_wtp_tmp" 2>/dev/null)
-            if [[ -n "$target_dir" && -d "$target_dir" ]]; then
-                cd "$target_dir"
-            fi
-        fi
-        
-        # Cleanup
-        rm -f "$_wtp_tmp" 2>/dev/null
-        
-        return $exit_code
     else
         command wtp "$@"
     fi
@@ -254,7 +224,7 @@ if [ -n "$ZSH_VERSION" ]; then
     compdef _wtp wtp
 fi
 
-# Shell integration with WTP_CD_FILE protocol
+# Shell integration for cd command
 wtp() {
     if [[ "$1" == "cd" ]]; then
         if [[ -z "$2" ]]; then
@@ -268,35 +238,6 @@ wtp() {
         else
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
-    elif [[ "$1" == "add" ]]; then
-        # Create temporary file for cd protocol
-        local _wtp_tmp
-        _wtp_tmp=$(mktemp 2>/dev/null) || {
-            _wtp_tmp="/tmp/wtp_cd_$$_$(date +%s)"
-            touch "$_wtp_tmp" 2>/dev/null || {
-                echo "Warning: Could not create temporary file for auto-cd" >&2
-                command wtp "$@"
-                return $?
-            }
-        }
-        
-        # Run wtp add with WTP_CD_FILE
-        WTP_CD_FILE="$_wtp_tmp" command wtp "$@"
-        local exit_code=$?
-        
-        # If successful and cd file has content, change directory
-        if [[ $exit_code -eq 0 && -s "$_wtp_tmp" ]]; then
-            local target_dir
-            target_dir=$(cat "$_wtp_tmp" 2>/dev/null)
-            if [[ -n "$target_dir" && -d "$target_dir" ]]; then
-                cd "$target_dir"
-            fi
-        fi
-        
-        # Cleanup
-        rm -f "$_wtp_tmp" 2>/dev/null
-        
-        return $exit_code
     else
         command wtp "$@"
     fi
@@ -334,35 +275,6 @@ function wtp
         else
             env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
         end
-    else if test "$argv[1]" = "add"
-        # Create temporary file for cd protocol
-        set -l _wtp_tmp (mktemp 2>/dev/null)
-        if test $status -ne 0
-            set _wtp_tmp "/tmp/wtp_cd_"(random)"_"(date +%s)
-            touch $_wtp_tmp 2>/dev/null
-            if test $status -ne 0
-                echo "Warning: Could not create temporary file for auto-cd" >&2
-                command wtp $argv
-                return $status
-            end
-        end
-        
-        # Run wtp add with WTP_CD_FILE
-        env WTP_CD_FILE=$_wtp_tmp command wtp $argv
-        set -l exit_code $status
-        
-        # If successful and cd file has content, change directory
-        if test $exit_code -eq 0 -a -s "$_wtp_tmp"
-            set -l target_dir (cat $_wtp_tmp 2>/dev/null)
-            if test -n "$target_dir" -a -d "$target_dir"
-                cd $target_dir
-            end
-        end
-        
-        # Cleanup
-        rm -f $_wtp_tmp 2>/dev/null
-        
-        return $exit_code
     else
         command wtp $argv
     end

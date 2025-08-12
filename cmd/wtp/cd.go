@@ -69,7 +69,7 @@ func NewCdCommand() *cli.Command {
 			"  Bash: eval \"$(wtp shell bash)\"\n" +
 			"  Zsh:  eval \"$(wtp shell zsh)\"\n" +
 			"  Fish: wtp shell fish | source\n\n" +
-			"This provides both tab completion and cd functionality with auto-cd support.",
+			"This provides both tab completion and cd functionality.",
 		ArgsUsage: "<worktree-name>",
 		Action:    cdToWorktree,
 	}
