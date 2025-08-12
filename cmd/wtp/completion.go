@@ -217,6 +217,9 @@ _wtp_completion() {
             cd)
                 COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
                 ;;
+            shell)
+                COMPREPLY=( $(compgen -W "--help -h" -- "$cur") )
+                ;;
             *)
                 COMPREPLY=( $(compgen -W "--help -h --version" -- "$cur") )
                 ;;
@@ -250,7 +253,7 @@ _wtp_completion() {
 
     case $cword in
         1)
-            COMPREPLY=( $(compgen -W "add remove list init cd completion help" -- "$cur") )
+            COMPREPLY=( $(compgen -W "add remove list init cd shell completion help" -- "$cur") )
             ;;
         *)
             case "${words[1]}" in
@@ -346,6 +349,9 @@ _wtp_completion() {
                     COMPREPLY=( $(compgen -W "$worktrees" -- "$cur") )
                     ;;
                 completion)
+                    COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
+                    ;;
+                shell)
                     COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
                     ;;
                 cd)
@@ -458,6 +464,11 @@ _wtp() {
                         '(--help -h)'{--help,-h}'[Show help]' \
                         '1: :_wtp_worktrees_cd'
                     ;;
+                shell)
+                    _arguments -s \
+                        '(--help -h)'{--help,-h}'[Show help]' \
+                        '1: :_wtp_shells'
+                    ;;
             esac
             ;;
     esac
@@ -471,6 +482,7 @@ _wtp_commands() {
         'list:List all worktrees'
         'init:Initialize configuration file'
         'cd:Change directory to worktree'
+        'shell:Generate shell integration script'
         'completion:Generate shell completion script'
         'help:Show help'
     )
