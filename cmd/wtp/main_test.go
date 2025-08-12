@@ -27,7 +27,7 @@ func TestMain(t *testing.T) {
 			commandNames[cmd.Name] = true
 		}
 
-		expectedCommands := []string{"add", "list", "remove", "init", "cd", "completion"}
+		expectedCommands := []string{"add", "list", "remove", "init", "cd", "shell"}
 		for _, expected := range expectedCommands {
 			assert.True(t, commandNames[expected], "Command %s should exist", expected)
 		}
@@ -142,7 +142,7 @@ func createApp() *cli.Command {
 			NewRemoveCommand(),
 			NewInitCommand(),
 			NewCdCommand(),
-			NewCompletionCommand(),
+			NewShellCommand(),
 		},
 	}
 }
