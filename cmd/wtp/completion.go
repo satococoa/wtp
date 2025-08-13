@@ -374,53 +374,6 @@ wtp() {
         else
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
-    elif [[ "$1" == "add" ]]; then
-        # Run the add command and capture only the last line for cd detection
-        local last_line
-        local exit_code
-        
-        # Run command and capture exit code
-        WTP_SHELL_INTEGRATION=1 command wtp "$@"
-        exit_code=$?
-        
-        # If successful, try to cd to the new worktree
-        if [[ $exit_code -eq 0 ]]; then
-            # Extract worktree name from arguments
-            local worktree_name=""
-            local args=("$@")
-            local i
-            
-            # First, check for -b/--branch option
-            for ((i=2; i<=${#args[@]}; i++)); do
-                if [[ "${args[$i]}" == "-b" || "${args[$i]}" == "--branch" ]]; then
-                    if [[ $((i+1)) -le ${#args[@]} ]]; then
-                        worktree_name="${args[$((i+1))]}"
-                        break
-                    fi
-                fi
-            done
-            
-            # If no -b option, use the last non-flag argument
-            if [[ -z "$worktree_name" ]]; then
-                for ((i=${#args[@]}; i>=2; i--)); do
-                    if [[ "${args[$i]}" != -* ]]; then
-                        worktree_name="${args[$i]}"
-                        break
-                    fi
-                done
-            fi
-            
-            # Try to cd to the worktree
-            if [[ -n "$worktree_name" ]]; then
-                local target_dir
-                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$worktree_name" 2>/dev/null)
-                if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
-                    cd "$target_dir"
-                fi
-            fi
-        fi
-        
-        return $exit_code
     else
         command wtp "$@"
     fi
@@ -641,64 +594,6 @@ wtp() {
         else
             WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
         fi
-    elif [[ "$1" == "add" ]]; then
-        # Run the add command and capture only the last line for cd detection
-        local last_line
-        local exit_code
-        
-        # Run command and capture exit code
-        WTP_SHELL_INTEGRATION=1 command wtp "$@"
-        exit_code=$?
-        
-        # If successful, try to cd to the new worktree
-        if [[ $exit_code -eq 0 ]]; then
-            # Extract worktree name from arguments
-            local worktree_name=""
-            local found_b=0
-            
-            # Save original arguments for reuse
-            local orig_args=("$@")
-            
-            # Create a copy of arguments for parsing
-            set -- "$@"
-            shift # skip 'add'
-            
-            # First, check for -b/--branch option
-            while [[ $# -gt 0 ]]; do
-                if [[ "$1" == "-b" || "$1" == "--branch" ]]; then
-                    shift
-                    if [[ $# -gt 0 ]]; then
-                        worktree_name="$1"
-                        found_b=1
-                        break
-                    fi
-                fi
-                shift
-            done
-            
-            # If no -b option, find the last non-flag argument
-            if [[ $found_b -eq 0 ]]; then
-                set -- "${orig_args[@]}"
-                shift # skip 'add' again
-                while [[ $# -gt 0 ]]; do
-                    if [[ "$1" != -* ]]; then
-                        worktree_name="$1"
-                    fi
-                    shift
-                done
-            fi
-            
-            # Try to cd to the worktree
-            if [[ -n "$worktree_name" ]]; then
-                local target_dir
-                target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$worktree_name" 2>/dev/null)
-                if [[ $? -eq 0 && -n "$target_dir" && -d "$target_dir" ]]; then
-                    cd "$target_dir"
-                fi
-            fi
-        fi
-        
-        return $exit_code
     else
         command wtp "$@"
     fi
@@ -735,48 +630,6 @@ function wtp
         else
             env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
         end
-    else if test "$argv[1]" = "add"
-        # Run the add command and capture exit code
-        env WTP_SHELL_INTEGRATION=1 command wtp $argv
-        set -l exit_code $status
-        
-        # If successful, try to cd to the new worktree
-        if test $exit_code -eq 0
-            # Extract worktree name from arguments
-            set -l worktree_name ""
-            set -l found_b 0
-            
-            # First, check for -b/--branch option
-            for i in (seq 2 (count $argv))
-                if test "$argv[$i]" = "-b" -o "$argv[$i]" = "--branch"
-                    if test (math $i + 1) -le (count $argv)
-                        set worktree_name $argv[(math $i + 1)]
-                        set found_b 1
-                        break
-                    end
-                end
-            end
-            
-            # If no -b option, find the last non-flag argument
-            if test $found_b -eq 0
-                for i in (seq (count $argv) -1 2)
-                    if not string match -q -- "-*" $argv[$i]
-                        set worktree_name $argv[$i]
-                        break
-                    end
-                end
-            end
-            
-            # Try to cd to the worktree
-            if test -n "$worktree_name"
-                set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $worktree_name 2>/dev/null)
-                if test $status -eq 0 -a -n "$target_dir" -a -d "$target_dir"
-                    cd $target_dir
-                end
-            end
-        end
-        
-        return $exit_code
     else
         command wtp $argv
     end
