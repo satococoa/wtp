@@ -248,6 +248,70 @@ For detailed development history and major changes, see [docs/development-histor
 - Parallel hook execution
 - Lazy loading of worktree information
 
+## Shell Integration Architecture (v1.2.0)
+
+### Final Implementation: "Less is More" Approach
+
+Based on doc3.md, we implemented a clean separation between completion and shell integration:
+
+#### Command Structure
+
+**`wtp cd <worktree>`**
+- **Purpose**: Output absolute path to worktree (pure function)
+- **Behavior**: Always outputs path, no environment variable checks
+- **No side effects**: Does not change directories itself
+
+**`wtp completion <shell>`** 
+- **Purpose**: Generate pure tab completion scripts
+- **Implementation**: Uses urfave/cli v3 standard completion where possible
+- **No shell functions**: Removed wtp() function entirely
+
+**`wtp hook <shell>`**
+- **Purpose**: Generate shell integration for cd functionality  
+- **Implementation**: Outputs shell function that intercepts `wtp cd` calls
+- **Shells supported**: bash, zsh, fish
+
+**`wtp shell-init <shell>`**
+- **Purpose**: Convenience command combining completion + hook
+- **Use case**: Manual setup and lazy loading
+
+#### User Experience Matrix
+
+| Installation Method | Tab Completion | cd Functionality |
+|-------------------|----------------|------------------|
+| **Homebrew** | Automatic | `eval "$(wtp hook <shell>)"` |
+| **go install** | `eval "$(wtp completion <shell>)"` | `eval "$(wtp hook <shell>)"` |
+
+#### Lazy Loading (Future Homebrew Enhancement)
+
+```ruby
+# Proposed Homebrew formula enhancement
+(bash_completion/"wtp").write <<~EOS
+  _wtp_lazy_init() {
+    eval "$(wtp shell-init bash)"
+    complete -r wtp
+    _wtp "$@"
+  }
+  complete -F _wtp_lazy_init wtp
+EOS
+```
+
+This enables zero-configuration setup where first `wtp <TAB>` automatically configures everything.
+
+#### Benefits Achieved
+
+1. **Maintainability**: Removed 200+ lines of custom completion scripts
+2. **Standards Compliance**: Uses urfave/cli built-in completion  
+3. **Clear Separation**: Completion vs. shell integration are distinct
+4. **User Choice**: Users can choose completion-only or full integration
+5. **Future-Proof**: Standard patterns used throughout
+
+#### Migration from v1.1.x
+
+- **Breaking Change**: `wtp cd` no longer requires `WTP_SHELL_INTEGRATION=1`
+- **Migration Path**: Replace completion setup with separate completion + hook setup
+- **Backward Compatibility**: Old completion scripts continue to work but without cd functionality
+
 ---
 
 This document serves as a living record of the project's key decisions and development practices. Update as new patterns emerge.

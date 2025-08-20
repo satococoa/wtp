@@ -64,7 +64,6 @@ func TestCompletionBash(t *testing.T) {
 	assert.Contains(t, output, "#!/bin/bash")
 	assert.Contains(t, output, "_wtp_completion")
 	assert.Contains(t, output, "complete -F _wtp_completion wtp")
-	assert.Contains(t, output, "wtp cd command integration")
 }
 
 func TestCompletionZsh(t *testing.T) {
@@ -83,9 +82,8 @@ func TestCompletionZsh(t *testing.T) {
 
 	output := buf.String()
 	assert.Contains(t, output, "#compdef wtp")
-	assert.Contains(t, output, "_wtp()")
+	assert.Contains(t, output, "_wtp")
 	assert.Contains(t, output, "compdef _wtp wtp")
-	assert.Contains(t, output, "wtp cd command integration")
 }
 
 func TestCompletionFish(t *testing.T) {
@@ -105,8 +103,6 @@ func TestCompletionFish(t *testing.T) {
 	output := buf.String()
 	assert.Contains(t, output, "wtp")
 	assert.Contains(t, output, "complete")
-	assert.Contains(t, output, "wtp cd command integration")
-	assert.Contains(t, output, "function wtp")
 }
 
 func TestCompletionPowerShell(t *testing.T) {

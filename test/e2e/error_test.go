@@ -149,23 +149,19 @@ func TestErrorMessagesValidation(t *testing.T) {
 			"Should show clear error for removing non-existent worktree")
 	})
 
-	t.Run("CDWithoutShellIntegration", func(t *testing.T) {
-		repo := env.CreateTestRepo("error-cd-no-shell")
+	t.Run("CDOutputsPath", func(t *testing.T) {
+		repo := env.CreateTestRepo("error-cd-path")
 		repo.CreateBranch("test-branch")
 		_, _ = repo.RunWTP("add", "test-branch")
 
-		// Run cd command without shell integration
+		// Run cd command - should output the absolute path
 		output, err := repo.RunWTP("cd", "test-branch")
-		framework.AssertError(t, err)
-		framework.AssertOutputContains(t, output, "requires shell integration")
-		framework.AssertHelpfulError(t, output)
+		framework.AssertNoError(t, err)
+		framework.AssertOutputContains(t, output, "test-branch")
 
-		// Should provide setup instructions
-		framework.AssertTrue(t,
-			strings.Contains(output, "eval") ||
-				strings.Contains(output, "completion") ||
-				strings.Contains(output, "Setup:"),
-			"Should provide shell integration setup instructions")
+		// Output should be a valid path
+		outputPath := strings.TrimSpace(output)
+		framework.AssertTrue(t, strings.Contains(outputPath, "test-branch"), "Should contain worktree name")
 	})
 }
 

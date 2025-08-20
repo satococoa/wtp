@@ -358,26 +358,7 @@ _wtp_completion() {
     esac
 }
 
-complete -F _wtp_completion wtp
-
-# wtp cd command integration
-wtp() {
-    if [[ "$1" == "cd" ]]; then
-        if [[ -z "$2" ]]; then
-            command wtp cd
-            return
-        fi
-        local target_dir
-        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
-        if [[ $? -eq 0 && -n "$target_dir" ]]; then
-            cd "$target_dir"
-        else
-            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
-        fi
-    else
-        command wtp "$@"
-    fi
-}`)
+complete -F _wtp_completion wtp`)
 	return nil
 }
 
@@ -578,26 +559,7 @@ _wtp_branches_except_first() {
 
 if [ -n "$ZSH_VERSION" ]; then
     compdef _wtp wtp
-fi
-
-# wtp cd command integration
-wtp() {
-    if [[ "$1" == "cd" ]]; then
-        if [[ -z "$2" ]]; then
-            command wtp cd
-            return
-        fi
-        local target_dir
-        target_dir=$(WTP_SHELL_INTEGRATION=1 command wtp cd "$2" 2>/dev/null)
-        if [[ $? -eq 0 && -n "$target_dir" ]]; then
-            cd "$target_dir"
-        else
-            WTP_SHELL_INTEGRATION=1 command wtp cd "$2"
-        fi
-    else
-        command wtp "$@"
-    fi
-}`)
+fi`)
 	return nil
 }
 
@@ -614,26 +576,6 @@ func completionFish(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 	fmt.Fprintln(w, fish)
-
-	// Add cd command integration
-	fmt.Fprintln(w, `
-# wtp cd command integration
-function wtp
-    if test "$argv[1]" = "cd"
-        if test -z "$argv[2]"
-            command wtp cd
-            return
-        end
-        set -l target_dir (env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2] 2>/dev/null)
-        if test $status -eq 0 -a -n "$target_dir"
-            cd $target_dir
-        else
-            env WTP_SHELL_INTEGRATION=1 command wtp cd $argv[2]
-        end
-    else
-        command wtp $argv
-    end
-end`)
 	return nil
 }
 

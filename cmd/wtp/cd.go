@@ -62,24 +62,21 @@ func isWorktreeManagedCd(worktreePath string, cfg *config.Config, mainRepoPath s
 func NewCdCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "cd",
-		Usage: "Change directory to worktree (requires shell integration)",
-		Description: "Change the current working directory to the specified worktree. " +
-			"This command requires shell integration to be set up first.\n\n" +
-			"To enable shell integration, add the following to your shell config:\n" +
-			"  Bash: eval \"$(wtp completion bash)\"\n" +
-			"  Zsh:  eval \"$(wtp completion zsh)\"\n" +
-			"  Fish: wtp completion fish | source",
+		Usage: "Output absolute path to worktree",
+		Description: "Output the absolute path to the specified worktree.\n\n" +
+			"Usage:\n" +
+			"  Direct:     cd \"$(wtp cd feature)\"\n" +
+			"  With hook:  wtp cd feature\n\n" +
+			"To enable the hook for easier navigation:\n" +
+			"  Bash: eval \"$(wtp hook bash)\"\n" +
+			"  Zsh:  eval \"$(wtp hook zsh)\"\n" +
+			"  Fish: wtp hook fish | source",
 		ArgsUsage: "<worktree-name>",
 		Action:    cdToWorktree,
 	}
 }
 
 func cdToWorktree(_ context.Context, cmd *cli.Command) error {
-	// Check if we're running inside the shell function
-	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
-		return errors.ShellIntegrationRequired()
-	}
-
 	args := cmd.Args()
 	if args.Len() == 0 {
 		return errors.WorktreeNameRequired()

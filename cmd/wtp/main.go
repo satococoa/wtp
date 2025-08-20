@@ -36,6 +36,8 @@ func main() {
 			NewInitCommand(),
 			NewCdCommand(),
 			NewCompletionCommand(),
+			NewHookCommand(),
+			NewShellInitCommand(),
 		},
 	}
 
