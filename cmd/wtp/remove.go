@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -274,4 +276,87 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 		return nil, errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
 	return targetWorktree, nil
+}
+
+// getWorktreeNameFromPath calculates the worktree name from its path
+// For main worktree, returns "@"
+// For other worktrees, returns relative path from base_dir
+func getWorktreeNameFromPath(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) string {
+	if isMain {
+		return "@"
+	}
+
+	// Get base_dir path
+	baseDir := cfg.Defaults.BaseDir
+	if !filepath.IsAbs(baseDir) {
+		baseDir = filepath.Join(mainRepoPath, baseDir)
+	}
+
+	// Calculate relative path from base_dir
+	relPath, err := filepath.Rel(baseDir, worktreePath)
+	if err != nil {
+		// Fallback to directory name
+		return filepath.Base(worktreePath)
+	}
+
+	return relPath
+}
+
+// getWorktreesForRemove gets worktrees for remove command and writes them to writer (testable)
+func getWorktreesForRemove(w io.Writer) error {
+	// Get current directory
+	cwd, err := removeGetwd() // Use mockable function for tests
+	if err != nil {
+		return err
+	}
+
+	// Initialize repository
+	repo, err := git.NewRepository(cwd)
+	if err != nil {
+		return err
+	}
+
+	// Get main worktree path
+	mainRepoPath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		return err
+	}
+
+	// Load config
+	cfg, err := config.LoadConfig(mainRepoPath)
+	if err != nil {
+		return err
+	}
+
+	// Get all worktrees
+	worktrees, err := repo.GetWorktrees()
+	if err != nil {
+		return err
+	}
+
+	// Print worktrees for remove command (no main, no markers, managed only)
+	for i := range worktrees {
+		wt := &worktrees[i]
+		if !wt.IsMain && isWorktreeManaged(wt.Path, cfg, mainRepoPath, wt.IsMain) {
+			// Calculate worktree name as relative path from base_dir
+			name := getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
+			fmt.Fprintln(w, name)
+		}
+	}
+
+	return nil
+}
+
+// completeWorktrees provides worktree name completion for urfave/cli (wrapper for getWorktreesForRemove)
+func completeWorktrees(_ context.Context, _ *cli.Command) {
+	var buf bytes.Buffer
+	if err := getWorktreesForRemove(&buf); err != nil {
+		return
+	}
+
+	// Output each line using fmt.Println for urfave/cli compatibility
+	scanner := bufio.NewScanner(&buf)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
 }
