@@ -35,7 +35,9 @@ func main() {
 			NewRemoveCommand(),
 			NewInitCommand(),
 			NewCdCommand(),
-			NewCompletionCommand(),
+			// Built-in completion is automatically provided by urfave/cli
+			NewHookCommand(),
+			NewShellInitCommand(),
 		},
 	}
 

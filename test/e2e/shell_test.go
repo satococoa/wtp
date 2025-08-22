@@ -12,34 +12,27 @@ func TestShellIntegration(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	t.Run("CDCommandWithoutIntegration", func(t *testing.T) {
-		repo := env.CreateTestRepo("shell-cd-without")
+	t.Run("CDCommandOutputsPath", func(t *testing.T) {
+		repo := env.CreateTestRepo("shell-cd-path")
 		repo.CreateBranch("test-branch")
 		_, _ = repo.RunWTP("add", "test-branch")
 
-		// Try cd without shell integration
+		// cd should always output the path
 		output, err := repo.RunWTP("cd", "test-branch")
-		framework.AssertError(t, err)
-		framework.AssertOutputContains(t, output, "requires shell integration")
-		framework.AssertHelpfulError(t, output)
+		framework.AssertNoError(t, err)
+		framework.AssertOutputContains(t, output, "test-branch")
 
-		// Should provide setup instructions
-		framework.AssertOutputContains(t, output, "eval")
-		framework.AssertTrue(t,
-			strings.Contains(output, "completion") ||
-				strings.Contains(output, "Setup:"),
-			"Should provide shell integration setup instructions")
+		// Output should be a valid path
+		outputPath := strings.TrimSpace(output)
+		framework.AssertTrue(t, strings.Contains(outputPath, "test-branch"), "Should contain worktree name")
 	})
 
-	t.Run("CDCommandWithIntegration", func(t *testing.T) {
-		repo := env.CreateTestRepo("shell-cd-with")
+	t.Run("CDCommandWithBranchResolution", func(t *testing.T) {
+		repo := env.CreateTestRepo("shell-cd-branch")
 		repo.CreateBranch("feature/test")
 		_, _ = repo.RunWTP("add", "feature/test")
 
-		// Simulate shell integration environment
-		os.Setenv("WTP_SHELL_INTEGRATION", "1")
-		defer os.Unsetenv("WTP_SHELL_INTEGRATION")
-
+		// cd should resolve branch name to path
 		output, err := repo.RunWTP("cd", "test")
 		framework.AssertNoError(t, err)
 		// Should output the path

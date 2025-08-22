@@ -1,0 +1,133 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+
+	"github.com/urfave/cli/v3"
+)
+
+// NewHookCommand creates the hook command definition
+func NewHookCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "hook",
+		Usage: "Generate shell hook for cd functionality",
+		Description: "Generate shell hook scripts that enable the 'wtp cd' command to change directories. " +
+			"This provides a seamless navigation experience without needing subshells.\n\n" +
+			"To enable the hook, add the following to your shell config:\n" +
+			"  Bash (~/.bashrc):         eval \"$(wtp hook bash)\"\n" +
+			"  Zsh (~/.zshrc):           eval \"$(wtp hook zsh)\"\n" +
+			"  Fish (~/.config/fish/config.fish): wtp hook fish | source",
+		Commands: []*cli.Command{
+			{
+				Name:        "bash",
+				Usage:       "Generate bash hook script",
+				Description: "Generate bash hook script for cd functionality",
+				Action:      hookBash,
+			},
+			{
+				Name:        "zsh",
+				Usage:       "Generate zsh hook script",
+				Description: "Generate zsh hook script for cd functionality",
+				Action:      hookZsh,
+			},
+			{
+				Name:        "fish",
+				Usage:       "Generate fish hook script",
+				Description: "Generate fish hook script for cd functionality",
+				Action:      hookFish,
+			},
+		},
+	}
+}
+
+func hookBash(_ context.Context, cmd *cli.Command) error {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	printBashHook(w)
+	return nil
+}
+
+func hookZsh(_ context.Context, cmd *cli.Command) error {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	printZshHook(w)
+	return nil
+}
+
+func hookFish(_ context.Context, cmd *cli.Command) error {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	printFishHook(w)
+	return nil
+}
+
+func printBashHook(w io.Writer) {
+	fmt.Fprintln(w, `# wtp cd command hook for bash
+wtp() {
+    if [[ "$1" == "cd" ]]; then
+        if [[ -z "$2" ]]; then
+            echo "Usage: wtp cd <worktree>" >&2
+            return 1
+        fi
+        local target_dir
+        target_dir=$(command wtp cd "$2" 2>/dev/null)
+        if [[ $? -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        else
+            command wtp cd "$2"
+        fi
+    else
+        command wtp "$@"
+    fi
+}`)
+}
+
+func printZshHook(w io.Writer) {
+	fmt.Fprintln(w, `# wtp cd command hook for zsh
+wtp() {
+    if [[ "$1" == "cd" ]]; then
+        if [[ -z "$2" ]]; then
+            echo "Usage: wtp cd <worktree>" >&2
+            return 1
+        fi
+        local target_dir
+        target_dir=$(command wtp cd "$2" 2>/dev/null)
+        if [[ $? -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        else
+            command wtp cd "$2"
+        fi
+    else
+        command wtp "$@"
+    fi
+}`)
+}
+
+func printFishHook(w io.Writer) {
+	fmt.Fprintln(w, `# wtp cd command hook for fish
+function wtp
+    if test "$argv[1]" = "cd"
+        if test -z "$argv[2]"
+            echo "Usage: wtp cd <worktree>" >&2
+            return 1
+        end
+        set -l target_dir (command wtp cd $argv[2] 2>/dev/null)
+        if test $status -eq 0 -a -n "$target_dir"
+            cd $target_dir
+        else
+            command wtp cd $argv[2]
+        end
+    else
+        command wtp $argv
+    end
+end`)
+}

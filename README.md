@@ -248,17 +248,15 @@ or any other worktree).
 
 ## Shell Integration
 
-### Quick Setup (Recommended)
+### Tab Completion Setup
 
-#### If installed via Homebrew or Package Manager
+#### If installed via Homebrew
 
-Shell completions are automatically installed and should work immediately! No
-manual setup required.
+Tab completion is automatically installed! No manual setup required.
 
-#### Manual Setup
+#### If installed via go install
 
-If you installed wtp manually, add the following to your shell configuration
-file:
+Add the following to your shell configuration file:
 
 ```bash
 # Bash: Add to ~/.bashrc
@@ -271,16 +269,37 @@ eval "$(wtp completion zsh)"
 wtp completion fish | source
 ```
 
-This enables:
+This enables tab completion for all wtp commands, flags, and options.
 
-- Tab completion for all wtp commands, flags, and options
-- Branch name completion for `wtp add`
-- Worktree name completion for `wtp remove` and `wtp cd`
-- The `wtp cd` command for quick navigation to worktrees
+### Navigation with wtp cd
 
-### Using the cd Command
+The `wtp cd` command outputs the absolute path to a worktree. You can use it in two ways:
 
-Once shell integration is enabled, you can quickly change to any worktree:
+#### Direct Usage
+```bash
+# Change to a worktree using command substitution
+cd "$(wtp cd feature/auth)"
+
+# Change to the main worktree
+cd "$(wtp cd @)"
+```
+
+#### With Shell Hook (Recommended)
+
+For a more seamless experience, enable the shell hook:
+
+```bash
+# Bash: Add to ~/.bashrc
+eval "$(wtp hook bash)"
+
+# Zsh: Add to ~/.zshrc
+eval "$(wtp hook zsh)"
+
+# Fish: Add to ~/.config/fish/config.fish
+wtp hook fish | source
+```
+
+Then use the simplified syntax:
 
 ```bash
 # Change to a worktree by its name
@@ -292,6 +311,10 @@ wtp cd @
 # Tab completion works!
 wtp cd <TAB>
 ```
+
+#### Complete Setup (Lazy Loading for Homebrew Users)
+
+For Homebrew users who want both completion and cd functionality with zero configuration, just use `wtp <TAB>` once - it will automatically set up both features!
 
 ## Worktree Structure
 
