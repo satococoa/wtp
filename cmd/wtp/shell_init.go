@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 
 	"github.com/urfave/cli/v3"
 )
@@ -42,14 +44,14 @@ func NewShellInitCommand() *cli.Command {
 	}
 }
 
-func shellInitBash(ctx context.Context, cmd *cli.Command) error {
+func shellInitBash(_ context.Context, cmd *cli.Command) error {
 	w := cmd.Root().Writer
 	if w == nil {
 		w = os.Stdout
 	}
 
 	// Output completion first
-	if err := completionBash(ctx, cmd); err != nil {
+	if err := outputCompletion(w, "bash"); err != nil {
 		return err
 	}
 
@@ -60,14 +62,14 @@ func shellInitBash(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func shellInitZsh(ctx context.Context, cmd *cli.Command) error {
+func shellInitZsh(_ context.Context, cmd *cli.Command) error {
 	w := cmd.Root().Writer
 	if w == nil {
 		w = os.Stdout
 	}
 
 	// Output completion first
-	if err := completionZsh(ctx, cmd); err != nil {
+	if err := outputCompletion(w, "zsh"); err != nil {
 		return err
 	}
 
@@ -78,14 +80,14 @@ func shellInitZsh(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func shellInitFish(ctx context.Context, cmd *cli.Command) error {
+func shellInitFish(_ context.Context, cmd *cli.Command) error {
 	w := cmd.Root().Writer
 	if w == nil {
 		w = os.Stdout
 	}
 
 	// Output completion first
-	if err := completionFish(ctx, cmd); err != nil {
+	if err := outputCompletion(w, "fish"); err != nil {
 		return err
 	}
 
@@ -94,4 +96,24 @@ func shellInitFish(ctx context.Context, cmd *cli.Command) error {
 	printFishHook(w)
 
 	return nil
+}
+
+// outputCompletion executes wtp completion command and writes output to w
+func outputCompletion(w io.Writer, shell string) error {
+	// Get the executable path
+	exe, err := os.Executable()
+	if err != nil {
+		// Fallback to "wtp" if we can't find the executable
+		exe = "wtp"
+	}
+
+	// Execute completion command
+	cmd := exec.Command(exe, "completion", shell)
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to generate %s completion: %w", shell, err)
+	}
+
+	_, err = w.Write(output)
+	return err
 }
