@@ -9,6 +9,16 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// Helper function
+func findSubcommand(cmd *cli.Command, name string) *cli.Command {
+	for _, sub := range cmd.Commands {
+		if sub.Name == name {
+			return sub
+		}
+	}
+	return nil
+}
+
 // Focus on what matters: command behavior, not structure
 func TestNewHookCommand_SupportedShells(t *testing.T) {
 	cmd := NewHookCommand()
