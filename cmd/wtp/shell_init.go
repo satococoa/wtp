@@ -10,6 +10,17 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+var runCompletionCommand = func(shell string) ([]byte, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		// Fallback to "wtp" if we can't find the executable
+		exe = "wtp"
+	}
+
+	cmd := exec.Command(exe, "completion", shell)
+	return cmd.Output()
+}
+
 // NewShellInitCommand creates the shell-init command definition
 func NewShellInitCommand() *cli.Command {
 	return &cli.Command{
@@ -99,17 +110,9 @@ func shellInitFish(_ context.Context, cmd *cli.Command) error {
 }
 
 // outputCompletion executes wtp completion command and writes output to w
-func outputCompletion(w io.Writer, shell string) error {
-	// Get the executable path
-	exe, err := os.Executable()
-	if err != nil {
-		// Fallback to "wtp" if we can't find the executable
-		exe = "wtp"
-	}
 
-	// Execute completion command
-	cmd := exec.Command(exe, "completion", shell)
-	output, err := cmd.Output()
+func outputCompletion(w io.Writer, shell string) error {
+	output, err := runCompletionCommand(shell)
 	if err != nil {
 		return fmt.Errorf("failed to generate %s completion: %w", shell, err)
 	}
