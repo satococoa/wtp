@@ -11,9 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/satococoa/wtp/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/satococoa/wtp/internal/config"
 )
 
 func TestExecutePostCreateHooks_NilConfig(t *testing.T) {

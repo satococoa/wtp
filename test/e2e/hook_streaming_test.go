@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/satococoa/wtp/test/e2e/framework"
 	"gopkg.in/yaml.v3"
+
+	"github.com/satococoa/wtp/test/e2e/framework"
 )
 
 func TestHookOutputStreaming(t *testing.T) {

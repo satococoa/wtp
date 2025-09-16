@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -932,50 +931,20 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 // ===== Branch Completion Tests =====
 
 func TestGetBranches(t *testing.T) {
-	t.Run("should write branches to writer without panic", func(t *testing.T) {
-		var buf bytes.Buffer
-		
-		// Should not panic even if not in a git repository
-		assert.NotPanics(t, func() {
-			_ = getBranches(&buf)
-		})
-		
-		// In non-git environment, should return early with no output or error gracefully
-		// Actual git functionality testing would require real git setup
-	})
-
-	t.Run("should handle git repository properly", func(t *testing.T) {
-		// Create a temporary git repository for testing
-		tempDir := t.TempDir()
-		gitDir := filepath.Join(tempDir, ".git")
-		err := os.MkdirAll(gitDir, 0755)
-		assert.NoError(t, err)
-
-		// Change to temp directory
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		err = os.Chdir(tempDir)
-		assert.NoError(t, err)
-
-		var buf bytes.Buffer
-		// Should not panic in git directory (even if not fully initialized)
-		assert.NotPanics(t, func() {
-			_ = getBranches(&buf)
-		})
-	})
+	RunWriterCommonTests(t, "getBranches", getBranches)
 }
 
 func TestCompleteBranches(t *testing.T) {
 	t.Run("should not panic when called", func(t *testing.T) {
 		cmd := &cli.Command{}
-		
+
 		// Should not panic even without proper git setup
 		assert.NotPanics(t, func() {
 			// Capture stdout to avoid noise in tests
 			oldStdout := os.Stdout
 			os.Stdout = os.NewFile(0, os.DevNull)
 			defer func() { os.Stdout = oldStdout }()
-			
+
 			completeBranches(context.Background(), cmd)
 		})
 	})

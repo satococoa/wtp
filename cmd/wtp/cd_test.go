@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/satococoa/wtp/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 )
@@ -219,86 +218,24 @@ func TestCdCommand_CoreBehavior(t *testing.T) {
 // ===== Worktree Completion Tests =====
 
 func TestGetWorktreeNameFromPathCd(t *testing.T) {
-	t.Run("should return @ for main worktree", func(t *testing.T) {
-		cfg := &config.Config{
-			Defaults: config.Defaults{
-				BaseDir: ".worktrees",
-			},
-		}
-		
-		name := getWorktreeNameFromPathCd("/path/to/repo", cfg, "/path/to/repo", true)
-		assert.Equal(t, "@", name)
-	})
-
-	t.Run("should return relative path for non-main worktree", func(t *testing.T) {
-		cfg := &config.Config{
-			Defaults: config.Defaults{
-				BaseDir: ".worktrees",
-			},
-		}
-		
-		name := getWorktreeNameFromPathCd("/path/to/repo/.worktrees/feature/test", cfg, "/path/to/repo", false)
-		assert.Equal(t, "feature/test", name)
-	})
-
-	t.Run("should fallback to directory name on error", func(t *testing.T) {
-		cfg := &config.Config{
-			Defaults: config.Defaults{
-				BaseDir: ".worktrees",
-			},
-		}
-		
-		// Use invalid path to trigger error
-		name := getWorktreeNameFromPathCd("/completely/different/path", cfg, "/path/to/repo", false)
-		assert.Equal(t, "../../../../completely/different/path", name) // actual filepath.Rel result
-	})
+	RunNameFromPathTests(t, "cd", getWorktreeNameFromPathCd)
 }
 
 func TestGetWorktreesForCd(t *testing.T) {
-	t.Run("should write worktrees to writer without panic", func(t *testing.T) {
-		var buf bytes.Buffer
-		
-		// Should not panic even if not in a git repository
-		assert.NotPanics(t, func() {
-			_ = getWorktreesForCd(&buf)
-		})
-		
-		// In non-git environment, should return early with no output or error gracefully
-		// Actual git functionality testing would require real git setup
-	})
-
-	t.Run("should handle git repository properly", func(t *testing.T) {
-		// Create a temporary git repository for testing
-		tempDir := t.TempDir()
-		gitDir := filepath.Join(tempDir, ".git")
-		err := os.MkdirAll(gitDir, 0755)
-		assert.NoError(t, err)
-
-		// Change to temp directory
-		oldDir, _ := os.Getwd()
-		defer func() { _ = os.Chdir(oldDir) }()
-		err = os.Chdir(tempDir)
-		assert.NoError(t, err)
-
-		var buf bytes.Buffer
-		// Should not panic in git directory (even if not fully initialized)
-		assert.NotPanics(t, func() {
-			_ = getWorktreesForCd(&buf)
-		})
-	})
+	RunWriterCommonTests(t, "getWorktreesForCd", getWorktreesForCd)
 }
 
 func TestCompleteWorktreesForCd(t *testing.T) {
 	t.Run("should not panic when called", func(t *testing.T) {
 		cmd := &cli.Command{}
-		
+
 		// Should not panic even without proper git setup
 		assert.NotPanics(t, func() {
 			// Capture stdout to avoid noise in tests
 			oldStdout := os.Stdout
 			os.Stdout = os.NewFile(0, os.DevNull)
 			defer func() { os.Stdout = oldStdout }()
-			
+
 			completeWorktreesForCd(context.Background(), cmd)
 		})
 	})
