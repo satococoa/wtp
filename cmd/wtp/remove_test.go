@@ -304,9 +304,9 @@ func TestRemoveCommand_ValidationErrors(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:          "no branch name",
+			name:          "no worktree name",
 			args:          []string{},
-			expectedError: "branch name is required",
+			expectedError: "worktree name is required",
 		},
 	}
 

@@ -181,7 +181,7 @@ func removeCommandWithCommandExecutor(
 
 func validateRemoveInput(worktreeName string, withBranch, forceBranch bool) error {
 	if worktreeName == "" {
-		return errors.BranchNameRequired("wtp remove <worktree-name>")
+		return errors.WorktreeNameRequiredForRemove()
 	}
 	if forceBranch && !withBranch {
 		return fmt.Errorf("--force-branch requires --with-branch")

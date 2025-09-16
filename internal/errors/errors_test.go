@@ -88,6 +88,16 @@ func TestWorktreeNameRequired(t *testing.T) {
 	assert.Contains(t, err.Error(), "wtp list")
 }
 
+func TestWorktreeNameRequiredForRemove(t *testing.T) {
+	err := WorktreeNameRequiredForRemove()
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree name is required")
+	assert.Contains(t, err.Error(), "wtp remove")
+	assert.Contains(t, err.Error(), "wtp remove --with-branch")
+	assert.Contains(t, err.Error(), "wtp list")
+}
+
 func TestInvalidBranchName(t *testing.T) {
 	branchName := "invalid..branch"
 	err := InvalidBranchName(branchName)

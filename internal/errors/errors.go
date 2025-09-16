@@ -56,6 +56,20 @@ Tip: Run 'wtp list' to see available worktrees`
 	return errors.New(msg)
 }
 
+func WorktreeNameRequiredForRemove() error {
+	msg := `worktree name is required
+
+Usage: wtp remove <worktree-name>
+
+Examples:
+  • wtp remove feature/auth
+  • wtp remove --with-branch feature/auth
+  • wtp remove --force feature/auth
+
+Tip: Run 'wtp list' to see available worktrees`
+	return errors.New(msg)
+}
+
 func InvalidBranchName(branchName string) error {
 	msg := fmt.Sprintf(`invalid branch name: '%s'
 
