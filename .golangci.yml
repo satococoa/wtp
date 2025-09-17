@@ -12,7 +12,7 @@ linters-settings:
         list-mode: lax
         allow:
           - $gostd
-          - github.com/satococoa/git-wtp
+          - github.com/satococoa/wtp
           - github.com/urfave/cli/v3
           - go.yaml.in/yaml/v3
   govet:
@@ -26,7 +26,7 @@ linters-settings:
   lll:
     line-length: 120
   goimports:
-    local-prefixes: github.com/satococoa/git-wtp
+    local-prefixes: github.com/satococoa/wtp
   gocritic:
     enabled-tags:
       - diagnostic

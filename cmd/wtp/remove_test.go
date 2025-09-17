@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/satococoa/wtp/internal/command"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
+
+	"github.com/satococoa/wtp/internal/command"
 )
 
 // ===== Command Structure Tests =====
@@ -303,9 +304,9 @@ func TestRemoveCommand_ValidationErrors(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:          "no branch name",
+			name:          "no worktree name",
 			args:          []string{},
-			expectedError: "branch name is required",
+			expectedError: "worktree name is required",
 		},
 	}
 
@@ -822,4 +823,30 @@ type mockRemoveError struct {
 
 func (e *mockRemoveError) Error() string {
 	return e.message
+}
+
+// ===== Worktree Completion Tests =====
+
+func TestGetWorktreeNameFromPath(t *testing.T) {
+	RunNameFromPathTests(t, "remove", getWorktreeNameFromPath)
+}
+
+func TestGetWorktreesForRemove(t *testing.T) {
+	RunWriterCommonTests(t, "getWorktreesForRemove", getWorktreesForRemove)
+}
+
+func TestCompleteWorktrees(t *testing.T) {
+	t.Run("should not panic when called", func(t *testing.T) {
+		cmd := &cli.Command{}
+
+		// Should not panic even without proper git setup
+		assert.NotPanics(t, func() {
+			// Capture stdout to avoid noise in tests
+			oldStdout := os.Stdout
+			os.Stdout = os.NewFile(0, os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			completeWorktrees(context.Background(), cmd)
+		})
+	})
 }

@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/urfave/cli/v3"
 
 	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/config"
@@ -14,7 +19,6 @@ import (
 	"github.com/satococoa/wtp/internal/git"
 	"github.com/satococoa/wtp/internal/hooks"
 	wtpio "github.com/satococoa/wtp/internal/io"
-	"github.com/urfave/cli/v3"
 )
 
 // NewAddCommand creates the add command definition
@@ -338,6 +342,70 @@ func setupRepoAndConfig() (*git.Repository, *config.Config, string, error) {
 	}
 
 	return repo, cfg, mainRepoPath, nil
+}
+
+// getBranches gets available branch names and writes them to the writer (testable)
+func getBranches(w io.Writer) error {
+	// Get current directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// Get all branches using git for-each-ref for better control
+	gitCmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes")
+	gitCmd.Dir = cwd
+	output, err := gitCmd.Output()
+	if err != nil {
+		return err
+	}
+
+	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+	// Use a map to avoid duplicates
+	seen := make(map[string]bool)
+
+	for _, branch := range branches {
+		if branch == "" {
+			continue
+		}
+
+		// Skip HEAD references and bare origin
+		if branch == "origin/HEAD" || branch == "origin" {
+			continue
+		}
+
+		// Remove remote prefix for display, but keep track of what we've seen
+		displayName := branch
+		if strings.HasPrefix(branch, "origin/") {
+			// For remote branches, show without the origin/ prefix
+			displayName = strings.TrimPrefix(branch, "origin/")
+		}
+
+		// Skip if already seen (handles case where local and remote have same name)
+		if seen[displayName] {
+			continue
+		}
+
+		seen[displayName] = true
+		fmt.Fprintln(w, displayName)
+	}
+
+	return nil
+}
+
+// completeBranches provides branch name completion for urfave/cli (wrapper for getBranches)
+func completeBranches(_ context.Context, _ *cli.Command) {
+	var buf bytes.Buffer
+	if err := getBranches(&buf); err != nil {
+		return
+	}
+
+	// Output each line using fmt.Println for urfave/cli compatibility
+	scanner := bufio.NewScanner(&buf)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
 }
 
 // displaySuccessMessage is a convenience wrapper for displaySuccessMessageWithCommitish

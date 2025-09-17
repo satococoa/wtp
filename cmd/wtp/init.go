@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
-	"github.com/urfave/cli/v3"
 )
 
 const configFileMode = 0o600

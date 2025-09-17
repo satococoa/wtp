@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -8,11 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/urfave/cli/v3"
+
 	"github.com/satococoa/wtp/internal/command"
 	"github.com/satococoa/wtp/internal/config"
 	"github.com/satococoa/wtp/internal/errors"
 	"github.com/satococoa/wtp/internal/git"
-	"github.com/urfave/cli/v3"
 )
 
 // isWorktreeManagedCd determines if a worktree is managed by wtp (for cd command)
@@ -62,24 +65,22 @@ func isWorktreeManagedCd(worktreePath string, cfg *config.Config, mainRepoPath s
 func NewCdCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "cd",
-		Usage: "Change directory to worktree (requires shell integration)",
-		Description: "Change the current working directory to the specified worktree. " +
-			"This command requires shell integration to be set up first.\n\n" +
-			"To enable shell integration, add the following to your shell config:\n" +
-			"  Bash: eval \"$(wtp completion bash)\"\n" +
-			"  Zsh:  eval \"$(wtp completion zsh)\"\n" +
-			"  Fish: wtp completion fish | source",
-		ArgsUsage: "<worktree-name>",
-		Action:    cdToWorktree,
+		Usage: "Output absolute path to worktree",
+		Description: "Output the absolute path to the specified worktree.\n\n" +
+			"Usage:\n" +
+			"  Direct:     cd \"$(wtp cd feature)\"\n" +
+			"  With hook:  wtp cd feature\n\n" +
+			"To enable the hook for easier navigation:\n" +
+			"  Bash: eval \"$(wtp hook bash)\"\n" +
+			"  Zsh:  eval \"$(wtp hook zsh)\"\n" +
+			"  Fish: wtp hook fish | source",
+		ArgsUsage:     "<worktree-name>",
+		Action:        cdToWorktree,
+		ShellComplete: completeWorktreesForCd,
 	}
 }
 
 func cdToWorktree(_ context.Context, cmd *cli.Command) error {
-	// Check if we're running inside the shell function
-	if os.Getenv("WTP_SHELL_INTEGRATION") != "1" {
-		return errors.ShellIntegrationRequired()
-	}
-
 	args := cmd.Args()
 	if args.Len() == 0 {
 		return errors.WorktreeNameRequired()
@@ -266,4 +267,103 @@ func tryMainWorktreeMatches(wt *git.Worktree, worktreeName, mainWorktreePath str
 	}
 
 	return ""
+}
+
+// getWorktreeNameFromPathCd calculates the worktree name from its path (cd version)
+// For main worktree, returns "@"
+// For other worktrees, returns relative path from base_dir
+func getWorktreeNameFromPathCd(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) string {
+	if isMain {
+		return "@"
+	}
+
+	// Get base_dir path
+	baseDir := cfg.Defaults.BaseDir
+	if !filepath.IsAbs(baseDir) {
+		baseDir = filepath.Join(mainRepoPath, baseDir)
+	}
+
+	// Calculate relative path from base_dir
+	relPath, err := filepath.Rel(baseDir, worktreePath)
+	if err != nil {
+		// Fallback to directory name
+		return filepath.Base(worktreePath)
+	}
+
+	return relPath
+}
+
+// getWorktreesForCd gets worktrees for cd command with current position markers and writes them to writer (testable)
+func getWorktreesForCd(w io.Writer) error {
+	// Get current directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// Initialize repository
+	repo, err := git.NewRepository(cwd)
+	if err != nil {
+		return err
+	}
+
+	// Get main worktree path
+	mainRepoPath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		return err
+	}
+
+	// Load config
+	cfg, err := config.LoadConfig(mainRepoPath)
+	if err != nil {
+		return err
+	}
+
+	// Get all worktrees
+	worktrees, err := repo.GetWorktrees()
+	if err != nil {
+		return err
+	}
+
+	// Print @ for main worktree
+	for i := range worktrees {
+		wt := &worktrees[i]
+		if wt.IsMain {
+			if wt.Path == cwd {
+				fmt.Fprintln(w, "@*")
+			} else {
+				fmt.Fprintln(w, "@")
+			}
+			break
+		}
+	}
+
+	// Print other worktrees with current marker (managed only)
+	for i := range worktrees {
+		wt := &worktrees[i]
+		if !wt.IsMain && isWorktreeManagedCd(wt.Path, cfg, mainRepoPath, wt.IsMain) {
+			name := getWorktreeNameFromPathCd(wt.Path, cfg, mainRepoPath, wt.IsMain)
+			if wt.Path == cwd {
+				fmt.Fprintf(w, "%s*\n", name)
+			} else {
+				fmt.Fprintln(w, name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// completeWorktreesForCd provides worktree name completion for cd command (wrapper for getWorktreesForCd)
+func completeWorktreesForCd(_ context.Context, _ *cli.Command) {
+	var buf bytes.Buffer
+	if err := getWorktreesForCd(&buf); err != nil {
+		return
+	}
+
+	// Output each line using fmt.Println for urfave/cli compatibility
+	scanner := bufio.NewScanner(&buf)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
 }

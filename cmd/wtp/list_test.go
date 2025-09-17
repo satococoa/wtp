@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/satococoa/wtp/internal/command"
-	"github.com/satococoa/wtp/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
+
+	"github.com/satococoa/wtp/internal/command"
+	"github.com/satococoa/wtp/internal/config"
 )
 
 // ===== Command Structure Tests =====

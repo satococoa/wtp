@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -925,4 +926,26 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ===== Branch Completion Tests =====
+
+func TestGetBranches(t *testing.T) {
+	RunWriterCommonTests(t, "getBranches", getBranches)
+}
+
+func TestCompleteBranches(t *testing.T) {
+	t.Run("should not panic when called", func(t *testing.T) {
+		cmd := &cli.Command{}
+
+		// Should not panic even without proper git setup
+		assert.NotPanics(t, func() {
+			// Capture stdout to avoid noise in tests
+			oldStdout := os.Stdout
+			os.Stdout = os.NewFile(0, os.DevNull)
+			defer func() { os.Stdout = oldStdout }()
+
+			completeBranches(context.Background(), cmd)
+		})
+	})
 }
