@@ -841,10 +841,8 @@ func TestCompleteWorktrees(t *testing.T) {
 
 		// Should not panic even without proper git setup
 		assert.NotPanics(t, func() {
-			// Capture stdout to avoid noise in tests
-			oldStdout := os.Stdout
-			os.Stdout = os.NewFile(0, os.DevNull)
-			defer func() { os.Stdout = oldStdout }()
+			restore := silenceStdout(t)
+			defer restore()
 
 			completeWorktrees(context.Background(), cmd)
 		})
