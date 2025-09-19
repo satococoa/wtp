@@ -13,7 +13,7 @@ func silenceStdout(t *testing.T) func() {
 
 	old := os.Stdout
 
-	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	f, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0644)
 	if err != nil {
 		t.Fatalf("failed to open %s: %v", os.DevNull, err)
 	}
