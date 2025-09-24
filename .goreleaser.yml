@@ -88,7 +88,60 @@ brews:
       - name: git
     install: |
       bin.install "wtp"
-      generate_completions_from_executable(bin/"wtp", "completion")
+
+      (bash_completion/"wtp").write <<~'EOS'
+        _wtp_lazy_init() {
+          local script
+          script="$(command wtp shell-init bash 2>/dev/null)"
+          if [[ $? -ne 0 || -z "$script" ]]; then
+            return 1
+          fi
+
+          eval "$script"
+
+          if declare -f __wtp_bash_autocomplete >/dev/null 2>&1; then
+            __wtp_bash_autocomplete "$@"
+          fi
+        }
+
+        complete -o bashdefault -o default -o nospace -F _wtp_lazy_init wtp
+      EOS
+
+      (zsh_completion/"_wtp").write <<~'EOS'
+        #compdef wtp
+
+        _wtp_lazy_init() {
+          local original_def
+          original_def="${functions[_wtp]-}"
+
+          local script
+          script="$(command wtp shell-init zsh 2>/dev/null)"
+          if [[ $? -ne 0 || -z "$script" ]]; then
+            return 1
+          fi
+
+          eval "$script"
+
+          local updated_def
+          updated_def="${functions[_wtp]-}"
+
+          if whence -w _wtp >/dev/null 2>&1 && [[ "$updated_def" != "$original_def" ]]; then
+            _wtp "$@"
+          fi
+        }
+
+        _wtp() {
+          _wtp_lazy_init "$@"
+        }
+
+        compdef _wtp_lazy_init wtp
+      EOS
+
+      (fish_completion/"wtp.fish").write <<~'EOS'
+        if command -sq wtp
+          command wtp shell-init fish | source
+        end
+      EOS
     test: |
       system "#{bin}/wtp", "--help"
 
