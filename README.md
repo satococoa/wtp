@@ -256,20 +256,20 @@ Tab completion is automatically installed! No manual setup required.
 
 #### If installed via go install
 
-Add the following to your shell configuration file:
+ワンライナーで補完と cd フックをまとめて有効化できます:
 
 ```bash
 # Bash: Add to ~/.bashrc
-eval "$(wtp completion bash)"
+eval "$(wtp shell-init bash)"
 
 # Zsh: Add to ~/.zshrc
-eval "$(wtp completion zsh)"
+eval "$(wtp shell-init zsh)"
 
 # Fish: Add to ~/.config/fish/config.fish
-wtp completion fish | source
+wtp shell-init fish | source
 ```
 
-This enables tab completion for all wtp commands, flags, and options.
+補完だけを有効化したい場合は `wtp completion <shell>` を単独で eval / source してください。
 
 ### Navigation with wtp cd
 
@@ -286,7 +286,7 @@ cd "$(wtp cd @)"
 
 #### With Shell Hook (Recommended)
 
-For a more seamless experience, enable the shell hook:
+For a more seamless experience, enable the shell hook (または上記の `shell-init` を利用):
 
 ```bash
 # Bash: Add to ~/.bashrc
@@ -314,7 +314,7 @@ wtp cd <TAB>
 
 #### Complete Setup (Lazy Loading for Homebrew Users)
 
-For Homebrew users who want both completion and cd functionality with zero configuration, just use `wtp <TAB>` once - it will automatically set up both features!
+For Homebrew users who want both completion and cd functionality with zero configuration, just press `wtp <TAB>` once - it triggers the lazy loader that internally runs `wtp shell-init <shell>`.
 
 ## Worktree Structure
 

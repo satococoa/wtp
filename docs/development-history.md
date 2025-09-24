@@ -9,43 +9,23 @@ This document records the major changes and decisions made during the developmen
 
 ## Major Design Changes
 
-### Shell Integration (cd command) Implementation
+### Shell Integration ("Less is More" リファイン)
 
-**Background**: v0.3.0 milestone included implementing the `wtp cd` command to quickly change directories to worktrees.
+**背景**: `doc3.md` の最終計画に基づき、シェル統合をシンプルな責務分担に再設計。`wtp cd` は絶対パスの出力に専念し、補完やフックは別コマンドに切り出した。
 
-**Implementation Details**:
+**実装ポイント**:
 
-1. **Two-Part Architecture**:
-   - **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
-   - **Shell Function**: Wraps the Go command and performs the actual `cd`
-
-2. **Shell Integration Flow**:
-   ```bash
-   # User types:
-   wtp cd feature/auth
-
-   # Shell function intercepts, runs:
-   WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
-
-   # Go command returns path:
-   /path/to/worktrees/feature/auth
-
-   # Shell function performs:
-   cd /path/to/worktrees/feature/auth
-   ```
-
-3. **Key Design Decisions**:
-   - **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
-   - **Shell Function Wrapper**: Required because child processes can't change parent's directory
-   - **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
-   - **Cross-Shell Support**: Bash, Zsh, and Fish implementations
+1. `wtp cd <worktree>` は常に絶対パスのみを出力する純関数となり、環境変数によるガードを撤廃。
+2. `wtp hook <shell>` が bash/zsh/fish のラッパー関数を生成し、`wtp cd` の結果で親シェルが `cd` する。
+3. `wtp completion <shell>` は `urfave/cli/v3` 標準の補完生成を委譲し、自前スクリプトを削除。
+4. `wtp shell-init <shell>` が補完とフックを一括出力し、Homebrew の遅延ロードや手動設定を 1 行で済ませられるようにした。
 
 **Files Added/Modified**:
-- `cmd/wtp/cd.go`: Core cd command implementation
-- `cmd/wtp/cd_test.go`: Tests for cd functionality
-- `cmd/wtp/completion.go`: Extended with shell function generation
-- `cmd/wtp/main.go`: Added cd command registration
-- `README.md`: Updated documentation and feature checklist
+- `cmd/wtp/cd.go`: 純粋なパス解決にリファクタ
+- `cmd/wtp/hook.go`: シェルフック生成を新設
+- `cmd/wtp/shell_init.go`: 補完 + フック初期化コマンドを新設
+- `cmd/wtp/main.go`: 新コマンドの登録
+- `README.md`: 新しいセットアップ手順に更新
 
 ### Simplify add Command by Removing Rarely Used Options
 

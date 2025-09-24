@@ -11,8 +11,9 @@ cmd/wtp/
 ├── remove.go       # Remove command
 ├── list.go         # List command
 ├── init.go         # Init command
-├── cd.go           # Change directory command
-└── completion.go   # Shell completion & integration
+├── cd.go           # Change directory command (path resolver)
+├── hook.go         # Shell hook generator
+└── shell_init.go   # Shell initialisation helper
 
 internal/
 ├── git/            # Git operations
@@ -151,35 +152,27 @@ Following Git's own behavior:
 
 ## Shell Integration
 
-### CD Command Implementation
+Shell integration now follows the "Less is More" architecture described in `doc3.md`. Each command has a single responsibility and can be composed as needed:
 
-The `wtp cd` command uses a two-part architecture:
+1. **`wtp cd <worktree>`** – Pure path resolver. It always prints the absolute worktree path without mutating shell state or checking environment variables.
+2. **`wtp hook <shell>`** – Generates a small wrapper function for bash/zsh/fish that intercepts `wtp cd` and performs the actual `cd` in the parent shell.
+3. **`wtp completion <shell>`** – Uses `urfave/cli/v3` の標準機能で補完スクリプトを生成する。
+4. **`wtp shell-init <shell>`** – 補完スクリプトとフックをまとめて出力する利便コマンド。`eval "$(wtp shell-init bash)"` のように 1 行追加するだけでフル機能を有効化でき、Homebrew の遅延ロード戦略とも相性が良い。
 
-1. **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
-2. **Shell Function**: Wraps the Go command and performs the actual `cd`
-
-### Shell Integration Flow
+### 典型的な利用フロー
 
 ```bash
-# User types:
-wtp cd feature/auth
+# フックを読み込んだ場合
+wtp cd feature/auth   # Go 側はパスを出力し、シェル関数が cd する
 
-# Shell function intercepts, runs:
-WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
+# フックなしでも純粋関数として利用可能
+cd "$(wtp cd feature/auth)"
 
-# Go command returns path:
-/path/to/worktrees/feature/auth
-
-# Shell function performs:
-cd /path/to/worktrees/feature/auth
+# プロファイルに 1 行追加する例
+eval "$(wtp shell-init bash)"
 ```
 
-### Key Design Decisions
-
-- **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
-- **Shell Function Wrapper**: Required because child processes can't change parent's directory
-- **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
-- **Cross-Shell Support**: Bash, Zsh, and Fish implementations
+この分離により、Go 実装はテストしやすく予測可能でありながら、ユーザーは必要な統合レベルだけを選んで利用できる。
 
 ## Go 1.24 Tool Directive
 
