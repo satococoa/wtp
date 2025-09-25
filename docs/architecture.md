@@ -156,23 +156,23 @@ Shell integration now follows the "Less is More" architecture described in `doc3
 
 1. **`wtp cd <worktree>`** – Pure path resolver. It always prints the absolute worktree path without mutating shell state or checking environment variables.
 2. **`wtp hook <shell>`** – Generates a small wrapper function for bash/zsh/fish that intercepts `wtp cd` and performs the actual `cd` in the parent shell.
-3. **`wtp completion <shell>`** – Uses `urfave/cli/v3` の標準機能で補完スクリプトを生成する。
-4. **`wtp shell-init <shell>`** – 補完スクリプトとフックをまとめて出力する利便コマンド。`eval "$(wtp shell-init bash)"` のように 1 行追加するだけでフル機能を有効化でき、Homebrew の遅延ロード戦略とも相性が良い。
+3. **`wtp completion <shell>`** – Uses the built-in completion generator provided by `urfave/cli/v3`.
+4. **`wtp shell-init <shell>`** – Convenience command that emits both completion and hook output, so `eval "$(wtp shell-init bash)"` enables the full integration in a single line and aligns with the Homebrew lazy-loading approach.
 
-### 典型的な利用フロー
+### Typical Usage Flow
 
 ```bash
-# フックを読み込んだ場合
-wtp cd feature/auth   # Go 側はパスを出力し、シェル関数が cd する
+# When the hook is loaded
+wtp cd feature/auth   # Go prints the path and the shell wrapper performs the cd
 
-# フックなしでも純粋関数として利用可能
+# Still usable as a pure function without the hook
 cd "$(wtp cd feature/auth)"
 
-# プロファイルに 1 行追加する例
+# Example profile entry
 eval "$(wtp shell-init bash)"
 ```
 
-この分離により、Go 実装はテストしやすく予測可能でありながら、ユーザーは必要な統合レベルだけを選んで利用できる。
+This separation keeps the Go implementation testable and predictable while letting users opt into only the integration layers they need.
 
 ## Go 1.24 Tool Directive
 

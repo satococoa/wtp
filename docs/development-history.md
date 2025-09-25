@@ -9,23 +9,23 @@ This document records the major changes and decisions made during the developmen
 
 ## Major Design Changes
 
-### Shell Integration ("Less is More" リファイン)
+### Shell Integration ("Less is More" refinement)
 
-**背景**: `doc3.md` の最終計画に基づき、シェル統合をシンプルな責務分担に再設計。`wtp cd` は絶対パスの出力に専念し、補完やフックは別コマンドに切り出した。
+**Background**: Following the final plan in `doc3.md`, we redesigned shell integration around clear responsibility boundaries. `wtp cd` only emits absolute paths, while completion and hooks live in their own commands.
 
-**実装ポイント**:
+**Implementation Highlights**:
 
-1. `wtp cd <worktree>` は常に絶対パスのみを出力する純関数となり、環境変数によるガードを撤廃。
-2. `wtp hook <shell>` が bash/zsh/fish のラッパー関数を生成し、`wtp cd` の結果で親シェルが `cd` する。
-3. `wtp completion <shell>` は `urfave/cli/v3` 標準の補完生成を委譲し、自前スクリプトを削除。
-4. `wtp shell-init <shell>` が補完とフックを一括出力し、Homebrew の遅延ロードや手動設定を 1 行で済ませられるようにした。
+1. `wtp cd <worktree>` is now a pure function that always prints an absolute path and no longer consults guard environment variables.
+2. `wtp hook <shell>` generates small bash/zsh/fish wrapper functions that run `wtp cd` and perform the actual `cd` in the parent shell.
+3. `wtp completion <shell>` delegates to the standard generator built into `urfave/cli/v3`, removing our bespoke scripts.
+4. `wtp shell-init <shell>` emits both completion and hook definitions so Homebrew's lazy loader and manual setup can be handled with a single command.
 
 **Files Added/Modified**:
-- `cmd/wtp/cd.go`: 純粋なパス解決にリファクタ
-- `cmd/wtp/hook.go`: シェルフック生成を新設
-- `cmd/wtp/shell_init.go`: 補完 + フック初期化コマンドを新設
-- `cmd/wtp/main.go`: 新コマンドの登録
-- `README.md`: 新しいセットアップ手順に更新
+- `cmd/wtp/cd.go`: Refactored into a pure path resolver
+- `cmd/wtp/hook.go`: Added shell hook generation command
+- `cmd/wtp/shell_init.go`: Added combined completion + hook initializer
+- `cmd/wtp/main.go`: Registered the new commands
+- `README.md`: Updated with the new setup instructions
 
 ### Simplify add Command by Removing Rarely Used Options
 

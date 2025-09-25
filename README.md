@@ -256,7 +256,7 @@ Tab completion is automatically installed! No manual setup required.
 
 #### If installed via go install
 
-ワンライナーで補完と cd フックをまとめて有効化できます:
+A single command enables both completion and the cd hook:
 
 ```bash
 # Bash: Add to ~/.bashrc
@@ -269,7 +269,7 @@ eval "$(wtp shell-init zsh)"
 wtp shell-init fish | source
 ```
 
-補完だけを有効化したい場合は `wtp completion <shell>` を単独で eval / source してください。
+If you only need completion, run `wtp completion <shell>` on its own and eval/source the result.
 
 ### Navigation with wtp cd
 
@@ -286,7 +286,7 @@ cd "$(wtp cd @)"
 
 #### With Shell Hook (Recommended)
 
-For a more seamless experience, enable the shell hook (または上記の `shell-init` を利用):
+For a more seamless experience, enable the shell hook (or reuse the `shell-init` output shown earlier):
 
 ```bash
 # Bash: Add to ~/.bashrc

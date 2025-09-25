@@ -262,7 +262,7 @@ func ShellIntegrationRequired() error {
 
 Setup:
   • Full integration: eval "$(wtp shell-init <shell>)"
-  • Hookのみ:       eval "$(wtp hook <shell>)"
+  • Hook only:       eval "$(wtp hook <shell>)"
 
 Help: Run 'wtp shell-init --help' for details`
 	return errors.New(msg)
