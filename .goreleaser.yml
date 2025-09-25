@@ -138,9 +138,17 @@ brews:
       EOS
 
       (fish_completion/"wtp.fish").write <<~'EOS'
-        if command -sq wtp
-          command wtp shell-init fish | source
+        function __wtp_lazy_complete
+          if not set -q __wtp_inited
+            set -g __wtp_inited 1
+            if command -sq wtp
+              command wtp shell-init fish | source
+            end
+          end
+          return 0
         end
+
+        complete -c wtp -a "(__wtp_lazy_complete)"
       EOS
     test: |
       system "#{bin}/wtp", "--help"

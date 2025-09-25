@@ -314,7 +314,7 @@ wtp cd <TAB>
 
 #### Complete Setup (Lazy Loading for Homebrew Users)
 
-For Homebrew users who want both completion and cd functionality with zero configuration, just press `wtp <TAB>` once - it triggers the lazy loader that internally runs `wtp shell-init <shell>`.
+For Homebrew users the formula installs lightweight stub scripts for bash, zsh, and fish. Press `wtp <TAB>` once in a new shell session and the stub runs `wtp shell-init <shell>` to load both completion and the `wtp cd` hook. Until you trigger the lazy loader, `wtp cd <name>` still prints a path, so wrap it in `cd "$(wtp cd <name>)"` if you need to jump immediately. Open a fresh shell after installation so the stubs are sourced.
 
 ## Worktree Structure
 
