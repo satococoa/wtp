@@ -1,24 +1,31 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 
 	"github.com/urfave/cli/v3"
 )
 
-var runCompletionCommand = func(shell string) ([]byte, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		// Fallback to "wtp" if we can't find the executable
-		exe = "wtp"
+var completionGenerator = func(root *cli.Command, shell string) (string, error) {
+	const completionCommandName = "completion"
+
+	var buf bytes.Buffer
+
+	rootCopy := *root
+	rootCopy.Writer = &buf
+	rootCopy.ErrWriter = &buf
+
+	args := []string{rootCopy.Name, completionCommandName, shell}
+
+	if err := rootCopy.Run(context.Background(), args); err != nil {
+		return "", err
 	}
 
-	cmd := exec.Command(exe, "completion", shell)
-	return cmd.Output()
+	return buf.String(), nil
 }
 
 // NewShellInitCommand creates the shell-init command definition
@@ -62,7 +69,7 @@ func shellInitBash(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Output completion first
-	if err := outputCompletion(w, "bash"); err != nil {
+	if err := outputCompletion(cmd, w, "bash"); err != nil {
 		return err
 	}
 
@@ -80,7 +87,7 @@ func shellInitZsh(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Output completion first
-	if err := outputCompletion(w, "zsh"); err != nil {
+	if err := outputCompletion(cmd, w, "zsh"); err != nil {
 		return err
 	}
 
@@ -98,7 +105,7 @@ func shellInitFish(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Output completion first
-	if err := outputCompletion(w, "fish"); err != nil {
+	if err := outputCompletion(cmd, w, "fish"); err != nil {
 		return err
 	}
 
@@ -109,14 +116,18 @@ func shellInitFish(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-// outputCompletion executes wtp completion command and writes output to w
+// outputCompletion generates completion script via the root command and writes it to w
+func outputCompletion(cmd *cli.Command, w io.Writer, shell string) error {
+	root := cmd.Root()
+	if root == nil {
+		return fmt.Errorf("failed to generate %s completion: root command not available", shell)
+	}
 
-func outputCompletion(w io.Writer, shell string) error {
-	output, err := runCompletionCommand(shell)
+	script, err := completionGenerator(root, shell)
 	if err != nil {
 		return fmt.Errorf("failed to generate %s completion: %w", shell, err)
 	}
 
-	_, err = w.Write(output)
+	_, err = io.WriteString(w, script)
 	return err
 }

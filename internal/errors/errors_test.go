@@ -360,7 +360,8 @@ func TestShellIntegrationRequired(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "shell integration")
 	assert.Contains(t, err.Error(), "eval")
-	assert.Contains(t, err.Error(), "wtp completion")
+	assert.Contains(t, err.Error(), "wtp shell-init")
+	assert.Contains(t, err.Error(), "wtp hook")
 	assert.Contains(t, err.Error(), "Setup:")
 }
 
@@ -432,7 +433,7 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 		{
 			name:     "ShellIntegrationRequired contains setup",
 			errorFn:  ShellIntegrationRequired,
-			keywords: []string{"Setup:", "eval", "completion"},
+			keywords: []string{"Setup:", "eval", "shell-init", "hook"},
 		},
 	}
 

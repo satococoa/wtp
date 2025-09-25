@@ -256,20 +256,20 @@ Tab completion is automatically installed! No manual setup required.
 
 #### If installed via go install
 
-Add the following to your shell configuration file:
+A single command enables both completion and the cd hook:
 
 ```bash
 # Bash: Add to ~/.bashrc
-eval "$(wtp completion bash)"
+eval "$(wtp shell-init bash)"
 
 # Zsh: Add to ~/.zshrc
-eval "$(wtp completion zsh)"
+eval "$(wtp shell-init zsh)"
 
 # Fish: Add to ~/.config/fish/config.fish
-wtp completion fish | source
+wtp shell-init fish | source
 ```
 
-This enables tab completion for all wtp commands, flags, and options.
+If you only need completion, run `wtp completion <shell>` on its own and eval/source the result.
 
 ### Navigation with wtp cd
 
@@ -286,7 +286,7 @@ cd "$(wtp cd @)"
 
 #### With Shell Hook (Recommended)
 
-For a more seamless experience, enable the shell hook:
+For a more seamless experience, enable the shell hook (or reuse the `shell-init` output shown earlier):
 
 ```bash
 # Bash: Add to ~/.bashrc
@@ -314,7 +314,7 @@ wtp cd <TAB>
 
 #### Complete Setup (Lazy Loading for Homebrew Users)
 
-For Homebrew users who want both completion and cd functionality with zero configuration, just use `wtp <TAB>` once - it will automatically set up both features!
+For Homebrew users the formula installs lightweight stub scripts for bash, zsh, and fish. Press `wtp <TAB>` once in a new shell session and the stub runs `wtp shell-init <shell>` to load both completion and the `wtp cd` hook. Until you trigger the lazy loader, `wtp cd <name>` still prints a path, so wrap it in `cd "$(wtp cd <name>)"` if you need to jump immediately. Open a fresh shell after installation so the stubs are sourced.
 
 ## Worktree Structure
 

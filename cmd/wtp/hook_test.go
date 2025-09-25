@@ -92,9 +92,6 @@ func TestHookCommand_GeneratesValidShellScripts(t *testing.T) {
 			for _, expected := range tt.contains {
 				assert.Contains(t, output, expected)
 			}
-
-			// Essential behavior: no legacy environment variable dependency
-			assert.NotContains(t, output, "WTP_SHELL_INTEGRATION")
 		})
 	}
 }

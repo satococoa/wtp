@@ -11,8 +11,9 @@ cmd/wtp/
 ├── remove.go       # Remove command
 ├── list.go         # List command
 ├── init.go         # Init command
-├── cd.go           # Change directory command
-└── completion.go   # Shell completion & integration
+├── cd.go           # Change directory command (path resolver)
+├── hook.go         # Shell hook generator
+└── shell_init.go   # Shell initialisation helper
 
 internal/
 ├── git/            # Git operations
@@ -151,35 +152,27 @@ Following Git's own behavior:
 
 ## Shell Integration
 
-### CD Command Implementation
+Shell integration now follows the "Less is More" architecture described in `doc3.md`. Each command has a single responsibility and can be composed as needed:
 
-The `wtp cd` command uses a two-part architecture:
+1. **`wtp cd <worktree>`** – Pure path resolver. It always prints the absolute worktree path without mutating shell state or checking environment variables.
+2. **`wtp hook <shell>`** – Generates a small wrapper function for bash/zsh/fish that intercepts `wtp cd` and performs the actual `cd` in the parent shell.
+3. **`wtp completion <shell>`** – Uses the built-in completion generator provided by `urfave/cli/v3`.
+4. **`wtp shell-init <shell>`** – Convenience command that emits both completion and hook output, so `eval "$(wtp shell-init bash)"` enables the full integration in a single line and aligns with the Homebrew lazy-loading approach.
 
-1. **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
-2. **Shell Function**: Wraps the Go command and performs the actual `cd`
-
-### Shell Integration Flow
+### Typical Usage Flow
 
 ```bash
-# User types:
-wtp cd feature/auth
+# When the hook is loaded
+wtp cd feature/auth   # Go prints the path and the shell wrapper performs the cd
 
-# Shell function intercepts, runs:
-WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
+# Still usable as a pure function without the hook
+cd "$(wtp cd feature/auth)"
 
-# Go command returns path:
-/path/to/worktrees/feature/auth
-
-# Shell function performs:
-cd /path/to/worktrees/feature/auth
+# Example profile entry
+eval "$(wtp shell-init bash)"
 ```
 
-### Key Design Decisions
-
-- **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
-- **Shell Function Wrapper**: Required because child processes can't change parent's directory
-- **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
-- **Cross-Shell Support**: Bash, Zsh, and Fish implementations
+This separation keeps the Go implementation testable and predictable while letting users opt into only the integration layers they need.
 
 ## Go 1.24 Tool Directive
 

@@ -142,7 +142,8 @@ func createApp() *cli.Command {
 			NewRemoveCommand(),
 			NewInitCommand(),
 			NewCdCommand(),
-			// NewCompletionCommand(), // Using built-in completion
+			NewHookCommand(),
+			NewShellInitCommand(),
 		},
 	}
 }
