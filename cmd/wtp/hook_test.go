@@ -92,7 +92,6 @@ func TestHookCommand_GeneratesValidShellScripts(t *testing.T) {
 			for _, expected := range tt.contains {
 				assert.Contains(t, output, expected)
 			}
-
 		})
 	}
 }
