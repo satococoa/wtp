@@ -152,7 +152,7 @@ Following Git's own behavior:
 
 ## Shell Integration
 
-Shell integration now follows the "Less is More" architecture described in `doc3.md`. Each command has a single responsibility and can be composed as needed:
+Shell integration follows a "Less is More" architecture (outlined in this section). Each command has a single responsibility and can be composed as needed. The hook does not define a top-level `wtp()` wrapper; it only intercepts `wtp cd` to change directories in the parent shell.
 
 1. **`wtp cd <worktree>`** – Pure path resolver. It always prints the absolute worktree path without mutating shell state or checking environment variables.
 2. **`wtp hook <shell>`** – Generates a small wrapper function for bash/zsh/fish that intercepts `wtp cd` and performs the actual `cd` in the parent shell.
