@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -186,12 +185,9 @@ func TestCompleteWorktreesForCd(t *testing.T) {
 
 		// Should not panic even without proper git setup
 		assert.NotPanics(t, func() {
-			// Capture stdout to avoid noise in tests
-			oldStdout := os.Stdout
-			os.Stdout = os.NewFile(0, os.DevNull)
-			defer func() { os.Stdout = oldStdout }()
-
-			completeWorktreesForCd(context.Background(), cmd)
+			RunWithSilencedStdout(t, func() {
+				completeWorktreesForCd(context.Background(), cmd)
+			})
 		})
 	})
 }
