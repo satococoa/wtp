@@ -37,26 +37,6 @@ func RunWriterCommonTests(t *testing.T, name string, fn func(io.Writer) error) {
 	})
 }
 
-// RunWithSilencedStdout executes the provided function while temporarily
-// redirecting os.Stdout to an OS-specific null device. This helps tests avoid
-// polluting output when exercising code paths that print directly to stdout.
-func RunWithSilencedStdout(t *testing.T, fn func()) {
-	t.Helper()
-
-	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatalf("open devnull: %v", err)
-	}
-
-	oldStdout := os.Stdout
-	os.Stdout = devNull
-	t.Cleanup(func() {
-		os.Stdout = oldStdout
-		_ = devNull.Close()
-	})
-
-	fn()
-}
 
 // RunNameFromPathTests executes a shared set of assertions for worktree
 // naming helpers that map absolute paths to display names.
