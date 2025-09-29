@@ -180,19 +180,23 @@ This project uses the Go tool directive, introduced in Go 1.24, for development 
 
 ```
 tool (
+    github.com/go-task/task/v3/cmd/task
     github.com/golangci/golangci-lint/cmd/golangci-lint
     golang.org/x/tools/cmd/goimports
 )
 ```
 
-**Important**: Always use `make` commands instead of calling tools directly:
+**Important**: Always invoke tasks through `go tool` so the pinned versions from
+`go.mod` are used consistently:
 
-- ✅ `make lint` (calls `go tool golangci-lint run`)
-- ✅ `make fmt` (calls `go tool goimports -w .`)
-- ❌ `golangci-lint run` (may use different version)
-- ❌ `goimports -w .` (may use different version)
+- ✅ `go tool task lint`
+- ✅ `go tool task fmt`
+- ✅ `go tool task test`
+- ❌ `task lint` (may run a globally installed version)
+- ❌ `golangci-lint run` (may use a different version)
 
-This ensures all team members use the same tool versions defined in go.mod.
+This ensures all team members, CI, and release pipelines stay in sync on tool
+versions.
 
 ## Performance Optimizations
 

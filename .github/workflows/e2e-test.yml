@@ -29,13 +29,34 @@ jobs:
         run: go mod download
       
       - name: Build wtp
-        run: go tool task build
-      
+        run: |
+          if go tool -n task >/dev/null 2>&1; then
+            go tool task build
+          elif command -v task >/dev/null 2>&1 && [ -f Taskfile.yml ]; then
+            task build
+          else
+            go build -o wtp ./cmd/wtp
+          fi
+
       - name: Run unit tests
-        run: go tool task test
-      
+        run: |
+          if go tool -n task >/dev/null 2>&1; then
+            go tool task test
+          elif command -v task >/dev/null 2>&1 && [ -f Taskfile.yml ]; then
+            task test
+          else
+            go test -race -coverprofile=coverage.out -covermode=atomic ./...
+          fi
+
       - name: Run E2E tests
-        run: go tool task test-e2e
+        run: |
+          if go tool -n task >/dev/null 2>&1; then
+            go tool task test-e2e
+          elif command -v task >/dev/null 2>&1 && [ -f Taskfile.yml ]; then
+            task test-e2e
+          else
+            go test ./test/e2e -v
+          fi
         env:
           WTP_E2E_BINARY: ./wtp
       

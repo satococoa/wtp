@@ -30,9 +30,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-1.22-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-1.25-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-1.22-
+          ${{ runner.os }}-go-1.25-
 
     - name: Run tests
       run: go test -race ./...
