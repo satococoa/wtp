@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Modules
-- Root module: `github.com/satococoa/wtp` (Go 1.24).
+- Root module: `github.com/satococoa/wtp` (Go 1.25).
 - CLI entrypoint: `cmd/wtp`.
 - Internal packages: `internal/{git,config,hooks,command,errors,io}`.
 - Tests: unit tests alongside packages (`*_test.go`), end-to-end tests in `test/e2e`.

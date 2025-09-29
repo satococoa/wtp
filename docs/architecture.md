@@ -174,9 +174,9 @@ eval "$(wtp shell-init bash)"
 
 This separation keeps the Go implementation testable and predictable while letting users opt into only the integration layers they need.
 
-## Go 1.24 Tool Directive
+## Go Tool Directive (Go 1.24+)
 
-This project uses Go 1.24's new tool directive for development tools:
+This project uses the Go tool directive, introduced in Go 1.24, for development tools:
 
 ```
 tool (
