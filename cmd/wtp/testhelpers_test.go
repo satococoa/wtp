@@ -37,7 +37,6 @@ func RunWriterCommonTests(t *testing.T, name string, fn func(io.Writer) error) {
 	})
 }
 
-
 // RunNameFromPathTests executes a shared set of assertions for worktree
 // naming helpers that map absolute paths to display names.
 func RunNameFromPathTests(
