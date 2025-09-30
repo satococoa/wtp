@@ -34,12 +34,12 @@ func TestNewShellInitCommand(t *testing.T) {
 func TestShellInitCommand_OutputsValidScripts(t *testing.T) {
 	// Note: These tests can't easily verify the actual output without
 	// executing the wtp binary, which would create a circular dependency.
-	oldGenerator := completionGenerator
-	completionGenerator = func(_ *cli.Command, shell string) (string, error) {
-		return "completion-" + shell, nil
+	oldRunCompletion := runCompletionCommand
+	runCompletionCommand = func(shell string) ([]byte, error) {
+		return []byte("completion-" + shell), nil
 	}
 	t.Cleanup(func() {
-		completionGenerator = oldGenerator
+		runCompletionCommand = oldRunCompletion
 	})
 
 	tests := []struct {

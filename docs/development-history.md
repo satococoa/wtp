@@ -9,23 +9,43 @@ This document records the major changes and decisions made during the developmen
 
 ## Major Design Changes
 
-### Shell Integration ("Less is More" refinement)
+### Shell Integration (cd command) Implementation
 
-**Background**: Following the final plan in `doc3.md`, we redesigned shell integration around clear responsibility boundaries. `wtp cd` only emits absolute paths, while completion and hooks live in their own commands.
+**Background**: v0.3.0 milestone included implementing the `wtp cd` command to quickly change directories to worktrees.
 
-**Implementation Highlights**:
+**Implementation Details**:
 
-1. `wtp cd <worktree>` is now a pure function that always prints an absolute path and no longer consults guard environment variables.
-2. `wtp hook <shell>` generates small bash/zsh/fish wrapper functions that run `wtp cd` and perform the actual `cd` in the parent shell.
-3. `wtp completion <shell>` delegates to the standard generator built into `urfave/cli/v3`, removing our bespoke scripts.
-4. `wtp shell-init <shell>` emits both completion and hook definitions so Homebrew's lazy loader and manual setup can be handled with a single command.
+1. **Two-Part Architecture**:
+   - **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
+   - **Shell Function**: Wraps the Go command and performs the actual `cd`
+
+2. **Shell Integration Flow**:
+   ```bash
+   # User types:
+   wtp cd feature/auth
+
+   # Shell function intercepts, runs:
+   WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
+
+   # Go command returns path:
+   /path/to/worktrees/feature/auth
+
+   # Shell function performs:
+   cd /path/to/worktrees/feature/auth
+   ```
+
+3. **Key Design Decisions**:
+   - **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
+   - **Shell Function Wrapper**: Required because child processes can't change parent's directory
+   - **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
+   - **Cross-Shell Support**: Bash, Zsh, and Fish implementations
 
 **Files Added/Modified**:
-- `cmd/wtp/cd.go`: Refactored into a pure path resolver
-- `cmd/wtp/hook.go`: Added shell hook generation command
-- `cmd/wtp/shell_init.go`: Added combined completion + hook initializer
-- `cmd/wtp/main.go`: Registered the new commands
-- `README.md`: Updated with the new setup instructions
+- `cmd/wtp/cd.go`: Core cd command implementation
+- `cmd/wtp/cd_test.go`: Tests for cd functionality
+- `cmd/wtp/completion.go`: Extended with shell function generation
+- `cmd/wtp/main.go`: Added cd command registration
+- `README.md`: Updated documentation and feature checklist
 
 ### Simplify add Command by Removing Rarely Used Options
 

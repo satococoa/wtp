@@ -11,9 +11,8 @@ cmd/wtp/
 ├── remove.go       # Remove command
 ├── list.go         # List command
 ├── init.go         # Init command
-├── cd.go           # Change directory command (path resolver)
-├── hook.go         # Shell hook generator
-└── shell_init.go   # Shell initialisation helper
+├── cd.go           # Change directory command
+└── completion.go   # Shell completion & integration
 
 internal/
 ├── git/            # Git operations
@@ -152,51 +151,55 @@ Following Git's own behavior:
 
 ## Shell Integration
 
-Shell integration follows a "Less is More" architecture (outlined in this section). Each command has a single responsibility and can be composed as needed. The hook does not define a top-level `wtp()` wrapper; it only intercepts `wtp cd` to change directories in the parent shell.
+### CD Command Implementation
 
-1. **`wtp cd <worktree>`** – Pure path resolver. It always prints the absolute worktree path without mutating shell state or checking environment variables.
-2. **`wtp hook <shell>`** – Generates a small wrapper function for bash/zsh/fish that intercepts `wtp cd` and performs the actual `cd` in the parent shell.
-3. **`wtp completion <shell>`** – Uses the built-in completion generator provided by `urfave/cli/v3`.
-4. **`wtp shell-init <shell>`** – Convenience command that emits both completion and hook output, so `eval "$(wtp shell-init bash)"` enables the full integration in a single line and aligns with the Homebrew lazy-loading approach.
+The `wtp cd` command uses a two-part architecture:
 
-### Typical Usage Flow
+1. **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
+2. **Shell Function**: Wraps the Go command and performs the actual `cd`
+
+### Shell Integration Flow
 
 ```bash
-# When the hook is loaded
-wtp cd feature/auth   # Go prints the path and the shell wrapper performs the cd
+# User types:
+wtp cd feature/auth
 
-# Still usable as a pure function without the hook
-cd "$(wtp cd feature/auth)"
+# Shell function intercepts, runs:
+WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
 
-# Example profile entry
-eval "$(wtp shell-init bash)"
+# Go command returns path:
+/path/to/worktrees/feature/auth
+
+# Shell function performs:
+cd /path/to/worktrees/feature/auth
 ```
 
-This separation keeps the Go implementation testable and predictable while letting users opt into only the integration layers they need.
+### Key Design Decisions
 
-## Go Tool Directive (Go 1.24+)
+- **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
+- **Shell Function Wrapper**: Required because child processes can't change parent's directory
+- **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
+- **Cross-Shell Support**: Bash, Zsh, and Fish implementations
 
-This project uses the Go tool directive, introduced in Go 1.24, for development tools:
+## Go 1.24 Tool Directive
+
+This project uses Go 1.24's new tool directive for development tools:
 
 ```
 tool (
-    github.com/go-task/task/v3/cmd/task
     github.com/golangci/golangci-lint/cmd/golangci-lint
     golang.org/x/tools/cmd/goimports
 )
 ```
 
-**Important**: Always invoke tasks through `go tool` so the pinned versions from
-`go.mod` are used consistently:
+**Important**: Always use `make` commands instead of calling tools directly:
 
-- ✅ `go tool task lint`
-- ✅ `go tool task fmt`
-- ✅ `go tool task test`
-- ❌ `task lint` (may run a globally installed version)
-- ❌ `golangci-lint run` (may use a different version)
+- ✅ `make lint` (calls `go tool golangci-lint run`)
+- ✅ `make fmt` (calls `go tool goimports -w .`)
+- ❌ `golangci-lint run` (may use different version)
+- ❌ `goimports -w .` (may use different version)
 
-This ensures all team members, CI, and release pipelines stay in sync on tool
-versions.
+This ensures all team members use the same tool versions defined in go.mod.
 
 ## Performance Optimizations
 

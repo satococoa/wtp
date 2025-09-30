@@ -939,9 +939,10 @@ func TestCompleteBranches(t *testing.T) {
 
 		// Should not panic even without proper git setup
 		assert.NotPanics(t, func() {
-			RunWithSilencedStdout(t, func() {
-				completeBranches(context.Background(), cmd)
-			})
+			restore := silenceStdout(t)
+			defer restore()
+
+			completeBranches(context.Background(), cmd)
 		})
 	})
 }

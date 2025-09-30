@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -72,6 +73,51 @@ branch refs/heads/feature/auth
 				assert.Empty(t, resolvedPath,
 					"cd command should return empty string for nonexistent worktrees")
 			}
+		})
+	}
+}
+
+// Test the architectural guarantee: no environment variable dependency
+func TestCdCommand_NoEnvironmentVariableDependency(t *testing.T) {
+	// This test ensures we maintain the "pure function" architecture
+
+	// Make sure no environment variables affect the core function
+	originalEnv := os.Getenv("WTP_SHELL_INTEGRATION")
+	defer func() {
+		if originalEnv != "" {
+			os.Setenv("WTP_SHELL_INTEGRATION", originalEnv)
+		} else {
+			os.Unsetenv("WTP_SHELL_INTEGRATION")
+		}
+	}()
+
+	// Test with various environment states
+	envStates := []struct {
+		name  string
+		value string
+	}{
+		{"no env var", ""},
+		{"env var set to 1", "1"},
+		{"env var set to 0", "0"},
+		{"env var set to random", "random"},
+	}
+
+	for _, env := range envStates {
+		t.Run(env.name, func(t *testing.T) {
+			if env.value == "" {
+				os.Unsetenv("WTP_SHELL_INTEGRATION")
+			} else {
+				os.Setenv("WTP_SHELL_INTEGRATION", env.value)
+			}
+
+			// The core resolution function should work regardless of environment
+			worktreeList := "worktree /test/main\nHEAD abc\nbranch refs/heads/main\n\n"
+			worktrees := parseWorktreesFromOutput(worktreeList)
+			mainPath := findMainWorktreePath(worktrees)
+
+			resolvedPath := resolveCdWorktreePath("@", worktrees, mainPath)
+			assert.Equal(t, "/test/main", resolvedPath,
+				"Path resolution must not depend on environment variables")
 		})
 	}
 }
@@ -185,9 +231,10 @@ func TestCompleteWorktreesForCd(t *testing.T) {
 
 		// Should not panic even without proper git setup
 		assert.NotPanics(t, func() {
-			RunWithSilencedStdout(t, func() {
-				completeWorktreesForCd(context.Background(), cmd)
-			})
+			restore := silenceStdout(t)
+			defer restore()
+
+			completeWorktreesForCd(context.Background(), cmd)
 		})
 	})
 }
