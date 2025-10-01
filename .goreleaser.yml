@@ -149,17 +149,16 @@ brews:
             functions -e __wtp_lazy_setup
 
             if not set -q WTP_SHELL_INIT_DONE
-                set -l __wtp_init (command wtp shell-init fish ^/dev/null)
+                command wtp shell-init fish ^/dev/null | source
                 set -l __wtp_status $status
-                if test $__wtp_status -ne 0 -o -z "$__wtp_init"
-                    set -l __wtp_init (command wtp completion fish ^/dev/null)
-                    set -l __wtp_status $status
+                if test $__wtp_status -ne 0
+                    command wtp completion fish ^/dev/null | source
+                    set __wtp_status $status
                 end
-                if test $__wtp_status -ne 0 -o -z "$__wtp_init"
+                if test $__wtp_status -ne 0
                     return
                 end
 
-                eval $__wtp_init
                 set -gx WTP_SHELL_INIT_DONE 1
             end
         end
