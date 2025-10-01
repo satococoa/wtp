@@ -252,24 +252,26 @@ or any other worktree).
 
 #### If installed via Homebrew
 
-Tab completion is automatically installed! No manual setup required.
+No manual setup required. Homebrew installs a tiny bootstrapper that runs `wtp shell-init <shell>` the first time you press `TAB` after typing `wtp`. That lazy call gives you both tab completion and the `wtp cd` integration for the rest of the session—no rc edits needed.
+
+Need to refresh inside an existing shell? Just run `wtp shell-init <shell>` yourself.
 
 #### If installed via go install
 
-Add the following to your shell configuration file:
+Add a single line to your shell configuration file to enable both completion and shell integration:
 
 ```bash
-# Bash: Add to ~/.bashrc
-eval "$(wtp completion bash)"
+# Bash: Add to ~/.bashrc or ~/.bash_profile
+eval "$(wtp shell-init bash)"
 
 # Zsh: Add to ~/.zshrc
-eval "$(wtp completion zsh)"
+eval "$(wtp shell-init zsh)"
 
 # Fish: Add to ~/.config/fish/config.fish
-wtp completion fish | source
+wtp shell-init fish | source
 ```
 
-This enables tab completion for all wtp commands, flags, and options.
+After reloading your shell you get the same experience as Homebrew users.
 
 ### Navigation with wtp cd
 
@@ -286,18 +288,8 @@ cd "$(wtp cd @)"
 
 #### With Shell Hook (Recommended)
 
-For a more seamless experience, enable the shell hook:
+For a more seamless experience, enable the shell hook. `wtp shell-init <shell>` already bundles it, so Homebrew users get the hook automatically and go install users get it from the one-liner above. If you only want the hook without completions, you can still run `wtp hook <shell>` manually.
 
-```bash
-# Bash: Add to ~/.bashrc
-eval "$(wtp hook bash)"
-
-# Zsh: Add to ~/.zshrc
-eval "$(wtp hook zsh)"
-
-# Fish: Add to ~/.config/fish/config.fish
-wtp hook fish | source
-```
 
 Then use the simplified syntax:
 
@@ -314,7 +306,7 @@ wtp cd <TAB>
 
 #### Complete Setup (Lazy Loading for Homebrew Users)
 
-For Homebrew users who want both completion and cd functionality with zero configuration, just use `wtp <TAB>` once - it will automatically set up both features!
+Homebrew ships a lightweight bootstrapper. Press `TAB` after typing `wtp` and it evaluates `wtp shell-init <shell>` once for your session—tab completion and `wtp cd` just work.
 
 ## Worktree Structure
 

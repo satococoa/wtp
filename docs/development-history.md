@@ -37,7 +37,7 @@ This document records the major changes and decisions made during the developmen
 3. **Key Design Decisions**:
    - **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
    - **Shell Function Wrapper**: Required because child processes can't change parent's directory
-   - **Unified Setup Command**: `wtp completion <shell>` generates both completion and cd functionality
+   - **Unified Setup Command**: `wtp shell-init <shell>` combines completion and cd functionality
    - **Cross-Shell Support**: Bash, Zsh, and Fish implementations
 
 **Files Added/Modified**:
