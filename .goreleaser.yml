@@ -110,6 +110,8 @@ brews:
 
           if declare -F __wtp_bash_autocomplete >/dev/null 2>&1; then
             __wtp_bash_autocomplete "$@"
+          elif declare -F _wtp >/dev/null 2>&1; then
+            _wtp "$@"
           fi
         }
 
