@@ -279,24 +279,8 @@ Based on doc3.md, we implemented a clean separation between completion and shell
 
 | Installation Method | Tab Completion | cd Functionality |
 |-------------------|----------------|------------------|
-| **Homebrew** | Automatic | `eval "$(wtp hook <shell>)"` |
-| **go install** | `eval "$(wtp completion <shell>)"` | `eval "$(wtp hook <shell>)"` |
-
-#### Lazy Loading (Future Homebrew Enhancement)
-
-```ruby
-# Proposed Homebrew formula enhancement
-(bash_completion/"wtp").write <<~EOS
-  _wtp_lazy_init() {
-    eval "$(wtp shell-init bash)"
-    complete -r wtp
-    _wtp "$@"
-  }
-  complete -F _wtp_lazy_init wtp
-EOS
-```
-
-This enables zero-configuration setup where first `wtp <TAB>` automatically configures everything.
+| **Homebrew** | Automatic via lazy `wtp shell-init <shell>` | Automatic via lazy `wtp shell-init <shell>` |
+| **go install** | Add `eval "$(wtp shell-init <shell>)"` to rc | Same `wtp shell-init <shell>` |
 
 #### Benefits Achieved
 
