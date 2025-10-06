@@ -5,7 +5,7 @@ project, based on lessons learned from implementing a specification-centered
 testing approach.
 
 > **Note**: For TDD bug fixing examples and architectural decisions, see
-> [CLAUDE.md](../CLAUDE.md).
+> [AGENTS.md](../AGENTS.md) (also available via the `CLAUDE.md` symlink).
 
 ## Core Testing Philosophy
 

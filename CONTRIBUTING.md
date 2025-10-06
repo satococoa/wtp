@@ -213,7 +213,7 @@ wtp/
 - Keep README.md up to date
 - Document new features and configuration options
 - Include examples for complex functionality
-- Update CLAUDE.md for design decisions
+- Update AGENTS.md (CLAUDE.md is a symlink for backward compatibility) for design decisions
 - Add inline comments for complex logic
 
 ### Release Process
