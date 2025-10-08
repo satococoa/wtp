@@ -73,6 +73,14 @@ func hookFish(_ context.Context, cmd *cli.Command) error {
 func printBashHook(w io.Writer) {
 	fmt.Fprintln(w, `# wtp cd command hook for bash
 wtp() {
+    # Pass through completion requests directly
+    for arg in "$@"; do
+        if [[ "$arg" == "--generate-shell-completion" ]]; then
+            command wtp "$@"
+            return $?
+        fi
+    done
+
     if [[ "$1" == "cd" ]]; then
         if [[ -z "$2" ]]; then
             echo "Usage: wtp cd <worktree>" >&2
@@ -94,6 +102,14 @@ wtp() {
 func printZshHook(w io.Writer) {
 	fmt.Fprintln(w, `# wtp cd command hook for zsh
 wtp() {
+    # Pass through completion requests directly
+    for arg in "$@"; do
+        if [[ "$arg" == "--generate-shell-completion" ]]; then
+            command wtp "$@"
+            return $?
+        fi
+    done
+
     if [[ "$1" == "cd" ]]; then
         if [[ -z "$2" ]]; then
             echo "Usage: wtp cd <worktree>" >&2
@@ -115,6 +131,14 @@ wtp() {
 func printFishHook(w io.Writer) {
 	fmt.Fprintln(w, `# wtp cd command hook for fish
 function wtp
+    # Pass through completion requests directly
+    for arg in $argv
+        if test "$arg" = "--generate-shell-completion"
+            command wtp $argv
+            return $status
+        end
+    end
+
     if test "$argv[1]" = "cd"
         if test -z "$argv[2]"
             echo "Usage: wtp cd <worktree>" >&2
