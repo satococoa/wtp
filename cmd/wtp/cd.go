@@ -362,8 +362,12 @@ func completeWorktreesForCd(_ context.Context, _ *cli.Command) {
 	}
 
 	// Output each line using fmt.Println for urfave/cli compatibility
+	// Strip the asterisk marker used to indicate current worktree
 	scanner := bufio.NewScanner(&buf)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		line := scanner.Text()
+		// Remove trailing asterisk that marks current worktree
+		line = strings.TrimSuffix(line, "*")
+		fmt.Println(line)
 	}
 }
