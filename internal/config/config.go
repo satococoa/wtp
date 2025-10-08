@@ -132,11 +132,36 @@ func hasLegacyWorktrees(repoRoot, baseDir string) bool {
 
 		// If we find a directory that's not the repo name, it's likely a legacy worktree
 		if entry.Name() != repoName {
-			// Check if it looks like a worktree (has .git file)
+			// Check if it looks like a worktree (has .git file, possibly nested)
 			worktreePath := filepath.Join(baseDir, entry.Name())
-			if _, err := os.Stat(filepath.Join(worktreePath, ".git")); err == nil {
+			if containsGitFile(worktreePath, 0) {
 				return true
 			}
+		}
+	}
+
+	return false
+}
+
+// containsGitFile recursively checks if a directory contains a .git file
+// (which indicates it's a worktree). Limits depth to 3 to handle nested
+// branch names like feature/auth/subfeature.
+func containsGitFile(dir string, depth int) bool {
+	if depth > 3 {
+		return false
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if entry.Name() == ".git" && !entry.IsDir() {
+			return true
+		}
+		if entry.IsDir() && containsGitFile(filepath.Join(dir, entry.Name()), depth+1) {
+			return true
 		}
 	}
 

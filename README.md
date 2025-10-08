@@ -257,7 +257,7 @@ or any other worktree).
 By default, wtp automatically namespaces worktrees by repository name to prevent
 conflicts when multiple projects share a parent directory:
 
-```
+```text
 /Users/dev/projects/
 ├── myproject/
 ├── another-project/
@@ -377,7 +377,7 @@ With the default configuration (`base_dir: "../worktrees"` and `namespace_by_rep
 - Automatically organizes worktrees by project and type/category
 
 **Legacy layout** (without namespacing):
-```
+```text
 ../worktrees/
 ├── feature/
 │   ├── auth/
