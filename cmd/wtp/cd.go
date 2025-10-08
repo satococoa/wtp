@@ -164,6 +164,13 @@ func cdCommandWithCommandExecutor(
 
 	// Output the path for the shell function to cd to
 	fmt.Fprintln(w, targetPath)
+
+	// Show migration warning to stderr (so it doesn't interfere with path output)
+	mainRepoPath := findMainWorktreePath(worktrees)
+	if cfg, err := config.LoadConfig(mainRepoPath); err == nil && cfg.ShouldShowMigrationWarning() {
+		fmt.Fprintln(os.Stderr, config.GetMigrationWarning())
+	}
+
 	return nil
 }
 

@@ -127,20 +127,20 @@ sudo mv wtp /usr/local/bin/  # or add to PATH
 
 ```bash
 # Create worktree from existing branch (local or remote)
-# → Creates worktree at ../worktrees/feature/auth
+# → Creates worktree at ../worktrees/myproject/feature/auth
 # Automatically tracks remote branch if not found locally
 wtp add feature/auth
 
 # Create worktree with new branch
-# → Creates worktree at ../worktrees/feature/new-feature
+# → Creates worktree at ../worktrees/myproject/feature/new-feature
 wtp add -b feature/new-feature
 
 # Create new branch from specific commit
-# → Creates worktree at ../worktrees/hotfix/urgent
+# → Creates worktree at ../worktrees/myproject/hotfix/urgent
 wtp add -b hotfix/urgent abc1234
 
 # Create new branch tracking a different remote branch
-# → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
+# → Creates worktree at ../worktrees/myproject/feature/test with branch tracking origin/main
 wtp add -b feature/test origin/main
 
 # Remote branch handling examples:
@@ -189,6 +189,12 @@ version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
   base_dir: "../worktrees"
+
+  # Namespace worktrees by repository name (default: auto-detected)
+  # When true: ../worktrees/myproject/feature/auth
+  # When false: ../worktrees/feature/auth (legacy layout)
+  # If not set, wtp auto-detects based on existing worktrees
+  namespace_by_repo: true
 
 hooks:
   post_create:
@@ -245,6 +251,44 @@ hooks:
 
 This behavior applies regardless of where you run `wtp add` from (main worktree
 or any other worktree).
+
+### Worktree Namespacing
+
+By default, wtp automatically namespaces worktrees by repository name to prevent
+conflicts when multiple projects share a parent directory:
+
+```
+/Users/dev/projects/
+├── myproject/
+├── another-project/
+└── worktrees/
+    ├── myproject/
+    │   ├── feature/auth/
+    │   └── fix/bug-123/
+    └── another-project/
+        └── feature/new-feature/
+```
+
+**Benefits:**
+- Multiple projects can safely share `../worktrees` without collisions
+- No need for per-project directories like `../myproject-worktrees`
+- Clean, organized structure with automatic isolation
+
+**Auto-detection:**
+- New projects: Automatically use namespaced layout
+- Existing projects: Detected based on existing worktrees
+- Legacy projects: Continue working without changes
+
+**Opt-out:**
+If you prefer the old layout (or have a single project), you can disable namespacing:
+
+```yaml
+defaults:
+  namespace_by_repo: false  # Use legacy layout: ../worktrees/feature/auth
+```
+
+**Migration:**
+To migrate existing worktrees to namespaced layout, see the [Migration](#migration) section below.
 
 ## Shell Integration
 
@@ -310,7 +354,7 @@ Homebrew ships a lightweight bootstrapper. Press `TAB` after typing `wtp` and it
 
 ## Worktree Structure
 
-With the default configuration (`base_dir: "../worktrees"`):
+With the default configuration (`base_dir: "../worktrees"` and `namespace_by_repo: true`):
 
 ```
 <project-root>/
@@ -319,16 +363,102 @@ With the default configuration (`base_dir: "../worktrees"`):
 └── src/
 
 ../worktrees/
-├── main/
-├── feature/
-│   ├── auth/          # wtp add feature/auth
-│   └── payment/       # wtp add feature/payment
-└── hotfix/
-    └── bug-123/       # wtp add hotfix/bug-123
+└── myproject/              # Namespaced by repository name
+    ├── feature/
+    │   ├── auth/           # wtp add feature/auth
+    │   └── payment/        # wtp add feature/payment
+    └── hotfix/
+        └── bug-123/        # wtp add hotfix/bug-123
 ```
 
-Branch names with slashes are preserved as directory structure, automatically
-organizing worktrees by type/category.
+**Namespacing benefits:**
+- Prevents conflicts when multiple projects share `../worktrees`
+- Branch names with slashes are preserved as directory structure
+- Automatically organizes worktrees by project and type/category
+
+**Legacy layout** (without namespacing):
+```
+../worktrees/
+├── feature/
+│   ├── auth/
+│   └── payment/
+└── hotfix/
+    └── bug-123/
+```
+
+To use legacy layout, set `namespace_by_repo: false` in `.wtp.yml`.
+
+## Migration
+
+### Migrating to Namespaced Layout
+
+If you have existing worktrees in the legacy layout (directly under `../worktrees`),
+wtp will automatically detect them and show a migration warning:
+
+```bash
+$ wtp list
+
+PATH                     BRANCH         STATUS   HEAD
+----                     ------         ------   ----
+@*                       main           managed  abc1234
+feature/auth             feature/auth   managed  def5678
+hotfix/bug-123           hotfix/bug-123 managed  ghi9012
+
+⚠️  Legacy worktree layout detected. Consider migrating to namespaced layout:
+   wtp migrate-worktrees --dry-run  # Preview changes
+   wtp migrate-worktrees            # Migrate worktrees
+
+   Or to keep current layout, add to .wtp.yml:
+   defaults:
+     namespace_by_repo: false
+```
+
+### Migration Command
+
+**Preview changes:**
+```bash
+wtp migrate-worktrees --dry-run
+```
+
+**Perform migration:**
+```bash
+wtp migrate-worktrees
+```
+
+This will:
+1. Move worktrees from `../worktrees/feature/auth` to `../worktrees/myproject/feature/auth`
+2. Update git's internal worktree paths
+3. Set `namespace_by_repo: true` in `.wtp.yml`
+
+**Consolidate to shared directory:**
+
+If you're using a project-specific directory like `../myproject-worktrees` to avoid
+conflicts, you can consolidate to the shared `../worktrees` directory during migration
+(since namespacing now prevents conflicts):
+
+```bash
+# Preview consolidation
+wtp migrate-worktrees --dry-run --new-base-dir=../worktrees
+
+# Perform consolidation
+wtp migrate-worktrees --new-base-dir=../worktrees
+```
+
+This will:
+- Move `../myproject-worktrees/feature/auth` → `../worktrees/myproject/feature/auth`
+- Update `.wtp.yml` with `base_dir: ../worktrees` and `namespace_by_repo: true`
+- Allow multiple projects to safely share `../worktrees`
+
+**Opt-out of migration:**
+
+If you prefer to keep the legacy layout, add to `.wtp.yml`:
+
+```yaml
+defaults:
+  namespace_by_repo: false
+```
+
+This will suppress migration warnings and continue using the legacy layout.
 
 ## Error Handling
 

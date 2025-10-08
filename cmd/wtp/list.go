@@ -115,6 +115,12 @@ func listCommandWithCommandExecutor(
 
 	// Display worktrees with relative paths
 	displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
+
+	// Show migration warning if using auto-detected legacy layout
+	if cfg != nil && cfg.ShouldShowMigrationWarning() {
+		fmt.Fprintln(w, config.GetMigrationWarning())
+	}
+
 	return nil
 }
 
