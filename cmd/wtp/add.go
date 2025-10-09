@@ -396,8 +396,8 @@ func getBranches(w io.Writer) error {
 
 // completeBranches provides branch name completion for urfave/cli (wrapper for getBranches)
 func completeBranches(_ context.Context, cmd *cli.Command) {
-	if current, _ := completionArgsFromCommand(cmd); strings.HasPrefix(current, "-") {
-		completeFlagSuggestions(cmd, current)
+	current, previous := completionArgsFromCommand(cmd)
+	if maybeCompleteFlagSuggestions(cmd, current, previous) {
 		return
 	}
 

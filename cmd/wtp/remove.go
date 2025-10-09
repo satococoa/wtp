@@ -352,12 +352,11 @@ func getWorktreesForRemove(w io.Writer) error {
 func completeWorktrees(_ context.Context, cmd *cli.Command) {
 	current, previous := completionArgsFromCommand(cmd)
 
-	currentNormalized := strings.TrimSuffix(current, "*")
-
-	if strings.HasPrefix(currentNormalized, "-") {
-		completeFlagSuggestions(cmd, currentNormalized)
+	if maybeCompleteFlagSuggestions(cmd, current, previous) {
 		return
 	}
+
+	currentNormalized := strings.TrimSuffix(current, "*")
 
 	if currentNormalized == "" && len(previous) > 0 {
 		return

@@ -97,3 +97,27 @@ func formatCompletion(name string) string {
 	}
 	return strings.Repeat("-", count) + name
 }
+
+func tryFlagCompletion(cmd *cli.Command, candidate string) bool {
+	if strings.HasPrefix(candidate, "-") {
+		completeFlagSuggestions(cmd, candidate)
+		return true
+	}
+	return false
+}
+
+func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []string) bool {
+	currentNormalized := strings.TrimSuffix(current, "*")
+	if tryFlagCompletion(cmd, currentNormalized) {
+		return true
+	}
+
+	if currentNormalized == "" && len(previous) > 0 {
+		last := strings.TrimSuffix(previous[len(previous)-1], "*")
+		if tryFlagCompletion(cmd, last) {
+			return true
+		}
+	}
+
+	return false
+}
