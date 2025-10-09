@@ -325,6 +325,9 @@ func TestHookValidate(t *testing.T) {
 }
 
 func TestResolveWorktreePath(t *testing.T) {
+	namespaceTrue := true
+	namespaceFalse := false
+
 	tests := []struct {
 		name         string
 		config       *Config
@@ -333,10 +336,23 @@ func TestResolveWorktreePath(t *testing.T) {
 		expected     string
 	}{
 		{
-			name: "relative base_dir",
+			name: "relative base_dir with namespacing",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir:         "../worktrees",
+					NamespaceByRepo: &namespaceTrue,
+				},
+			},
+			repoRoot:     "/home/user/project",
+			worktreeName: "feature/auth",
+			expected:     "/home/user/worktrees/project/feature/auth",
+		},
+		{
+			name: "relative base_dir without namespacing (legacy)",
+			config: &Config{
+				Defaults: Defaults{
+					BaseDir:         "../worktrees",
+					NamespaceByRepo: &namespaceFalse,
 				},
 			},
 			repoRoot:     "/home/user/project",
@@ -344,26 +360,40 @@ func TestResolveWorktreePath(t *testing.T) {
 			expected:     "/home/user/worktrees/feature/auth",
 		},
 		{
-			name: "absolute base_dir",
+			name: "absolute base_dir with namespacing",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "/tmp/worktrees",
+					BaseDir:         "/tmp/worktrees",
+					NamespaceByRepo: &namespaceTrue,
 				},
 			},
 			repoRoot:     "/home/user/project",
 			worktreeName: "feature/auth",
-			expected:     "/tmp/worktrees/feature/auth",
+			expected:     "/tmp/worktrees/project/feature/auth",
 		},
 		{
-			name: "simple worktree name",
+			name: "simple worktree name with namespacing",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir:         "../worktrees",
+					NamespaceByRepo: &namespaceTrue,
 				},
 			},
 			repoRoot:     "/home/user/project",
 			worktreeName: "main",
-			expected:     "/home/user/worktrees/main",
+			expected:     "/home/user/worktrees/project/main",
+		},
+		{
+			name: "default (nil namespace_by_repo defaults to true)",
+			config: &Config{
+				Defaults: Defaults{
+					BaseDir: "../worktrees",
+					// NamespaceByRepo is nil, should default to true
+				},
+			},
+			repoRoot:     "/home/user/project",
+			worktreeName: "feature/test",
+			expected:     "/home/user/worktrees/project/feature/test",
 		},
 	}
 

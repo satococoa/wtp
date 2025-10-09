@@ -30,10 +30,12 @@ func isWorktreeManaged(worktreePath string, cfg *config.Config, mainRepoPath str
 
 	// Get base directory - use default config if config is not available
 	if cfg == nil {
-		// Create default config when none is available
+		// Create default config when none is available (use legacy mode for compatibility)
+		legacyMode := false
 		defaultCfg := &config.Config{
 			Defaults: config.Defaults{
-				BaseDir: "../worktrees",
+				BaseDir:         "../worktrees",
+				NamespaceByRepo: &legacyMode,
 			},
 		}
 		cfg = defaultCfg
@@ -281,7 +283,7 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 
 // getWorktreeNameFromPath calculates the worktree name from its path
 // For main worktree, returns "@"
-// For other worktrees, returns relative path from base_dir
+// For other worktrees, returns relative path from base_dir (with namespace prefix stripped if namespacing is enabled)
 func getWorktreeNameFromPath(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) string {
 	if isMain {
 		return "@"
@@ -293,7 +295,13 @@ func getWorktreeNameFromPath(worktreePath string, cfg *config.Config, mainRepoPa
 		baseDir = filepath.Join(mainRepoPath, baseDir)
 	}
 
-	// Calculate relative path from base_dir
+	// If namespacing is enabled, strip the namespace prefix from the display
+	if cfg.ShouldNamespaceByRepo() {
+		repoName := filepath.Base(mainRepoPath)
+		baseDir = filepath.Join(baseDir, repoName)
+	}
+
+	// Calculate relative path from base_dir (or base_dir/repoName if namespaced)
 	relPath, err := filepath.Rel(baseDir, worktreePath)
 	if err != nil {
 		// Fallback to directory name

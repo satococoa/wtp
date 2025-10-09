@@ -103,7 +103,7 @@ We chose YAML for configuration because:
 ```yaml
 defaults:
   base_dir: "../worktrees"
-  cd: true
+  namespace_by_repo: true
 
 hooks:
   post_create:
@@ -113,6 +113,85 @@ hooks:
     - type: command
       command: "npm install"
       work_dir: "."
+```
+
+### Worktree Namespacing
+
+**Design Decision**: Namespace worktrees by repository name to prevent conflicts when
+multiple projects share a parent directory.
+
+**Architecture**:
+
+```go
+func (c *Config) ResolveWorktreePath(repoRoot, worktreeName string) string {
+    baseDir := c.Defaults.BaseDir
+    if !filepath.IsAbs(baseDir) {
+        baseDir = filepath.Join(repoRoot, baseDir)
+    }
+
+    // Check if we should use namespacing
+    if c.ShouldNamespaceByRepo() {
+        repoName := filepath.Base(repoRoot)
+        return filepath.Join(baseDir, repoName, worktreeName)
+    }
+
+    return filepath.Join(baseDir, worktreeName)
+}
+```
+
+**Auto-detection Logic**:
+
+When `namespace_by_repo` is not explicitly set in `.wtp.yml`, wtp auto-detects the
+appropriate layout based on existing worktrees:
+
+```go
+func hasLegacyWorktrees(repoRoot, baseDir string) bool {
+    // Check if base directory exists
+    if _, err := os.Stat(baseDir); os.IsNotExist(err) {
+        return false
+    }
+
+    // Look for worktrees directly under baseDir
+    // (not under baseDir/<repo-name>/)
+    entries, _ := os.ReadDir(baseDir)
+    repoName := filepath.Base(repoRoot)
+
+    for _, entry := range entries {
+        if !entry.IsDir() || entry.Name() == repoName {
+            continue
+        }
+
+        // Check if it looks like a worktree (has .git file)
+        if hasGitFile(filepath.Join(baseDir, entry.Name())) {
+            return true
+        }
+    }
+
+    return false
+}
+```
+
+**Behavior**:
+- `namespace_by_repo: true` - Always use namespaced layout
+- `namespace_by_repo: false` - Always use legacy layout
+- `nil` (not set) - Auto-detect based on existing worktrees
+  - If legacy worktrees found → use legacy layout (backwards compatible)
+  - If no worktrees found → use namespaced layout (new projects)
+
+**Migration**:
+
+The `migrate-worktrees` command uses `git worktree move` to relocate worktrees:
+
+```go
+func migrateWorktree(repo *git.Repository, oldPath, newPath string) error {
+    // Create parent directory
+    os.MkdirAll(filepath.Dir(newPath), 0o755)
+
+    // Use git worktree move (handles all internal path updates)
+    repo.ExecuteGitCommand("worktree", "move", oldPath, newPath)
+
+    return nil
+}
 ```
 
 ## Hook System

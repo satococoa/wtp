@@ -47,19 +47,22 @@ func RunNameFromPathTests(
 	t.Helper()
 
 	t.Run(label+": main worktree returns @", func(t *testing.T) {
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		name := fn("/path/to/repo", cfg, "/path/to/repo", true)
 		assert.Equal(t, "@", name)
 	})
 
 	t.Run(label+": non-main returns relative path", func(t *testing.T) {
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		name := fn("/path/to/repo/.worktrees/feature/test", cfg, "/path/to/repo", false)
 		assert.Equal(t, "feature/test", name)
 	})
 
 	t.Run(label+": outside base_dir returns relative-to-base", func(t *testing.T) {
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		// When worktree is outside base_dir, filepath.Rel returns a relative path
 		// with .. segments; this should be surfaced as-is.
 		name := fn("/completely/different/path", cfg, "/path/to/repo", false)
