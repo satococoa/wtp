@@ -355,15 +355,52 @@ func getWorktreesForCd(w io.Writer) error {
 }
 
 // completeWorktreesForCd provides worktree name completion for cd command (wrapper for getWorktreesForCd)
-func completeWorktreesForCd(_ context.Context, _ *cli.Command) {
+func completeWorktreesForCd(ctx context.Context, cmd *cli.Command) {
+	current, previous := completionArgsFromCommand(cmd)
+
+	if strings.HasPrefix(current, "-") {
+		cli.DefaultCompleteWithFlags(ctx, cmd)
+		return
+	}
+
+	if current == "" && len(previous) > 0 {
+		return
+	}
+
+	currentNormalized := strings.TrimSuffix(current, "*")
+
 	var buf bytes.Buffer
 	if err := getWorktreesForCd(&buf); err != nil {
 		return
 	}
 
+	used := make(map[string]struct{}, len(previous))
+	for _, arg := range previous {
+		if arg == "" || strings.HasPrefix(arg, "-") {
+			continue
+		}
+		key := strings.TrimSuffix(arg, "*")
+		used[key] = struct{}{}
+	}
+
 	// Output each line using fmt.Println for urfave/cli compatibility
 	scanner := bufio.NewScanner(&buf)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		raw := scanner.Text()
+		candidate := strings.TrimSuffix(raw, "*")
+
+		if candidate == "" {
+			continue
+		}
+
+		if _, exists := used[candidate]; exists {
+			continue
+		}
+
+		if currentNormalized != "" && candidate == currentNormalized {
+			continue
+		}
+
+		fmt.Println(candidate)
 	}
 }
