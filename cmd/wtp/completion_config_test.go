@@ -34,5 +34,4 @@ func TestNormalizeCompletionArgs(t *testing.T) {
 			t.Fatalf("normalizeCompletionArgs() = %v, want %v", got, args)
 		}
 	})
-
 }
