@@ -273,8 +273,12 @@ func TestResolveWorktreePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			legacyMode := false
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: tt.baseDir},
+				Defaults: config.Defaults{
+					BaseDir:         tt.baseDir,
+					NamespaceByRepo: &legacyMode, // Use legacy mode for these tests
+				},
 			}
 			cmd := createTestCLICommand(tt.flags, []string{tt.branchName})
 
@@ -329,9 +333,11 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 			var buf bytes.Buffer
 			mockExec := &mockCommandExecutor{}
 
+			legacyMode := false
 			cfg := &config.Config{
 				Defaults: config.Defaults{
-					BaseDir: "/test/worktrees",
+					BaseDir:         "/test/worktrees",
+					NamespaceByRepo: &legacyMode, // Use legacy mode for these tests
 				},
 			}
 
@@ -372,8 +378,12 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 			var buf bytes.Buffer
 			mockExec := &mockCommandExecutor{}
 
+			legacyMode := false
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+				Defaults: config.Defaults{
+					BaseDir:         "/test/worktrees",
+					NamespaceByRepo: &legacyMode,
+				},
 			}
 
 			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
@@ -415,8 +425,12 @@ func TestAddCommand_ExecutionError(t *testing.T) {
 	mockExec := &mockCommandExecutor{shouldFail: true}
 	var buf bytes.Buffer
 	cmd := createTestCLICommand(map[string]any{"branch": "feature/auth"}, []string{"feature/auth"})
+	legacyMode := false
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+		Defaults: config.Defaults{
+			BaseDir:         "/test/worktrees",
+			NamespaceByRepo: &legacyMode,
+		},
 	}
 
 	err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
@@ -455,8 +469,12 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 			mockExec := &mockCommandExecutor{}
 			var buf bytes.Buffer
 			cmd := createTestCLICommand(map[string]any{"branch": tt.branchName}, []string{tt.branchName})
+			legacyMode := false
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+				Defaults: config.Defaults{
+					BaseDir:         "/test/worktrees",
+					NamespaceByRepo: &legacyMode,
+				},
 			}
 
 			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
@@ -538,8 +556,12 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		mockExec := &mockCommandExecutor{}
 		var buf bytes.Buffer
 		cmd := createTestCLICommand(map[string]any{"branch": "feature/new"}, []string{})
+		legacyMode := false
 		cfg := &config.Config{
-			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Defaults: config.Defaults{
+				BaseDir:         "/test/worktrees",
+				NamespaceByRepo: &legacyMode,
+			},
 		}
 
 		// When: running add command with -b flag (this should work without git repo)
@@ -558,8 +580,12 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		mockExec := &mockCommandExecutor{}
 		var buf bytes.Buffer
 		cmd := createTestCLICommand(map[string]any{"branch": "hotfix/urgent"}, []string{"main"})
+		legacyMode := false
 		cfg := &config.Config{
-			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Defaults: config.Defaults{
+				BaseDir:         "/test/worktrees",
+				NamespaceByRepo: &legacyMode,
+			},
 		}
 
 		// When: running add command with -b flag and commit
@@ -710,7 +736,8 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		var buf bytes.Buffer
 		branchName := "feature/awesome"
 		workTreePath := "/repo/.worktrees/feature/awesome"
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
@@ -730,7 +757,8 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		var buf bytes.Buffer
 		branchName := ""
 		workTreePath := "/repo/.worktrees/some-path"
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
@@ -750,7 +778,8 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		var buf bytes.Buffer
 		branchName := "main"
 		workTreePath := "/repo" // Main worktree path
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
@@ -769,7 +798,8 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		var buf bytes.Buffer
 		branchName := "" // No branch in detached HEAD
 		workTreePath := "/repo/.worktrees/abc1234"
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		mainRepoPath := "/repo"
 
 		// When: displaying success message for detached HEAD
@@ -789,7 +819,8 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		var buf bytes.Buffer
 		branchName := ""
 		workTreePath := "/repo/.worktrees/HEAD~1"
-		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
+		legacyMode := false
+		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees", NamespaceByRepo: &legacyMode}}
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
