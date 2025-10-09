@@ -1,0 +1,99 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/urfave/cli/v3"
+)
+
+const maxHyphenPrefix = 2
+
+func completeFlagSuggestions(cmd *cli.Command, current string) {
+	if cmd == nil {
+		return
+	}
+
+	writer := commandWriter(cmd)
+
+	trimmed, doubleDash := normalizeCurrent(current)
+	if trimmed == "" && !strings.HasPrefix(current, "-") {
+		return
+	}
+
+	seen := make(map[string]struct{})
+
+	for _, flag := range cmd.Flags {
+		if !isFlagVisible(flag) {
+			continue
+		}
+
+		match := selectMatchingName(flag.Names(), trimmed, doubleDash)
+		if match == "" {
+			continue
+		}
+
+		completion := formatCompletion(match)
+		if _, exists := seen[completion]; exists {
+			continue
+		}
+
+		seen[completion] = struct{}{}
+		fmt.Fprintln(writer, completion)
+	}
+}
+
+func commandWriter(cmd *cli.Command) io.Writer {
+	writer := cmd.Root().Writer
+	if writer == nil {
+		return os.Stdout
+	}
+	return writer
+}
+
+func normalizeCurrent(current string) (trimmed string, doubleDash bool) {
+	return strings.TrimLeft(current, "-"), strings.HasPrefix(current, "--")
+}
+
+func isFlagVisible(flag cli.Flag) bool {
+	if visibility, ok := flag.(interface{ IsVisible() bool }); ok && !visibility.IsVisible() {
+		return false
+	}
+	return true
+}
+
+func selectMatchingName(names []string, trimmed string, doubleDash bool) string {
+	for _, candidate := range names {
+		name := strings.TrimSpace(candidate)
+		if name == "" {
+			continue
+		}
+
+		if doubleDash && utf8.RuneCountInString(name) == 1 {
+			continue
+		}
+
+		if trimmed != "" && !strings.HasPrefix(name, trimmed) {
+			continue
+		}
+
+		if trimmed == name {
+			continue
+		}
+
+		return name
+	}
+
+	return ""
+}
+
+func formatCompletion(name string) string {
+	count := utf8.RuneCountInString(name)
+	if count > maxHyphenPrefix {
+		count = maxHyphenPrefix
+	}
+	return strings.Repeat("-", count) + name
+}

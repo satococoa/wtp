@@ -349,19 +349,19 @@ func getWorktreesForRemove(w io.Writer) error {
 }
 
 // completeWorktrees provides worktree name completion for urfave/cli (wrapper for getWorktreesForRemove)
-func completeWorktrees(ctx context.Context, cmd *cli.Command) {
+func completeWorktrees(_ context.Context, cmd *cli.Command) {
 	current, previous := completionArgsFromCommand(cmd)
 
-	if strings.HasPrefix(current, "-") {
-		cli.DefaultCompleteWithFlags(ctx, cmd)
-		return
-	}
-
-	if current == "" && len(previous) > 0 {
-		return
-	}
-
 	currentNormalized := strings.TrimSuffix(current, "*")
+
+	if strings.HasPrefix(currentNormalized, "-") {
+		completeFlagSuggestions(cmd, currentNormalized)
+		return
+	}
+
+	if currentNormalized == "" && len(previous) > 0 {
+		return
+	}
 
 	var buf bytes.Buffer
 	if err := getWorktreesForRemove(&buf); err != nil {

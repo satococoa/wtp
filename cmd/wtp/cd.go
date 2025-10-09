@@ -355,19 +355,19 @@ func getWorktreesForCd(w io.Writer) error {
 }
 
 // completeWorktreesForCd provides worktree name completion for cd command (wrapper for getWorktreesForCd)
-func completeWorktreesForCd(ctx context.Context, cmd *cli.Command) {
+func completeWorktreesForCd(_ context.Context, cmd *cli.Command) {
 	current, previous := completionArgsFromCommand(cmd)
 
-	if strings.HasPrefix(current, "-") {
-		cli.DefaultCompleteWithFlags(ctx, cmd)
-		return
-	}
-
-	if current == "" && len(previous) > 0 {
-		return
-	}
-
 	currentNormalized := strings.TrimSuffix(current, "*")
+
+	if strings.HasPrefix(currentNormalized, "-") {
+		completeFlagSuggestions(cmd, currentNormalized)
+		return
+	}
+
+	if currentNormalized == "" && len(previous) > 0 {
+		return
+	}
 
 	var buf bytes.Buffer
 	if err := getWorktreesForCd(&buf); err != nil {
