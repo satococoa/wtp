@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/urfave/cli/v3"
 )
 
-const maxHyphenPrefix = 2
+const (
+	maxHyphenPrefix   = 2
+	sentinelArgOffset = 2
+)
 
 func completeFlagSuggestions(cmd *cli.Command, current string) {
 	if cmd == nil {
@@ -119,5 +123,27 @@ func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []s
 		}
 	}
 
+	if candidate, ok := flagCandidateFromOSArgs(); ok && tryFlagCompletion(cmd, candidate) {
+		return true
+	}
+
 	return false
+}
+
+func flagCandidateFromOSArgs() (string, bool) {
+	index := slices.Index(os.Args, completionFlag)
+	if index <= 0 {
+		return "", false
+	}
+
+	candidate := os.Args[index-1]
+	if candidate == "--" {
+		if index >= sentinelArgOffset {
+			candidate = os.Args[index-2]
+		} else {
+			return "", false
+		}
+	}
+
+	return candidate, candidate != ""
 }
