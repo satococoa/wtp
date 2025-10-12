@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -62,7 +64,11 @@ complete -c wtp -a 'add'
 }
 
 func TestPatchCompletionScriptBashSanitizesDescriptions(t *testing.T) {
-	result := patchCompletionScript("bash", "#!/bin/bash\n\n__wtp_bash_autocomplete() {\n    opts=$(eval \"${requestComp}\" 2>/dev/null)\n    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))\n}\n")
+	const originalBashAutocomplete = "#!/bin/bash\n\n__wtp_bash_autocomplete() {\n" +
+		"    opts=$(eval \"${requestComp}\" 2>/dev/null)\n" +
+		"    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))\n}\n"
+
+	result := patchCompletionScript("bash", originalBashAutocomplete)
 
 	if !strings.Contains(result, "_wtp_sanitize_completion_list") {
 		t.Fatalf("expected sanitize helper to be injected, got:\n%s", result)
@@ -71,6 +77,17 @@ func TestPatchCompletionScriptBashSanitizesDescriptions(t *testing.T) {
 	if !strings.Contains(result, "opts=$(_wtp_sanitize_completion_list <<<\"${opts}\")") {
 		t.Fatalf("expected bash script to sanitize completion output, got:\n%s", result)
 	}
+}
+
+func TestPatchCompletionScriptBashMatchesGolden(t *testing.T) {
+	input := readCompletionTestdata(t, "bash_input.sh")
+	got := patchCompletionScript("bash", input)
+	assertCompletionGolden(t, "bash_expected.sh", got)
+}
+
+func TestPatchCompletionScriptFishMatchesGolden(t *testing.T) {
+	got := patchCompletionScript("fish", "ignored")
+	assertCompletionGolden(t, "fish_expected.fish", got)
 }
 
 func TestPatchCompletionScriptPassthroughForOtherShells(t *testing.T) {
@@ -82,5 +99,39 @@ func TestPatchCompletionScriptPassthroughForOtherShells(t *testing.T) {
 
 	if got := patchCompletionScript("unknown", original); got != original {
 		t.Fatalf("expected unknown shell completions to fall back to original, got %q", got)
+	}
+}
+
+func readCompletionTestdata(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join("testdata", "completion", name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read testdata %s: %v", name, err)
+	}
+	return string(data)
+}
+
+func assertCompletionGolden(t *testing.T, name, got string) {
+	t.Helper()
+	expected := readCompletionTestdata(t, name)
+	if got == expected {
+		return
+	}
+
+	if os.Getenv("UPDATE_COMPLETION_GOLDEN") != "" {
+		writeCompletionTestdata(t, name, got)
+		return
+	}
+
+	t.Fatalf("completion script %s mismatch (expected len %d, got %d):\n--- expected ---\n%s\n--- got ---\n%s",
+		name, len(expected), len(got), expected, got)
+}
+
+func writeCompletionTestdata(t *testing.T, name, content string) {
+	t.Helper()
+	path := filepath.Join("testdata", "completion", name)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("failed to write testdata %s: %v", name, err)
 	}
 }

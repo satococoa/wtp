@@ -128,7 +128,9 @@ _wtp_sanitize_completion_list() {
 	script = strings.Replace(script, "__wtp_bash_autocomplete() {", helper+"\n__wtp_bash_autocomplete() {", 1)
 
 	const target = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
-	const replacement = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n    opts=$(_wtp_sanitize_completion_list <<<\"${opts}\")\n    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
+	const replacement = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n" +
+		"    opts=$(_wtp_sanitize_completion_list <<<\"${opts}\")\n" +
+		"    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
 
 	script = strings.Replace(script, target, replacement, 1)
 	return script
