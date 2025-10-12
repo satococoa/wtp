@@ -73,11 +73,6 @@ func normalizeCompletionArgs(args []string) []string {
 		normalized[flagIndex-1] = "-"
 	}
 
-	if flagIndex != len(normalized)-1 {
-		normalized = append(normalized[:flagIndex], normalized[flagIndex+1:]...)
-		normalized = append(normalized, completionFlag)
-	}
-
 	return normalized
 }
 

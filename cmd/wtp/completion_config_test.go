@@ -16,10 +16,10 @@ func TestNormalizeCompletionArgs(t *testing.T) {
 		}
 	})
 
-	t.Run("moves completion flag to end when necessary", func(t *testing.T) {
+	t.Run("keeps completion flag before positional arguments", func(t *testing.T) {
 		args := []string{"wtp", "remove", "--generate-shell-completion", "target"}
 		got := normalizeCompletionArgs(args)
-		want := []string{"wtp", "remove", "target", "--generate-shell-completion"}
+		want := []string{"wtp", "remove", "--generate-shell-completion", "target"}
 
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("normalizeCompletionArgs() = %v, want %v", got, want)
