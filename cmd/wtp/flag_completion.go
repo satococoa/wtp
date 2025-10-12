@@ -16,19 +16,20 @@ const (
 	sentinelArgOffset = 2
 )
 
-func completeFlagSuggestions(cmd *cli.Command, current string) {
+func completeFlagSuggestions(cmd *cli.Command, current string) bool {
 	if cmd == nil {
-		return
+		return false
 	}
 
 	writer := commandWriter(cmd)
 
 	trimmed, doubleDash := normalizeCurrent(current)
 	if trimmed == "" && !strings.HasPrefix(current, "-") {
-		return
+		return false
 	}
 
 	seen := make(map[string]struct{})
+	emitted := false
 
 	for _, flag := range cmd.Flags {
 		if !isFlagVisible(flag) {
@@ -47,7 +48,10 @@ func completeFlagSuggestions(cmd *cli.Command, current string) {
 
 		seen[completion] = struct{}{}
 		fmt.Fprintln(writer, completion)
+		emitted = true
 	}
+
+	return emitted
 }
 
 func commandWriter(cmd *cli.Command) io.Writer {
@@ -104,8 +108,7 @@ func formatCompletion(name string) string {
 
 func tryFlagCompletion(cmd *cli.Command, candidate string) bool {
 	if strings.HasPrefix(candidate, "-") {
-		completeFlagSuggestions(cmd, candidate)
-		return true
+		return completeFlagSuggestions(cmd, candidate)
 	}
 	return false
 }

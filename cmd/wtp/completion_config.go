@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 )
@@ -45,13 +46,92 @@ func configureCompletionCommand(cmd *cli.Command) {
 
 func patchCompletionScript(shell, script string) string {
 	switch shell {
-	case "zsh":
-		return script
+	case "fish":
+		return buildFishCompletionScript()
 	case "bash":
-		return script
+		return patchBashCompletionScript(script)
 	default:
 		return script
 	}
+}
+
+func buildFishCompletionScript() string {
+	return `# wtp fish shell completion
+
+function __fish_wtp_dynamic_complete --description 'wtp dynamic completion helper'
+	set -l tokens (commandline -opc)
+	set -l args
+	set -l token_count (count $tokens)
+	if test $token_count -gt 1
+		set args $tokens[2..-1]
+	end
+
+	set -l current (commandline -ct)
+
+	if test -n "$current"
+		if string match -q -- '-*' $current
+			set args $args $current
+		end
+	end
+
+	set args $args --generate-shell-completion
+
+	if not command -sq wtp
+		return
+	end
+
+	set -l raw (command wtp $args)
+	for line in $raw
+		if test -z "$line"
+			continue
+		end
+
+		set -l parts (string split -m 1 ":" -- $line)
+		if test (count $parts) -gt 1
+			set -l remainder $parts[2]
+			if string match -q "* *" $remainder
+				echo $parts[1]
+				continue
+			end
+		end
+
+		echo $line
+	end
+end
+
+complete -c wtp -f -a '(__fish_wtp_dynamic_complete)'
+`
+}
+
+func patchBashCompletionScript(script string) string {
+	if strings.Contains(script, "_wtp_sanitize_completion_list") {
+		return script
+	}
+
+	const helper = `
+_wtp_sanitize_completion_list() {
+	local line suffix result=()
+	while IFS= read -r line; do
+		if [[ "$line" == *:* ]]; then
+			suffix=${line#*:}
+			if [[ "$suffix" == *" "* ]]; then
+				result+=("${line%%:*}")
+				continue
+			fi
+		fi
+		result+=("$line")
+	done
+	printf "%s\n" "${result[@]}"
+}
+`
+
+	script = strings.Replace(script, "__wtp_bash_autocomplete() {", helper+"\n__wtp_bash_autocomplete() {", 1)
+
+	const target = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
+	const replacement = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n    opts=$(_wtp_sanitize_completion_list <<<\"${opts}\")\n    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
+
+	script = strings.Replace(script, target, replacement, 1)
+	return script
 }
 
 func normalizeCompletionArgs(args []string) []string {

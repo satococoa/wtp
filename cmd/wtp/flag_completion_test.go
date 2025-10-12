@@ -26,7 +26,7 @@ func TestCompleteFlagSuggestions_MatchesLongFlag(t *testing.T) {
 		},
 	}
 
-	completeFlagSuggestions(cmd, "--w")
+	require.True(t, completeFlagSuggestions(cmd, "--w"))
 
 	require.Contains(t, buf.String(), "--with-branch")
 	require.NotContains(t, buf.String(), "--generate-shell-completion")
@@ -48,7 +48,7 @@ func TestCompleteFlagSuggestions_ShowsAllForSingleHyphen(t *testing.T) {
 		},
 	}
 
-	completeFlagSuggestions(cmd, "-")
+	require.True(t, completeFlagSuggestions(cmd, "-"))
 
 	output := buf.String()
 	require.True(t, strings.Contains(output, "--with-branch") || strings.Contains(output, "-with-branch"))

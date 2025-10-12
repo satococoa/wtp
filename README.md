@@ -67,7 +67,7 @@ worktree. No more terminal tab confusion.
   - Linux (x86_64 or ARM64)
   - macOS (Apple Silicon M1/M2/M3)
 - One of the following shells (for completion support):
-  - Bash
+  - Bash (4+/5.x) with bash-completion v2
   - Zsh
   - Fish
 
@@ -252,13 +252,18 @@ or any other worktree).
 
 #### If installed via Homebrew
 
-No manual setup required. Homebrew installs a tiny bootstrapper that runs `wtp shell-init <shell>` the first time you press `TAB` after typing `wtp`. That lazy call gives you both tab completion and the `wtp cd` integration for the rest of the session—no rc edits needed.
+No manual setup required. Homebrew installs a tiny bootstrapper that runs
+`wtp shell-init <shell>` the first time you press `TAB` after typing `wtp`. That
+lazy call gives you both tab completion and the `wtp cd` integration for the
+rest of the session—no rc edits needed.
 
-Need to refresh inside an existing shell? Just run `wtp shell-init <shell>` yourself.
+Need to refresh inside an existing shell? Just run `wtp shell-init <shell>`
+yourself.
 
 #### If installed via go install
 
-Add a single line to your shell configuration file to enable both completion and shell integration:
+Add a single line to your shell configuration file to enable both completion and
+shell integration:
 
 ```bash
 # Bash: Add to ~/.bashrc or ~/.bash_profile
@@ -271,13 +276,20 @@ eval "$(wtp shell-init zsh)"
 wtp shell-init fish | source
 ```
 
+> **Note:** Bash completion requires bash-completion v2. On macOS, install
+> Homebrew’s Bash 5.x and `bash-completion@2`, then
+> `source /opt/homebrew/etc/profile.d/bash_completion.sh` (or the path shown
+> after installation) before enabling the one-liner above.
+
 After reloading your shell you get the same experience as Homebrew users.
 
 ### Navigation with wtp cd
 
-The `wtp cd` command outputs the absolute path to a worktree. You can use it in two ways:
+The `wtp cd` command outputs the absolute path to a worktree. You can use it in
+two ways:
 
 #### Direct Usage
+
 ```bash
 # Change to a worktree using command substitution
 cd "$(wtp cd feature/auth)"
@@ -288,8 +300,10 @@ cd "$(wtp cd @)"
 
 #### With Shell Hook (Recommended)
 
-For a more seamless experience, enable the shell hook. `wtp shell-init <shell>` already bundles it, so Homebrew users get the hook automatically and go install users get it from the one-liner above. If you only want the hook without completions, you can still run `wtp hook <shell>` manually.
-
+For a more seamless experience, enable the shell hook. `wtp shell-init <shell>`
+already bundles it, so Homebrew users get the hook automatically and go install
+users get it from the one-liner above. If you only want the hook without
+completions, you can still run `wtp hook <shell>` manually.
 
 Then use the simplified syntax:
 
@@ -306,7 +320,9 @@ wtp cd <TAB>
 
 #### Complete Setup (Lazy Loading for Homebrew Users)
 
-Homebrew ships a lightweight bootstrapper. Press `TAB` after typing `wtp` and it evaluates `wtp shell-init <shell>` once for your session—tab completion and `wtp cd` just work.
+Homebrew ships a lightweight bootstrapper. Press `TAB` after typing `wtp` and it
+evaluates `wtp shell-init <shell>` once for your session—tab completion and
+`wtp cd` just work.
 
 ## Worktree Structure
 
@@ -372,6 +388,7 @@ go tool task build
 # Run locally
 ./wtp --help
 ```
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
