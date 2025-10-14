@@ -154,5 +154,9 @@ func flagCandidateFromOSArgs() (string, bool) {
 		}
 	}
 
+	if candidate == completionFlag {
+		return "", false
+	}
+
 	return candidate, candidate != ""
 }

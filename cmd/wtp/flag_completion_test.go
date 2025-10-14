@@ -95,4 +95,9 @@ func TestFlagCandidateFromOSArgsSentinel(t *testing.T) {
 	candidate, ok = flagCandidateFromOSArgs()
 	require.True(t, ok)
 	require.Equal(t, "target", candidate)
+
+	os.Args = []string{"wtp", "remove", "target", "-", "--generate-shell-completion", "--generate-shell-completion"}
+	candidate, ok = flagCandidateFromOSArgs()
+	require.True(t, ok)
+	require.Equal(t, "target", candidate)
 }
