@@ -79,6 +79,42 @@ func TestWorkTreeAlreadyExistsError(t *testing.T) {
 	})
 }
 
+func TestBranchAlreadyExistsError(t *testing.T) {
+	t.Run("should format error message with branch name and guidance", func(t *testing.T) {
+		// Given: a BranchAlreadyExistsError with branch name and git error
+		originalErr := &MockGitError{msg: "A branch named 'feature/auth' already exists."}
+		err := &BranchAlreadyExistsError{
+			BranchName: "feature/auth",
+			GitError:   originalErr,
+		}
+
+		// When: getting error message
+		message := err.Error()
+
+		// Then: should contain branch name, guidance, and original error
+		assert.Contains(t, message, "branch 'feature/auth' already exists")
+		assert.Contains(t, message, "wtp add feature/auth")
+		assert.Contains(t, message, "Choose a different branch name")
+		assert.Contains(t, message, "Delete the existing branch")
+		assert.Contains(t, message, "A branch named 'feature/auth' already exists.")
+	})
+
+	t.Run("should handle empty branch name", func(t *testing.T) {
+		// Given: error with empty branch name
+		err := &BranchAlreadyExistsError{
+			BranchName: "",
+			GitError:   &MockGitError{msg: "test error"},
+		}
+
+		// When: getting error message
+		message := err.Error()
+
+		// Then: should still provide valid message
+		assert.Contains(t, message, "branch '' already exists")
+		assert.Contains(t, message, "test error")
+	})
+}
+
 func TestPathAlreadyExistsError(t *testing.T) {
 	t.Run("should format error message with path and solutions", func(t *testing.T) {
 		// Given: a PathAlreadyExistsError with path and git error
@@ -874,6 +910,14 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 			gitOutput:     "fatal: '/existing/path' already exists",
 			expectedError: "",
 			expectedType:  &PathAlreadyExistsError{},
+		},
+		{
+			name:          "branch already exists error",
+			workTreePath:  "/path/to/worktree",
+			branchName:    "existing-branch",
+			gitOutput:     "fatal: A branch named 'existing-branch' already exists.",
+			expectedError: "",
+			expectedType:  &BranchAlreadyExistsError{},
 		},
 		{
 			name:          "multiple branches error",
