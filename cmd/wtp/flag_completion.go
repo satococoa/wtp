@@ -146,7 +146,7 @@ func flagCandidateFromOSArgs() (string, bool) {
 	}
 
 	candidate := os.Args[index-1]
-	if candidate == "--" {
+	if candidate == "-" || candidate == "--" {
 		if index >= sentinelArgOffset {
 			candidate = os.Args[index-2]
 		} else {

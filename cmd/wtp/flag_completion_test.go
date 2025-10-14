@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -79,4 +80,19 @@ func TestMaybeCompleteFlagSuggestions_IgnoresSentinelInPrevious(t *testing.T) {
 
 	require.False(t, maybeCompleteFlagSuggestions(cmd, "feature", []string{"-"}))
 	require.False(t, maybeCompleteFlagSuggestions(cmd, "", []string{"-"}))
+}
+
+func TestFlagCandidateFromOSArgsSentinel(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "remove", "target", "-", "--generate-shell-completion"}
+	candidate, ok := flagCandidateFromOSArgs()
+	require.True(t, ok)
+	require.Equal(t, "target", candidate)
+
+	os.Args = []string{"wtp", "remove", "target", "--", "--generate-shell-completion"}
+	candidate, ok = flagCandidateFromOSArgs()
+	require.True(t, ok)
+	require.Equal(t, "target", candidate)
 }
