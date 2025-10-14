@@ -62,24 +62,27 @@ func patchZshCompletionScript(script string) string {
 		return script
 	}
 
+	currentReplacement := "opts=(\"${(@f)$(env WTP_SHELL_COMPLETION=1 ${words[@]:0:#words[@]-1} " +
+		"${current} --generate-shell-completion)}\")"
+	subcommandReplacement := "opts=(\"${(@f)$(env WTP_SHELL_COMPLETION=1 ${words[@]:0:#words[@]-1} " +
+		"--generate-shell-completion)}\")"
+
 	replacements := []struct {
 		target      string
 		replacement string
 	}{
 		{
 			target:      `opts=("${(@f)$(${words[@]:0:#words[@]-1} ${current} --generate-shell-completion)}")`,
-			replacement: `opts=("${(@f)$(env WTP_SHELL_COMPLETION=1 ${words[@]:0:#words[@]-1} ${current} --generate-shell-completion)}")`,
+			replacement: currentReplacement,
 		},
 		{
 			target:      `opts=("${(@f)$(${words[@]:0:#words[@]-1} --generate-shell-completion)}")`,
-			replacement: `opts=("${(@f)$(env WTP_SHELL_COMPLETION=1 ${words[@]:0:#words[@]-1} --generate-shell-completion)}")`,
+			replacement: subcommandReplacement,
 		},
 	}
 
 	for _, r := range replacements {
-		if strings.Contains(script, r.target) {
-			script = strings.Replace(script, r.target, r.replacement, 1)
-		}
+		script = strings.Replace(script, r.target, r.replacement, 1)
 	}
 
 	return script

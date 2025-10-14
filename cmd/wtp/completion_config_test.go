@@ -122,7 +122,6 @@ func TestCompletionCommandMatchesGolden(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.shell, func(t *testing.T) {
 			var buf bytes.Buffer
 			app := newApp()

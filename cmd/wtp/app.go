@@ -4,8 +4,8 @@ import "github.com/urfave/cli/v3"
 
 func newApp() *cli.Command {
 	return &cli.Command{
-		Name:      "wtp",
-		Usage:     "Enhanced Git worktree management",
+		Name:  "wtp",
+		Usage: "Enhanced Git worktree management",
 		Description: "wtp (Worktree Plus) simplifies Git worktree creation with automatic branch tracking, " +
 			"project-specific setup hooks, and convenient defaults.",
 		Version:                         version,

@@ -121,9 +121,8 @@ func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []s
 
 	if len(previous) > 0 {
 		last := strings.TrimSuffix(previous[len(previous)-1], "*")
-		if last == "-" || last == "--" {
-			// Sentinel separating flags from positionals; ignore for flag completion.
-		} else if last != "" && last != currentNormalized && tryFlagCompletion(cmd, last) {
+		// Sentinel separating flags from positionals; ignore for flag completion.
+		if last != "" && last != "-" && last != "--" && last != currentNormalized && tryFlagCompletion(cmd, last) {
 			return true
 		}
 	}
