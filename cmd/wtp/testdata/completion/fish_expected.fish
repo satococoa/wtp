@@ -22,7 +22,7 @@ function __fish_wtp_dynamic_complete --description 'wtp dynamic completion helpe
 		return
 	end
 
-	set -l raw (command wtp $args)
+	set -l raw (env WTP_SHELL_COMPLETION=1 command wtp $args)
 	for line in $raw
 		if test -z "$line"
 			continue

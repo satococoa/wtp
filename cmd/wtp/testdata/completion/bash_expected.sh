@@ -41,7 +41,7 @@ __wtp_bash_autocomplete() {
     else
       requestComp="${words[*]} --generate-shell-completion"
     fi
-    opts=$(eval "${requestComp}" 2>/dev/null)
+    opts=$(WTP_SHELL_COMPLETION=1 eval "${requestComp}" 2>/dev/null)
     opts=$(_wtp_sanitize_completion_list <<<"${opts}")
     COMPREPLY=($(compgen -W "${opts}" -- ${cur}))
     return 0

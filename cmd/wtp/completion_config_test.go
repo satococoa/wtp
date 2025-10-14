@@ -19,6 +19,17 @@ func TestNormalizeCompletionArgs(t *testing.T) {
 		}
 	})
 
+	t.Run("converts trailing sentinel in completion context", func(t *testing.T) {
+		t.Setenv("COMP_LINE", "wtp remove target --")
+		args := []string{"wtp", "remove", "target", "--", "--generate-shell-completion"}
+		got := normalizeCompletionArgs(args)
+		want := []string{"wtp", "remove", "target", "-", "--generate-shell-completion"}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("normalizeCompletionArgs() = %v, want %v", got, want)
+		}
+	})
+
 	t.Run("keeps completion flag before positional arguments", func(t *testing.T) {
 		args := []string{"wtp", "remove", "--generate-shell-completion", "target"}
 		got := normalizeCompletionArgs(args)

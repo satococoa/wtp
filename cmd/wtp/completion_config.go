@@ -80,7 +80,7 @@ function __fish_wtp_dynamic_complete --description 'wtp dynamic completion helpe
 		return
 	end
 
-	set -l raw (command wtp $args)
+	set -l raw (env WTP_SHELL_COMPLETION=1 command wtp $args)
 	for line in $raw
 		if test -z "$line"
 			continue
@@ -128,7 +128,7 @@ _wtp_sanitize_completion_list() {
 	script = strings.Replace(script, "__wtp_bash_autocomplete() {", helper+"\n__wtp_bash_autocomplete() {", 1)
 
 	const target = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
-	const replacement = "    opts=$(eval \"${requestComp}\" 2>/dev/null)\n" +
+	const replacement = "    opts=$(WTP_SHELL_COMPLETION=1 eval \"${requestComp}\" 2>/dev/null)\n" +
 		"    opts=$(_wtp_sanitize_completion_list <<<\"${opts}\")\n" +
 		"    COMPREPLY=($(compgen -W \"${opts}\" -- ${cur}))"
 
@@ -150,6 +150,10 @@ func normalizeCompletionArgs(args []string) []string {
 	}
 
 	normalized := append([]string(nil), args...)
+
+	if flagIndex > 0 && normalized[flagIndex-1] == "--" && inShellCompletionContext() {
+		normalized[flagIndex-1] = "-"
+	}
 
 	return normalized
 }
@@ -190,4 +194,17 @@ func filterCompletionArgs(args []string) []string {
 	}
 
 	return filtered
+}
+
+func inShellCompletionContext() bool {
+	if os.Getenv("WTP_SHELL_COMPLETION") != "" {
+		return true
+	}
+	if os.Getenv("COMP_LINE") != "" {
+		return true
+	}
+	if os.Getenv("COMP_POINT") != "" {
+		return true
+	}
+	return false
 }
