@@ -358,10 +358,6 @@ func completeWorktrees(_ context.Context, cmd *cli.Command) {
 
 	currentNormalized := strings.TrimSuffix(current, "*")
 
-	if currentNormalized == "" && len(previous) > 0 {
-		return
-	}
-
 	var buf bytes.Buffer
 	if err := getWorktreesForRemove(&buf); err != nil {
 		return
