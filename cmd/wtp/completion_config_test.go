@@ -104,12 +104,31 @@ func TestPatchCompletionScriptFishMatchesGolden(t *testing.T) {
 func TestPatchCompletionScriptPassthroughForOtherShells(t *testing.T) {
 	original := "original-script"
 
-	if got := patchCompletionScript("zsh", original); got != original {
-		t.Fatalf("expected zsh completions to be unchanged, got %q", got)
-	}
-
 	if got := patchCompletionScript("unknown", original); got != original {
 		t.Fatalf("expected unknown shell completions to fall back to original, got %q", got)
+	}
+}
+
+func TestPatchCompletionScriptZshInjectsCompletionEnv(t *testing.T) {
+	const (
+		currentLine = `opts=("${(@f)$(${words[@]:0:#words[@]-1} ${current} --generate-shell-completion)}")`
+		subCmdLine  = `opts=("${(@f)$(${words[@]:0:#words[@]-1} --generate-shell-completion)}")`
+		original    = "\n_wtp() {\n" + currentLine + "\n" + subCmdLine + "\n}\n"
+		envMarker   = "env WTP_SHELL_COMPLETION=1"
+	)
+
+	patched := patchCompletionScript("zsh", original)
+
+	if strings.Contains(patched, currentLine) {
+		t.Fatalf("expected current-word completion to inject env, got:\n%s", patched)
+	}
+
+	if strings.Contains(patched, subCmdLine) {
+		t.Fatalf("expected subcommand completion to inject env, got:\n%s", patched)
+	}
+
+	if count := strings.Count(patched, envMarker); count != 2 {
+		t.Fatalf("expected env injection twice, got %d occurrences:\n%s", count, patched)
 	}
 }
 
