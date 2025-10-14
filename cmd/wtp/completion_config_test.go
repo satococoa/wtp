@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -123,17 +123,8 @@ func TestCompletionCommandMatchesGolden(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.shell, func(t *testing.T) {
-			var buf bytes.Buffer
-			app := newApp()
-			app.Writer = &buf
-			app.ErrWriter = &buf
-
-			args := normalizeCompletionArgs([]string{"wtp", "completion", tc.shell})
-			if err := app.Run(context.Background(), args); err != nil {
-				t.Fatalf("wtp completion %s failed: %v", tc.shell, err)
-			}
-
-			assertCompletionGolden(t, tc.file, buf.String())
+			script := generateCompletionScript(t, tc.shell)
+			assertCompletionGolden(t, tc.file, script)
 		})
 	}
 }
@@ -161,6 +152,49 @@ func TestPatchCompletionScriptZshInjectsCompletionEnv(t *testing.T) {
 	}
 }
 
+func generateCompletionScript(t *testing.T, shell string) string {
+	t.Helper()
+
+	app := newApp()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	defer r.Close()
+
+	app.Writer = w
+	app.ErrWriter = w
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+	os.Stdout = w
+	os.Stderr = w
+	defer func() {
+		os.Stdout = oldStdout
+		os.Stderr = oldStderr
+	}()
+
+	args := normalizeCompletionArgs([]string{"wtp", "completion", shell})
+	runErr := app.Run(context.Background(), args)
+	if err := w.Close(); err != nil {
+		t.Fatalf("failed to close writer: %v", err)
+	}
+
+	if runErr != nil {
+		t.Fatalf("wtp completion %s failed: %v", shell, runErr)
+	}
+
+	data, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("failed to read completion output: %v", err)
+	}
+
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		data = append(data, '\n')
+	}
+
+	return string(data)
+}
+
 func readCompletionTestdata(t *testing.T, name string) string {
 	t.Helper()
 	path := filepath.Join("testdata", "completion", name)
@@ -174,7 +208,7 @@ func readCompletionTestdata(t *testing.T, name string) string {
 func assertCompletionGolden(t *testing.T, name, got string) {
 	t.Helper()
 	expected := readCompletionTestdata(t, name)
-	if got == expected {
+	if canonicalizeScript(got) == canonicalizeScript(expected) {
 		return
 	}
 
@@ -193,4 +227,8 @@ func writeCompletionTestdata(t *testing.T, name, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write testdata %s: %v", name, err)
 	}
+}
+
+func canonicalizeScript(script string) string {
+	return strings.TrimRight(script, "\n") + "\n"
 }

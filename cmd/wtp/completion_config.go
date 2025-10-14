@@ -20,7 +20,11 @@ func configureCompletionCommand(cmd *cli.Command) {
 	cmd.Action = func(ctx context.Context, c *cli.Command) error {
 		writer := c.Writer
 		if writer == nil {
-			writer = os.Stdout
+			if root := c.Root(); root != nil && root.Writer != nil {
+				writer = root.Writer
+			} else {
+				writer = os.Stdout
+			}
 		}
 
 		var buf bytes.Buffer
