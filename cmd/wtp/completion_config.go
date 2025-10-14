@@ -151,10 +151,6 @@ func normalizeCompletionArgs(args []string) []string {
 
 	normalized := append([]string(nil), args...)
 
-	if flagIndex > 0 && normalized[flagIndex-1] == "--" {
-		normalized[flagIndex-1] = "-"
-	}
-
 	return normalized
 }
 

@@ -9,10 +9,10 @@ import (
 )
 
 func TestNormalizeCompletionArgs(t *testing.T) {
-	t.Run("converts trailing sentinel to single hyphen", func(t *testing.T) {
+	t.Run("keeps trailing sentinel untouched", func(t *testing.T) {
 		args := []string{"wtp", "remove", "target", "--", "--generate-shell-completion"}
 		got := normalizeCompletionArgs(args)
-		want := []string{"wtp", "remove", "target", "-", "--generate-shell-completion"}
+		want := []string{"wtp", "remove", "target", "--", "--generate-shell-completion"}
 
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("normalizeCompletionArgs() = %v, want %v", got, want)
