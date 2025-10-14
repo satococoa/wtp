@@ -67,3 +67,16 @@ func TestMaybeCompleteFlagSuggestions_IgnoresPreviousWhenCurrentEmpty(t *testing
 
 	require.False(t, maybeCompleteFlagSuggestions(cmd, "", []string{"--force"}))
 }
+
+func TestMaybeCompleteFlagSuggestions_IgnoresSentinelInPrevious(t *testing.T) {
+	cmd := &cli.Command{
+		Writer: io.Discard,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "force"},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.False(t, maybeCompleteFlagSuggestions(cmd, "feature", []string{"-"}))
+	require.False(t, maybeCompleteFlagSuggestions(cmd, "", []string{"-"}))
+}
