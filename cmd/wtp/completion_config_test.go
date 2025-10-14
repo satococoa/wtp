@@ -175,7 +175,7 @@ func generateCompletionScript(t *testing.T, shell string) string {
 
 	args := normalizeCompletionArgs([]string{"wtp", "completion", shell})
 	runErr := app.Run(context.Background(), args)
-	if err := w.Close(); err != nil {
+	if closeErr := w.Close(); closeErr != nil {
 		t.Fatalf("failed to close writer: %v", err)
 	}
 
