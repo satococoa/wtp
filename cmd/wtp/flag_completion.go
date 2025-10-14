@@ -114,14 +114,18 @@ func tryFlagCompletion(cmd *cli.Command, candidate string) bool {
 }
 
 func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []string) bool {
+	if current == "" {
+		return false
+	}
+
 	currentNormalized := strings.TrimSuffix(current, "*")
 	if tryFlagCompletion(cmd, currentNormalized) {
 		return true
 	}
 
-	if currentNormalized == "" && len(previous) > 0 {
+	if len(previous) > 0 {
 		last := strings.TrimSuffix(previous[len(previous)-1], "*")
-		if tryFlagCompletion(cmd, last) {
+		if last != "" && last != currentNormalized && tryFlagCompletion(cmd, last) {
 			return true
 		}
 	}

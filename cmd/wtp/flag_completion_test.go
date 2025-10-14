@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 
@@ -53,4 +54,16 @@ func TestCompleteFlagSuggestions_ShowsAllForSingleHyphen(t *testing.T) {
 	output := buf.String()
 	require.True(t, strings.Contains(output, "--with-branch") || strings.Contains(output, "-with-branch"))
 	require.True(t, strings.Contains(output, "--force") || strings.Contains(output, "-force"))
+}
+
+func TestMaybeCompleteFlagSuggestions_IgnoresPreviousWhenCurrentEmpty(t *testing.T) {
+	cmd := &cli.Command{
+		Writer: io.Discard,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "force"},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.False(t, maybeCompleteFlagSuggestions(cmd, "", []string{"--force"}))
 }
