@@ -114,12 +114,8 @@ func tryFlagCompletion(cmd *cli.Command, candidate string) bool {
 }
 
 func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []string) bool {
-	if current == "" {
-		return false
-	}
-
 	currentNormalized := strings.TrimSuffix(current, "*")
-	if tryFlagCompletion(cmd, currentNormalized) {
+	if currentNormalized != "" && tryFlagCompletion(cmd, currentNormalized) {
 		return true
 	}
 
@@ -132,8 +128,10 @@ func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []s
 		}
 	}
 
-	if candidate, ok := flagCandidateFromOSArgs(); ok && tryFlagCompletion(cmd, candidate) {
-		return true
+	if candidate, ok := flagCandidateFromOSArgs(); ok {
+		if candidate != "" && candidate != currentNormalized && tryFlagCompletion(cmd, candidate) {
+			return true
+		}
 	}
 
 	return false

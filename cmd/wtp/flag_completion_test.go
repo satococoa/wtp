@@ -101,3 +101,23 @@ func TestFlagCandidateFromOSArgsSentinel(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "target", candidate)
 }
+
+func TestMaybeCompleteFlagSuggestions_UsesOSArgsWhenCurrentEmpty(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "remove", "--w", "--generate-shell-completion"}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{
+		Writer: &buf,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{Name: "with-branch"},
+			&cli.BoolFlag{Name: "force"},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.True(t, maybeCompleteFlagSuggestions(cmd, "", nil))
+	require.Contains(t, buf.String(), "--with-branch")
+}
