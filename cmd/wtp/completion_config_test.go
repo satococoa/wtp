@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -106,6 +108,34 @@ func TestPatchCompletionScriptPassthroughForOtherShells(t *testing.T) {
 
 	if got := patchCompletionScript("unknown", original); got != original {
 		t.Fatalf("expected unknown shell completions to fall back to original, got %q", got)
+	}
+}
+
+func TestCompletionCommandMatchesGolden(t *testing.T) {
+	cases := []struct {
+		shell string
+		file  string
+	}{
+		{shell: "bash", file: "bash_expected.sh"},
+		{shell: "fish", file: "fish_expected.fish"},
+		{shell: "zsh", file: "zsh_expected.zsh"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.shell, func(t *testing.T) {
+			var buf bytes.Buffer
+			app := newApp()
+			app.Writer = &buf
+			app.ErrWriter = &buf
+
+			args := normalizeCompletionArgs([]string{"wtp", "completion", tc.shell})
+			if err := app.Run(context.Background(), args); err != nil {
+				t.Fatalf("wtp completion %s failed: %v", tc.shell, err)
+			}
+
+			assertCompletionGolden(t, tc.file, buf.String())
+		})
 	}
 }
 
