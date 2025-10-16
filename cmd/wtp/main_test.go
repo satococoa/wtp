@@ -128,8 +128,9 @@ func createApp() *cli.Command {
 		Usage: "Enhanced Git worktree management",
 		Description: "wtp (Worktree Plus) simplifies Git worktree creation with automatic branch tracking, " +
 			"project-specific setup hooks, and convenient defaults.",
-		Version:               version,
-		EnableShellCompletion: true,
+		Version:                         version,
+		EnableShellCompletion:           true,
+		ConfigureShellCompletionCommand: configureCompletionCommand,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:  "version",

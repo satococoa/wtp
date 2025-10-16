@@ -171,6 +171,13 @@ func analyzeGitWorktreeError(workTreePath, branchName string, gitError error, gi
 		}
 	}
 
+	if isBranchAlreadyExistsError(errorOutput) {
+		return &BranchAlreadyExistsError{
+			BranchName: branchName,
+			GitError:   gitError,
+		}
+	}
+
 	if isPathAlreadyExistsError(errorOutput) {
 		return &PathAlreadyExistsError{
 			Path:     workTreePath,
@@ -227,6 +234,11 @@ func isWorktreeAlreadyExistsError(errorOutput string) bool {
 		strings.Contains(errorOutput, "already used by worktree")
 }
 
+func isBranchAlreadyExistsError(errorOutput string) bool {
+	return strings.Contains(errorOutput, "branch") &&
+		strings.Contains(errorOutput, "already exists")
+}
+
 func isPathAlreadyExistsError(errorOutput string) bool {
 	return strings.Contains(errorOutput, "already exists")
 }
@@ -262,6 +274,24 @@ Solutions:
   • Remove the existing worktree first
 
 Original error: %v`, e.BranchName, e.BranchName, e.GitError)
+}
+
+type BranchAlreadyExistsError struct {
+	BranchName string
+	GitError   error
+}
+
+func (e *BranchAlreadyExistsError) Error() string {
+	return fmt.Sprintf(`branch '%s' already exists
+
+The branch '%s' already exists in this repository.
+
+Solutions:
+  • Run 'wtp add %s' to create a worktree for the existing branch
+  • Choose a different branch name with '--branch'
+  • Delete the existing branch if it's no longer needed
+
+Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.GitError)
 }
 
 type PathAlreadyExistsError struct {
@@ -395,7 +425,12 @@ func getBranches(w io.Writer) error {
 }
 
 // completeBranches provides branch name completion for urfave/cli (wrapper for getBranches)
-func completeBranches(_ context.Context, _ *cli.Command) {
+func completeBranches(_ context.Context, cmd *cli.Command) {
+	current, previous := completionArgsFromCommand(cmd)
+	if maybeCompleteFlagSuggestions(cmd, current, previous) {
+		return
+	}
+
 	var buf bytes.Buffer
 	if err := getBranches(&buf); err != nil {
 		return
