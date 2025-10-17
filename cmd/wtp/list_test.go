@@ -109,7 +109,7 @@ func TestListCommand_CommandConstruction(t *testing.T) {
 			cmd := &cli.Command{}
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -178,7 +178,7 @@ func TestListCommand_Output(t *testing.T) {
 			cmd := &cli.Command{}
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -223,7 +223,7 @@ func TestListCommand_ExecutionError(t *testing.T) {
 	cmd := &cli.Command{}
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -245,7 +245,7 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 	cmd := &cli.Command{}
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -306,7 +306,7 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 			cmd := &cli.Command{}
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -374,7 +374,7 @@ func TestListCommand_LongPaths(t *testing.T) {
 			cmd := &cli.Command{}
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -424,7 +424,7 @@ branch refs/heads/feature/test
 	cmd := &cli.Command{}
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -455,7 +455,7 @@ func TestListCommand_HeaderFormatting(t *testing.T) {
 	cmd := &cli.Command{}
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
 
@@ -558,7 +558,7 @@ branch refs/heads/feature/awesome
 			cmd := &cli.Command{}
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo")
 
@@ -693,7 +693,7 @@ branch refs/heads/hoge
 			}
 
 			// Special handling for the base_dir test case
-			baseDir := "../worktrees"
+			baseDir := config.DefaultBaseDir
 			if tt.name == "paths relative to main worktree when in subdirectory" {
 				baseDir = ".worktrees"
 				mainRepoPath = "/Users/satoshi/dev/src/github.com/satococoa/giselle"
@@ -784,7 +784,7 @@ branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
 			cmd := &cli.Command{}
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo")
 
