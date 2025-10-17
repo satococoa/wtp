@@ -33,7 +33,7 @@ func isWorktreeManaged(worktreePath string, cfg *config.Config, mainRepoPath str
 		// Create default config when none is available
 		defaultCfg := &config.Config{
 			Defaults: config.Defaults{
-				BaseDir: "../worktrees",
+				BaseDir: config.DefaultBaseDir,
 			},
 		}
 		cfg = defaultCfg
@@ -288,10 +288,7 @@ func getWorktreeNameFromPath(worktreePath string, cfg *config.Config, mainRepoPa
 	}
 
 	// Get base_dir path
-	baseDir := cfg.Defaults.BaseDir
-	if !filepath.IsAbs(baseDir) {
-		baseDir = filepath.Join(mainRepoPath, baseDir)
-	}
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
 
 	// Calculate relative path from base_dir
 	relPath, err := filepath.Rel(baseDir, worktreePath)

@@ -172,7 +172,7 @@ func isWorktreeManagedList(worktreePath string, cfg *config.Config, mainRepoPath
 		// Create default config when none is available
 		defaultCfg := &config.Config{
 			Defaults: config.Defaults{
-				BaseDir: "../worktrees",
+				BaseDir: config.DefaultBaseDir,
 			},
 		}
 		cfg = defaultCfg
