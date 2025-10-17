@@ -218,6 +218,13 @@ The `${WTP_REPO_BASENAME}` placeholder expands to the repository's directory
 name when resolving paths, ensuring zero-config isolation between different
 repositories. You can combine it with additional path segments as needed.
 
+> **Breaking change (vNEXT):** If you relied on the previous implicit default
+> of `../worktrees` without a `.wtp.yml`, existing worktrees will now appear
+> unmanaged because the new default expects
+> `../worktrees/${WTP_REPO_BASENAME}`. Add a `.wtp.yml` with
+> `base_dir: "../worktrees"` (or reorganize your worktrees) before upgrading
+> to keep the legacy layout working.
+
 ### Copy Hooks: Main Worktree Reference
 
 Copy hooks are designed to help you bootstrap new worktrees using files from
