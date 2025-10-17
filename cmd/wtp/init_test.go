@@ -138,7 +138,7 @@ func TestInitCommand_Success(t *testing.T) {
 	// Check for required sections
 	assert.Contains(t, contentStr, "version: \"1.0\"")
 	assert.Contains(t, contentStr, "defaults:")
-	assert.Contains(t, contentStr, "base_dir: ../worktrees")
+	assert.Contains(t, contentStr, "base_dir: ../worktrees/${WTP_REPO_BASENAME}")
 	assert.Contains(t, contentStr, "hooks:")
 	assert.Contains(t, contentStr, "post_create:")
 
@@ -198,6 +198,12 @@ func TestInitCommand_WriteFileError(t *testing.T) {
 
 	cmd := NewInitCommand()
 	ctx := context.Background()
+	originalWriteFile := writeFile
+	writeFile = func(string, []byte, os.FileMode) error {
+		return assert.AnError
+	}
+	defer func() { writeFile = originalWriteFile }()
+
 	err = cmd.Action(ctx, &cli.Command{})
 
 	assert.Error(t, err)

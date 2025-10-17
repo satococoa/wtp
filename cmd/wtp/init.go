@@ -16,6 +16,7 @@ const configFileMode = 0o600
 
 // Variable to allow mocking in tests
 var osGetwd = os.Getwd
+var writeFile = os.WriteFile
 
 // NewInitCommand creates the init command definition
 func NewInitCommand() *cli.Command {
@@ -54,7 +55,8 @@ version: "1.0"
 # Default settings for worktrees
 defaults:
   # Base directory for worktrees (relative to repository root)
-  base_dir: ../worktrees
+  # ${WTP_REPO_BASENAME} expands to the repository directory name
+  base_dir: ../worktrees/${WTP_REPO_BASENAME}
 
 # Hooks that run after creating a worktree
 hooks:
@@ -87,7 +89,7 @@ hooks:
 `
 
 	// Write configuration file with comments
-	if err := os.WriteFile(configPath, []byte(configContent), configFileMode); err != nil {
+	if err := writeFile(configPath, []byte(configContent), configFileMode); err != nil {
 		return errors.DirectoryAccessFailed("create configuration file", configPath, err)
 	}
 

@@ -240,10 +240,7 @@ func getWorktreeNameFromPathCd(worktreePath string, cfg *config.Config, mainRepo
 	}
 
 	// Get base_dir path
-	baseDir := cfg.Defaults.BaseDir
-	if !filepath.IsAbs(baseDir) {
-		baseDir = filepath.Join(mainRepoPath, baseDir)
-	}
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
 
 	// Calculate relative path from base_dir
 	relPath, err := filepath.Rel(baseDir, worktreePath)

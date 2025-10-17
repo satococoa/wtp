@@ -18,8 +18,56 @@ func TestLoadConfig_NonExistentFile(t *testing.T) {
 		t.Errorf("Expected version %s, got %s", CurrentVersion, config.Version)
 	}
 
-	if config.Defaults.BaseDir != "../worktrees" {
-		t.Errorf("Expected default base_dir '../worktrees', got %s", config.Defaults.BaseDir)
+	if config.Defaults.BaseDir != DefaultBaseDir {
+		t.Errorf("Expected default base_dir '%s', got %s", DefaultBaseDir, config.Defaults.BaseDir)
+	}
+}
+
+func TestExpandBaseDirVariables(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		baseDir  string
+		repoRoot string
+		expected string
+	}{
+		{
+			name:     "single placeholder",
+			baseDir:  "../worktrees/${WTP_REPO_BASENAME}",
+			repoRoot: "/home/user/project",
+			expected: "../worktrees/project",
+		},
+		{
+			name:     "multiple placeholders",
+			baseDir:  "${WTP_REPO_BASENAME}/${WTP_REPO_BASENAME}",
+			repoRoot: "/home/user/project",
+			expected: "project/project",
+		},
+		{
+			name:     "no placeholder",
+			baseDir:  "../custom",
+			repoRoot: "/home/user/project",
+			expected: "../custom",
+		},
+		{
+			name:     "trailing slash in repo root",
+			baseDir:  "../worktrees/${WTP_REPO_BASENAME}",
+			repoRoot: "/home/user/project/",
+			expected: "../worktrees/project",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := expandBaseDirVariables(tt.baseDir, tt.repoRoot)
+			if result != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, result)
+			}
+		})
 	}
 }
 
@@ -151,7 +199,7 @@ func TestConfigValidate(t *testing.T) {
 			config: &Config{
 				Version: "1.0",
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 				Hooks: Hooks{
 					PostCreate: []Hook{
@@ -169,7 +217,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "empty version gets default",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 			},
 			expectError: false,
@@ -333,15 +381,26 @@ func TestResolveWorktreePath(t *testing.T) {
 		expected     string
 	}{
 		{
-			name: "relative base_dir",
+			name: "default base_dir expands repo basename",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 			},
 			repoRoot:     "/home/user/project",
 			worktreeName: "feature/auth",
-			expected:     "/home/user/worktrees/feature/auth",
+			expected:     "/home/user/worktrees/project/feature/auth",
+		},
+		{
+			name: "relative base_dir without placeholders",
+			config: &Config{
+				Defaults: Defaults{
+					BaseDir: "../custom-worktrees",
+				},
+			},
+			repoRoot:     "/home/user/project",
+			worktreeName: "feature/auth",
+			expected:     "/home/user/custom-worktrees/feature/auth",
 		},
 		{
 			name: "absolute base_dir",
@@ -355,15 +414,15 @@ func TestResolveWorktreePath(t *testing.T) {
 			expected:     "/tmp/worktrees/feature/auth",
 		},
 		{
-			name: "simple worktree name",
+			name: "empty worktree name returns base dir",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 			},
 			repoRoot:     "/home/user/project",
-			worktreeName: "main",
-			expected:     "/home/user/worktrees/main",
+			worktreeName: "",
+			expected:     "/home/user/worktrees/project",
 		},
 	}
 
