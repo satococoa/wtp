@@ -41,13 +41,13 @@ branch refs/heads/feature/auth
 		{
 			name:          "feature worktree by branch name",
 			worktreeName:  "feature/auth",
-                        expectedPath:  "/Users/dev/project/worktrees/main/feature/auth",
+			expectedPath:  "/Users/dev/project/worktrees/main/feature/auth",
 			shouldSucceed: true,
 		},
 		{
 			name:          "feature worktree by directory name",
 			worktreeName:  "auth",
-                        expectedPath:  "/Users/dev/project/worktrees/main/feature/auth",
+			expectedPath:  "/Users/dev/project/worktrees/main/feature/auth",
 			shouldSucceed: true, // Directory-based resolution works as expected
 		},
 		{
