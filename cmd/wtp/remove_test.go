@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -387,6 +388,56 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'nonexistent' not found")
 	// Should show "No worktrees found" since the only non-main worktree is unmanaged
 	assert.Contains(t, err.Error(), "No worktrees found")
+}
+
+func TestRemoveCommand_FailsWhenRemovingCurrentWorktree(t *testing.T) {
+	targetPath := "/repo/.worktrees/feature/foo"
+	mockWorktreeList := fmt.Sprintf(
+		"worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n"+
+			"worktree %s\nHEAD def456\nbranch refs/heads/feature/foo\n\n",
+		targetPath,
+	)
+
+	tests := []struct {
+		name string
+		cwd  string
+	}{
+		{
+			name: "exact worktree path",
+			cwd:  targetPath,
+		},
+		{
+			name: "nested directory inside worktree",
+			cwd:  filepath.Join(targetPath, "nested"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &mockRemoveCommandExecutor{
+				results: []command.Result{
+					{
+						Output: mockWorktreeList,
+						Error:  nil,
+					},
+				},
+			}
+
+			cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature/foo"})
+			var buf bytes.Buffer
+
+			err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, tt.cwd, "feature/foo", false, false, false)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot remove worktree 'feature/foo'")
+			assert.Equal(t, []command.Command{
+				{
+					Name: "git",
+					Args: []string{"worktree", "list", "--porcelain"},
+				},
+			}, mockExec.executedCommands)
+		})
+	}
 }
 
 func TestRemoveCommand_ExecutionError(t *testing.T) {

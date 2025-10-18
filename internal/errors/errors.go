@@ -165,6 +165,13 @@ func WorktreeRemovalFailed(path string, gitError error) error {
 	return errors.New(msg)
 }
 
+func CannotRemoveCurrentWorktree(worktreeName, path string) error {
+	msg := fmt.Sprintf("cannot remove worktree '%s' while you are currently inside it", worktreeName)
+	msg += fmt.Sprintf("\n\nCurrent location: %s", path)
+	msg += "\n\nTip: Run 'wtp cd @' or 'wtp cd <another-worktree>' to switch before removing."
+	return errors.New(msg)
+}
+
 func BranchRemovalFailed(branchName string, gitError error, isForced bool) error {
 	msg := fmt.Sprintf("failed to remove branch '%s'", branchName)
 
