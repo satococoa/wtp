@@ -68,6 +68,7 @@ func isWorktreeManaged(worktreePath string, cfg *config.Config, mainRepoPath str
 func NewRemoveCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "remove",
+		Aliases:   []string{"rm"},
 		Usage:     "Remove a worktree",
 		UsageText: "wtp remove <worktree-name>",
 		Description: "Removes the worktree with the specified directory name.\n\n" +

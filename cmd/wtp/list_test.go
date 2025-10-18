@@ -21,6 +21,7 @@ func TestNewListCommand(t *testing.T) {
 
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "list", cmd.Name)
+	assert.Contains(t, cmd.Aliases, "ls")
 	assert.Equal(t, "List all worktrees", cmd.Usage)
 	assert.NotEmpty(t, cmd.Description)
 	assert.NotNil(t, cmd.Action)

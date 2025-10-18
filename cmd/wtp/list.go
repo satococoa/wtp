@@ -50,6 +50,7 @@ var (
 func NewListCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "list",
+		Aliases:     []string{"ls"},
 		Usage:       "List all worktrees",
 		Description: "Shows all worktrees with their paths, branches, and HEAD commits.",
 		Action:      listCommand,
