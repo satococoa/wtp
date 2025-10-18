@@ -211,6 +211,15 @@ func TestWorktreeRemovalFailed(t *testing.T) {
 	assert.Contains(t, err.Error(), "Original error:")
 }
 
+func TestCannotRemoveCurrentWorktree(t *testing.T) {
+	err := CannotRemoveCurrentWorktree("feature/foo", "/repo/.worktrees/feature/foo")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot remove worktree 'feature/foo'")
+	assert.Contains(t, err.Error(), "Current location: /repo/.worktrees/feature/foo")
+	assert.Contains(t, err.Error(), "wtp cd @")
+}
+
 func TestBranchRemovalFailed(t *testing.T) {
 	tests := []struct {
 		name       string

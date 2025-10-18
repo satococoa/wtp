@@ -133,7 +133,7 @@ func removeCommandWithCommandExecutor(
 	_ *cli.Command,
 	w io.Writer,
 	executor command.Executor,
-	_ string,
+	cwd string,
 	worktreeName string,
 	force, withBranch, forceBranch bool,
 ) error {
@@ -151,6 +151,20 @@ func removeCommandWithCommandExecutor(
 	targetWorktree, err := findTargetWorktreeFromList(worktrees, worktreeName)
 	if err != nil {
 		return err
+	}
+
+	absTargetPath, err := filepath.Abs(targetWorktree.Path)
+	if err != nil {
+		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
+	}
+
+	absCwd, err := filepath.Abs(cwd)
+	if err != nil {
+		return errors.DirectoryAccessFailed("access current", cwd, err)
+	}
+
+	if isPathWithin(absTargetPath, absCwd) {
+		return errors.CannotRemoveCurrentWorktree(worktreeName, absTargetPath)
 	}
 
 	// Remove worktree using CommandExecutor
@@ -187,6 +201,23 @@ func validateRemoveInput(worktreeName string, withBranch, forceBranch bool) erro
 		return fmt.Errorf("--force-branch requires --with-branch")
 	}
 	return nil
+}
+
+func isPathWithin(basePath, targetPath string) bool {
+	rel, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return false
+	}
+
+	if rel == "." || rel == "" {
+		return true
+	}
+
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return false
+	}
+
+	return true
 }
 
 func removeBranchWithCommandExecutor(
