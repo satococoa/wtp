@@ -250,23 +250,22 @@ func truncatePath(path string, maxWidth int) string {
 	return path[:startLen] + ellipsis + path[len(path)-endLen:]
 }
 
+// getWorktreeDisplayName returns the display name for a worktree, with fallback for nil config
+func getWorktreeDisplayName(wt git.Worktree, cfg *config.Config, mainRepoPath string) string {
+	if cfg != nil {
+		return getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
+	}
+	// Fallback when config can't be loaded
+	if wt.IsMain {
+		return "@"
+	}
+	return filepath.Base(wt.Path)
+}
+
 // displayWorktreesQuiet outputs only the worktree names (as shown in PATH column), one per line
 func displayWorktreesQuiet(w io.Writer, worktrees []git.Worktree, cfg *config.Config, mainRepoPath string) {
 	for _, wt := range worktrees {
-		var pathDisplay string
-
-		// Use unified worktree naming function
-		if cfg != nil {
-			pathDisplay = getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
-		} else {
-			// Fallback when config can't be loaded
-			if wt.IsMain {
-				pathDisplay = "@"
-			} else {
-				pathDisplay = filepath.Base(wt.Path)
-			}
-		}
-
+		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
 		fmt.Fprintln(w, pathDisplay)
 	}
 }
@@ -301,20 +300,10 @@ func displayWorktreesRelative(
 	var displayItems []displayData
 
 	for _, wt := range worktrees {
-		var pathDisplay string
 		var isCurrent bool
 
-		// Use unified worktree naming function
-		if cfg != nil {
-			pathDisplay = getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
-		} else {
-			// Fallback when config can't be loaded
-			if wt.IsMain {
-				pathDisplay = "@"
-			} else {
-				pathDisplay = filepath.Base(wt.Path)
-			}
-		}
+		// Get worktree display name
+		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
 
 		// Check if this is the current worktree
 		if wt.Path == currentPath {
