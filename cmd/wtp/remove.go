@@ -163,7 +163,7 @@ func removeCommandWithCommandExecutor(
 		return errors.DirectoryAccessFailed("access current", cwd, err)
 	}
 
-	if isPathWithin(absTargetPath, absCwd) {
+	if isPathWithin(absCwd, absTargetPath) {
 		return errors.CannotRemoveCurrentWorktree(worktreeName, absTargetPath)
 	}
 
