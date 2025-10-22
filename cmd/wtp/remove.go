@@ -23,45 +23,7 @@ var removeGetwd = os.Getwd
 
 // isWorktreeManaged determines if a worktree is managed by wtp
 func isWorktreeManaged(worktreePath string, cfg *config.Config, mainRepoPath string, isMain bool) bool {
-	// Main worktree is always managed
-	if isMain {
-		return true
-	}
-
-	// Get base directory - use default config if config is not available
-	if cfg == nil {
-		// Create default config when none is available
-		defaultCfg := &config.Config{
-			Defaults: config.Defaults{
-				BaseDir: "../worktrees",
-			},
-		}
-		cfg = defaultCfg
-	}
-
-	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
-	// Remove trailing slash if it exists
-	baseDir = strings.TrimSuffix(baseDir, "/")
-
-	// Check if worktree path is under base directory
-	absWorktreePath, err := filepath.Abs(worktreePath)
-	if err != nil {
-		return false
-	}
-
-	absBaseDir, err := filepath.Abs(baseDir)
-	if err != nil {
-		return false
-	}
-
-	// Check if worktree is within base directory
-	relPath, err := filepath.Rel(absBaseDir, absWorktreePath)
-	if err != nil {
-		return false
-	}
-
-	// If relative path starts with "..", it's outside base directory
-	return !strings.HasPrefix(relPath, "..")
+	return isWorktreeManagedCommon(worktreePath, cfg, mainRepoPath, isMain)
 }
 
 // NewRemoveCommand creates the remove command definition
@@ -134,7 +96,7 @@ func removeCommandWithCommandExecutor(
 	_ *cli.Command,
 	w io.Writer,
 	executor command.Executor,
-	_ string,
+	cwd string,
 	worktreeName string,
 	force, withBranch, forceBranch bool,
 ) error {
@@ -152,6 +114,20 @@ func removeCommandWithCommandExecutor(
 	targetWorktree, err := findTargetWorktreeFromList(worktrees, worktreeName)
 	if err != nil {
 		return err
+	}
+
+	absTargetPath, err := filepath.Abs(targetWorktree.Path)
+	if err != nil {
+		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
+	}
+
+	absCwd, err := filepath.Abs(cwd)
+	if err != nil {
+		return errors.DirectoryAccessFailed("access current", cwd, err)
+	}
+
+	if isPathWithin(absTargetPath, absCwd) {
+		return errors.CannotRemoveCurrentWorktree(worktreeName, absTargetPath)
 	}
 
 	// Remove worktree using CommandExecutor
@@ -188,6 +164,23 @@ func validateRemoveInput(worktreeName string, withBranch, forceBranch bool) erro
 		return fmt.Errorf("--force-branch requires --with-branch")
 	}
 	return nil
+}
+
+func isPathWithin(basePath, targetPath string) bool {
+	rel, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return false
+	}
+
+	if rel == "." || rel == "" {
+		return true
+	}
+
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return false
+	}
+
+	return true
 }
 
 func removeBranchWithCommandExecutor(
