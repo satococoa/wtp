@@ -391,7 +391,7 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 }
 
 func TestRemoveCommand_FailsWhenRemovingCurrentWorktree(t *testing.T) {
-	targetPath := "/repo/worktrees/feature/foo"
+	targetPath := "/worktrees/feature/foo"
 	mockWorktreeList := fmt.Sprintf(
 		"worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n"+
 			"worktree %s\nHEAD def456\nbranch refs/heads/feature/foo\n\n",
