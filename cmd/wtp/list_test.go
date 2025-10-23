@@ -25,6 +25,7 @@ func TestNewListCommand(t *testing.T) {
 	assert.Equal(t, "List all worktrees", cmd.Usage)
 	assert.NotEmpty(t, cmd.Description)
 	assert.NotNil(t, cmd.Action)
+	assert.NotNil(t, cmd.ShellComplete)
 }
 
 // ===== Pure Business Logic Tests =====
@@ -945,4 +946,21 @@ detached
 	assert.NotContains(t, output, "detached HEAD")
 	assert.NotContains(t, output, "BRANCH")
 	assert.NotContains(t, output, "HEAD")
+}
+
+func TestCompleteList_SuggestsQuietFlag(t *testing.T) {
+	t.Run("suggests quiet flag alias", func(t *testing.T) {
+		originalArgs := os.Args
+		t.Cleanup(func() { os.Args = originalArgs })
+
+		os.Args = []string{"wtp", "list", "--q", "--generate-shell-completion"}
+
+		var buf bytes.Buffer
+		cmd := NewListCommand()
+		cmd.Writer = &buf
+
+		cmd.ShellComplete(context.Background(), cmd)
+
+		assert.Contains(t, buf.String(), "--quiet")
+	})
 }

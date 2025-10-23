@@ -49,10 +49,11 @@ var (
 // NewListCommand creates the list command definition
 func NewListCommand() *cli.Command {
 	return &cli.Command{
-		Name:        "list",
-		Aliases:     []string{"ls"},
-		Usage:       "List all worktrees",
-		Description: "Shows all worktrees with their paths, branches, and HEAD commits.",
+		Name:          "list",
+		Aliases:       []string{"ls"},
+		Usage:         "List all worktrees",
+		Description:   "Shows all worktrees with their paths, branches, and HEAD commits.",
+		ShellComplete: completeList,
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    "quiet",
@@ -133,6 +134,12 @@ func listCommandWithCommandExecutor(
 		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
 	}
 	return nil
+}
+
+// completeList provides shell completion for the list command (flags only)
+func completeList(_ context.Context, cmd *cli.Command) {
+	current, previous := completionArgsFromCommand(cmd)
+	maybeCompleteFlagSuggestions(cmd, current, previous)
 }
 
 func parseWorktreesFromOutput(output string) []git.Worktree {
