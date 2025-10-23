@@ -53,7 +53,14 @@ func NewListCommand() *cli.Command {
 		Aliases:     []string{"ls"},
 		Usage:       "List all worktrees",
 		Description: "Shows all worktrees with their paths, branches, and HEAD commits.",
-		Action:      listCommand,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "quiet",
+				Aliases: []string{"q"},
+				Usage:   "Only display worktree paths",
+			},
+		},
+		Action: listCommand,
 	}
 }
 
@@ -85,13 +92,16 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	// Load config to get base_dir
 	cfg, _ := config.LoadConfig(mainRepoPath)
 
+	// Get quiet flag
+	quiet := cmd.Bool("quiet")
+
 	// Use CommandExecutor-based implementation
 	executor := listNewExecutor()
-	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath)
+	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath, quiet)
 }
 
 func listCommandWithCommandExecutor(
-	_ *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string,
+	_ *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string, quiet bool,
 ) error {
 	// Get current working directory
 	cwd, err := listGetwd()
@@ -110,12 +120,18 @@ func listCommandWithCommandExecutor(
 	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
 	if len(worktrees) == 0 {
-		fmt.Fprintln(w, "No worktrees found")
+		if !quiet {
+			fmt.Fprintln(w, "No worktrees found")
+		}
 		return nil
 	}
 
-	// Display worktrees with relative paths
-	displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
+	// Display worktrees
+	if quiet {
+		displayWorktreesQuiet(w, worktrees, cfg, mainRepoPath)
+	} else {
+		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
+	}
 	return nil
 }
 
@@ -197,6 +213,26 @@ func truncatePath(path string, maxWidth int) string {
 	return path[:startLen] + ellipsis + path[len(path)-endLen:]
 }
 
+// getWorktreeDisplayName returns the display name for a worktree, with fallback for nil config
+func getWorktreeDisplayName(wt git.Worktree, cfg *config.Config, mainRepoPath string) string {
+	if cfg != nil {
+		return getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
+	}
+	// Fallback when config can't be loaded
+	if wt.IsMain {
+		return "@"
+	}
+	return filepath.Base(wt.Path)
+}
+
+// displayWorktreesQuiet outputs only the worktree names (as shown in PATH column), one per line
+func displayWorktreesQuiet(w io.Writer, worktrees []git.Worktree, cfg *config.Config, mainRepoPath string) {
+	for _, wt := range worktrees {
+		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
+		fmt.Fprintln(w, pathDisplay)
+	}
+}
+
 // displayWorktreesRelative formats and displays worktree information with relative paths
 func displayWorktreesRelative(
 	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
@@ -227,20 +263,10 @@ func displayWorktreesRelative(
 	var displayItems []displayData
 
 	for _, wt := range worktrees {
-		var pathDisplay string
 		var isCurrent bool
 
-		// Use unified worktree naming function
-		if cfg != nil {
-			pathDisplay = getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
-		} else {
-			// Fallback when config can't be loaded
-			if wt.IsMain {
-				pathDisplay = "@"
-			} else {
-				pathDisplay = filepath.Base(wt.Path)
-			}
-		}
+		// Get worktree display name
+		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
 
 		// Check if this is the current worktree
 		if wt.Path == currentPath {

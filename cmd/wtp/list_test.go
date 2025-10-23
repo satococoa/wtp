@@ -112,7 +112,7 @@ func TestListCommand_CommandConstruction(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 			assert.NoError(t, err)
 			// Verify the correct git command was executed
@@ -181,7 +181,7 @@ func TestListCommand_Output(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -226,7 +226,7 @@ func TestListCommand_ExecutionError(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "git command failed")
@@ -248,7 +248,7 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -309,7 +309,7 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -377,7 +377,7 @@ func TestListCommand_LongPaths(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -427,7 +427,7 @@ branch refs/heads/feature/test
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -458,7 +458,7 @@ func TestListCommand_HeaderFormatting(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -561,7 +561,7 @@ branch refs/heads/feature/awesome
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo")
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo", false)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -703,7 +703,7 @@ branch refs/heads/hoge
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: baseDir},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, mainRepoPath)
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, mainRepoPath, false)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -787,7 +787,7 @@ branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo")
+			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo", false)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -810,4 +810,139 @@ branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
 			}
 		})
 	}
+}
+
+// ===== Quiet Mode Tests =====
+
+func TestListCommand_QuietMode_SingleWorktree(t *testing.T) {
+	mockExec := &mockListCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "worktree /test/repo\nHEAD abc123\nbranch refs/heads/main\n\n",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "../worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true)
+
+	assert.NoError(t, err)
+	output := buf.String()
+
+	// Should only contain the worktree name (@), nothing else
+	assert.Equal(t, "@\n", output)
+	// Should not contain headers
+	assert.NotContains(t, output, "PATH")
+	assert.NotContains(t, output, "BRANCH")
+	assert.NotContains(t, output, "HEAD")
+}
+
+func TestListCommand_QuietMode_MultipleWorktrees(t *testing.T) {
+	mockOutput := `worktree /test/repo
+HEAD abc123
+branch refs/heads/main
+
+worktree /test/repo/.worktrees/feature/test
+HEAD def456
+branch refs/heads/feature/test
+
+worktree /test/repo/.worktrees/feature/another
+HEAD ghi789
+branch refs/heads/feature/another
+
+`
+
+	mockExec := &mockListCommandExecutor{
+		results: []command.Result{
+			{Output: mockOutput, Error: nil},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: ".worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true)
+
+	assert.NoError(t, err)
+	output := buf.String()
+
+	// Should contain all three worktree names, one per line
+	expectedOutput := "@\nfeature/test\nfeature/another\n"
+	assert.Equal(t, expectedOutput, output)
+
+	// Should not contain headers or formatting
+	assert.NotContains(t, output, "PATH")
+	assert.NotContains(t, output, "BRANCH")
+	assert.NotContains(t, output, "HEAD")
+	assert.NotContains(t, output, "----")
+}
+
+func TestListCommand_QuietMode_NoWorktrees(t *testing.T) {
+	mockExec := &mockListCommandExecutor{
+		results: []command.Result{
+			{
+				Output: "",
+				Error:  nil,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "../worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true)
+
+	assert.NoError(t, err)
+	output := buf.String()
+	// Should produce no output in quiet mode when there are no worktrees
+	assert.Equal(t, "", output)
+	assert.NotContains(t, output, "No worktrees found")
+}
+
+func TestListCommand_QuietMode_DetachedHead(t *testing.T) {
+	mockOutput := `worktree /test/repo
+HEAD abc123
+branch refs/heads/main
+
+worktree /test/repo/.worktrees/detached
+HEAD def456
+detached
+
+`
+
+	mockExec := &mockListCommandExecutor{
+		results: []command.Result{
+			{Output: mockOutput, Error: nil},
+		},
+	}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{}
+
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: ".worktrees"},
+	}
+	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true)
+
+	assert.NoError(t, err)
+	output := buf.String()
+
+	// Should only contain worktree names, not branch state information
+	expectedOutput := "@\ndetached\n"
+	assert.Equal(t, expectedOutput, output)
+	assert.NotContains(t, output, "detached HEAD")
+	assert.NotContains(t, output, "BRANCH")
+	assert.NotContains(t, output, "HEAD")
 }
