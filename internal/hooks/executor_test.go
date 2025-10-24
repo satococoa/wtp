@@ -508,28 +508,29 @@ func TestExecutePostCreateHooks_StreamingOutput(t *testing.T) {
 }
 
 func setupStreamingTestDirectories(t *testing.T) (repoRoot, worktreeDir, scriptPath string) {
-	tempDir := t.TempDir()
-	repoRoot = filepath.Join(tempDir, "repo")
-	worktreeDir = filepath.Join(tempDir, "worktree")
-
-	// Create directories
-	if err := os.MkdirAll(repoRoot, 0755); err != nil {
-		t.Fatalf("Failed to create repo dir: %v", err)
-	}
-	if err := os.MkdirAll(worktreeDir, 0755); err != nil {
-		t.Fatalf("Failed to create worktree dir: %v", err)
-	}
-
-	// Create a script that outputs multiple lines with delays
-	scriptPath = filepath.Join(repoRoot, "stream-test.sh")
-	scriptContent := `#!/bin/bash
+	return setupScriptTestDirectories(t, `#!/bin/bash
 echo "Starting..."
 sleep 0.1
 echo "Processing..."
 sleep 0.1
 echo "Done!"
-`
-	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
+`)
+}
+
+func setupScriptTestDirectories(t *testing.T, scriptContent string) (repoRoot, worktreeDir, scriptPath string) {
+	tempDir := t.TempDir()
+	repoRoot = filepath.Join(tempDir, "repo")
+	worktreeDir = filepath.Join(tempDir, "worktree")
+
+	if err := os.MkdirAll(repoRoot, 0o755); err != nil {
+		t.Fatalf("Failed to create repo dir: %v", err)
+	}
+	if err := os.MkdirAll(worktreeDir, 0o755); err != nil {
+		t.Fatalf("Failed to create worktree dir: %v", err)
+	}
+
+	scriptPath = filepath.Join(repoRoot, "hook-test.sh")
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0o755); err != nil {
 		t.Fatalf("Failed to create script: %v", err)
 	}
 
@@ -591,6 +592,38 @@ func verifyStreamingTiming(t *testing.T, sw *streamingWriter) {
 	// Verify outputs came in the right order with delays
 	if startIdx >= procIdx || procIdx >= doneIdx {
 		t.Error("Expected streaming output with delays, but all writes happened too quickly")
+	}
+}
+
+func TestExecutePostCreateHooks_CommandWithLargeOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping large output test on Windows")
+	}
+
+	scriptContent := "#!/bin/bash\nprintf '%70000s\n' ''\n"
+	repoRoot, worktreeDir, scriptPath := setupScriptTestDirectories(t, scriptContent)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: scriptPath,
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	executor := NewExecutor(cfg, repoRoot)
+
+	err := executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	if err != nil {
+		t.Fatalf("Failed to execute hooks with large output: %v", err)
+	}
+
+	if !strings.Contains(buf.String(), "Running:") {
+		t.Errorf("Expected command log in output, got %q", buf.String())
 	}
 }
 

@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/satococoa/wtp/internal/config"
 )
@@ -166,20 +166,16 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 	const numStreams = 2 // stdout and stderr
 	done := make(chan error, numStreams)
 
+	synchronized := newSynchronizedWriter(w)
+
 	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			fmt.Fprintln(w, scanner.Text())
-		}
-		done <- scanner.Err()
+		_, err := io.Copy(synchronized, stdout)
+		done <- err
 	}()
 
 	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			fmt.Fprintln(w, scanner.Text())
-		}
-		done <- scanner.Err()
+		_, err := io.Copy(synchronized, stderr)
+		done <- err
 	}()
 
 	// Wait for streaming to complete
@@ -195,6 +191,21 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 	}
 
 	return nil
+}
+
+type synchronizedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func newSynchronizedWriter(w io.Writer) *synchronizedWriter {
+	return &synchronizedWriter{w: w}
+}
+
+func (sw *synchronizedWriter) Write(p []byte) (int, error) {
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+	return sw.w.Write(p)
 }
 
 // copyFile copies a single file
