@@ -8,7 +8,7 @@ import (
 
 // Version information (set by GoReleaser)
 var (
-	version = "2.2.0"
+	version = "2.2.1"
 	_       = "none"    // commit - set by GoReleaser but not used
 	_       = "unknown" // date - set by GoReleaser but not used
 )
