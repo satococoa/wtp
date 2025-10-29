@@ -19,7 +19,7 @@
 - Format: `go tool task fmt` (gofmt + goimports).
 - E2E tests: `go tool task test-e2e` (uses built binary; override with `WTP_E2E_BINARY=/abs/path/wtp`).
 - Direct build (no Task): `go build -o wtp ./cmd/wtp`.
-- Dev cycle: `go tool task dev` (runs fmt, lint, test).
+- Dev cycle: `go tool task dev` (runs clean, fmt, lint, test, build).
 
 ## Coding Style & Naming
 - Follow standard Go style (tabs, gofmt) and idioms; package names are short and lowercase.
@@ -41,7 +41,7 @@
 
 ## TDD Workflow
 ### Development Cycle Expectations
-- Run `go tool task dev` before committing; it formats code, runs lint, and executes unit tests.
+- Run `go tool task dev` before committing; it runs clean, fmt, lint, test, and build.
 - Keep the repository in a buildable state; never commit failing tests or lint errors.
 - Update README/CLI help when user-facing behavior changes.
 
@@ -91,7 +91,7 @@
 3. **Fallback**: directory name is used if path resolution fails so that UX remains consistent.
 
 **Implementation Notes**
-- `getWorktreeNameFromPath()` in `cmd/wtp/completion.go` resolves display names.
+- `getWorktreeNameFromPath()` in `cmd/wtp/remove.go` resolves display names.
 - Shared across shell completion, user-facing errors, and command parsing.
 - Ensures commands such as `wtp remove feat/foo` and `wtp cd feat/foo` share the same identifier.
 
