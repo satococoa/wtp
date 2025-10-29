@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/urfave/cli/v3"
@@ -23,6 +24,11 @@ const (
 	branchHeaderDashes = 6
 	headDisplayLength  = 8
 	detachedKeyword    = "detached"
+)
+
+const (
+	defaultMaxPathWidth = 56
+	superWideThreshold  = 160
 )
 
 // GitRepository interface for mocking
@@ -55,6 +61,16 @@ func NewListCommand() *cli.Command {
 		Description:   "Shows all worktrees with their paths, branches, and HEAD commits.",
 		ShellComplete: completeList,
 		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "compact",
+				Aliases: []string{"c"},
+				Usage:   "Minimize column widths for narrow or redirected output",
+			},
+			&cli.IntFlag{
+				Name:  "max-path-width",
+				Usage: fmt.Sprintf("Maximum width for PATH column (default %d)", defaultMaxPathWidth),
+				Value: defaultMaxPathWidth,
+			},
 			&cli.BoolFlag{
 				Name:    "quiet",
 				Aliases: []string{"q"},
@@ -93,16 +109,20 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	// Load config to get base_dir
 	cfg, _ := config.LoadConfig(mainRepoPath)
 
+	// Resolve display options
+	opts := resolveListDisplayOptions(cmd, w)
+
 	// Get quiet flag
 	quiet := cmd.Bool("quiet")
 
 	// Use CommandExecutor-based implementation
 	executor := listNewExecutor()
-	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath, quiet)
+	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath, quiet, opts)
 }
 
 func listCommandWithCommandExecutor(
 	_ *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string, quiet bool,
+	opts listDisplayOptions,
 ) error {
 	// Get current working directory
 	cwd, err := listGetwd()
@@ -131,7 +151,18 @@ func listCommandWithCommandExecutor(
 	if quiet {
 		displayWorktreesQuiet(w, worktrees, cfg, mainRepoPath)
 	} else {
-		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
+		termWidth := getTerminalWidth()
+		if opts.MaxPathWidth <= 0 {
+			opts.MaxPathWidth = defaultMaxPathWidth
+		}
+		if !opts.Compact {
+			if !opts.OutputIsTTY {
+				opts.Compact = true
+			} else if termWidth >= superWideThreshold {
+				opts.Compact = true
+			}
+		}
+		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath, termWidth, opts)
 	}
 	return nil
 }
@@ -243,9 +274,8 @@ func displayWorktreesQuiet(w io.Writer, worktrees []git.Worktree, cfg *config.Co
 // displayWorktreesRelative formats and displays worktree information with relative paths
 func displayWorktreesRelative(
 	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
+	termWidth int, opts listDisplayOptions,
 ) {
-	termWidth := getTerminalWidth()
-
 	// Minimum widths for columns
 	const minPathWidth = 20
 	const headWidth = headDisplayLength
@@ -312,27 +342,81 @@ func displayWorktreesRelative(
 
 	// Calculate available width for path column
 	// Total = path + spacing + branch + spacing + status + spacing + head
-	availableForPath := termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
-
+	if termWidth <= 0 {
+		termWidth = 80
+	}
 	// If branch column is too wide, limit it as well
 	maxAvailableForBranch := termWidth - minPathWidth - spacing - maxStatusLen - spacing - spacing - headWidth
 	if maxBranchLen > maxAvailableForBranch {
 		maxBranchLen = maxAvailableForBranch
-		// Recalculate path width with truncated branch width
-		availableForPath = termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
 	}
 
-	// Ensure minimum path width
-	if availableForPath < minPathWidth {
-		availableForPath = minPathWidth
+	pathHeaderWidth := len("PATH")
+	branchHeaderWidth := len("BRANCH")
+	statusHeaderWidth := len("STATUS")
+
+	if maxBranchLen < branchHeaderWidth {
+		maxBranchLen = branchHeaderWidth
+	}
+	if maxStatusLen < statusHeaderWidth {
+		maxStatusLen = statusHeaderWidth
+	}
+
+	availableForPath := termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
+
+	if availableForPath < pathHeaderWidth {
+		availableForPath = pathHeaderWidth
+	}
+
+	pathWidth := availableForPath
+
+	if opts.MaxPathWidth > 0 && pathWidth > opts.MaxPathWidth {
+		pathWidth = opts.MaxPathWidth
+	}
+
+	if opts.Compact {
+		minCompactWidth := pathHeaderWidth
+		if maxPathLen > minCompactWidth {
+			minCompactWidth = maxPathLen
+		}
+		if pathWidth > minCompactWidth {
+			pathWidth = minCompactWidth
+		}
+		if pathWidth < minCompactWidth {
+			pathWidth = minCompactWidth
+		}
+	} else {
+		desiredWidth := maxPathLen + 2
+		if desiredWidth < minPathWidth {
+			desiredWidth = minPathWidth
+		}
+		if desiredWidth < pathHeaderWidth {
+			desiredWidth = pathHeaderWidth
+		}
+		if pathWidth > desiredWidth {
+			pathWidth = desiredWidth
+		}
+		if pathWidth < minPathWidth {
+			pathWidth = minPathWidth
+		}
+	}
+
+	if pathWidth > availableForPath {
+		pathWidth = availableForPath
+	}
+	if pathWidth < pathHeaderWidth {
+		pathWidth = pathHeaderWidth
+	}
+	if pathWidth < 1 {
+		pathWidth = 1
 	}
 
 	// Print header
-	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n", availableForPath, "PATH", maxBranchLen, "BRANCH", maxStatusLen, "STATUS", "HEAD")
+	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n", pathWidth, "PATH", maxBranchLen, "BRANCH", maxStatusLen, "STATUS", "HEAD")
 	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
-		availableForPath, strings.Repeat("-", pathHeaderDashes),
+		pathWidth, strings.Repeat("-", pathHeaderDashes),
 		maxBranchLen, strings.Repeat("-", branchHeaderDashes),
-		maxStatusLen, strings.Repeat("-", len("STATUS")),
+		maxStatusLen, strings.Repeat("-", statusHeaderWidth),
 		"----")
 
 	// Print worktrees
@@ -342,14 +426,47 @@ func displayWorktreesRelative(
 			headShort = headShort[:headDisplayLength]
 		}
 
-		pathDisplay := truncatePath(item.path, availableForPath)
+		pathDisplay := truncatePath(item.path, pathWidth)
 		branchDisplayTrunc := truncatePath(item.branch, maxBranchLen)
 		statusDisplayTrunc := truncatePath(item.status, maxStatusLen)
 
 		fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
-			availableForPath, pathDisplay,
+			pathWidth, pathDisplay,
 			maxBranchLen, branchDisplayTrunc,
 			maxStatusLen, statusDisplayTrunc,
 			headShort)
+	}
+}
+
+type listDisplayOptions struct {
+	Compact      bool
+	MaxPathWidth int
+	OutputIsTTY  bool
+}
+
+func resolveListDisplayOptions(cmd *cli.Command, w io.Writer) listDisplayOptions {
+	maxPathWidth := cmd.Int("max-path-width")
+	if maxPathWidth == defaultMaxPathWidth && !cmd.IsSet("max-path-width") {
+		if envValue := os.Getenv("WTP_LIST_MAX_PATH"); envValue != "" {
+			if parsed, err := strconv.Atoi(envValue); err == nil && parsed > 0 {
+				maxPathWidth = parsed
+			}
+		}
+	}
+	if maxPathWidth <= 0 {
+		maxPathWidth = defaultMaxPathWidth
+	}
+
+	compact := cmd.Bool("compact")
+
+	outputIsTTY := false
+	if file, ok := w.(*os.File); ok {
+		outputIsTTY = term.IsTerminal(int(file.Fd()))
+	}
+
+	return listDisplayOptions{
+		Compact:      compact,
+		MaxPathWidth: maxPathWidth,
+		OutputIsTTY:  outputIsTTY,
 	}
 }
