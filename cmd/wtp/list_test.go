@@ -138,7 +138,15 @@ func TestListCommand_CommandConstruction(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				"/test/repo",
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err)
 			// Verify the correct git command was executed
@@ -207,7 +215,15 @@ func TestListCommand_Output(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				"/test/repo",
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -252,7 +268,15 @@ func TestListCommand_ExecutionError(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "git command failed")
@@ -274,7 +298,15 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -335,7 +367,15 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				"/test/repo",
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -403,7 +443,15 @@ func TestListCommand_LongPaths(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				"/test/repo",
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err)
 			output := buf.String()
@@ -453,7 +501,15 @@ branch refs/heads/feature/test
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -484,7 +540,15 @@ func TestListCommand_HeaderFormatting(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -587,7 +651,15 @@ branch refs/heads/feature/awesome
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo", false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				"/repo",
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -729,7 +801,15 @@ branch refs/heads/hoge
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: baseDir},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, mainRepoPath, false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				mainRepoPath,
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -813,7 +893,15 @@ branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "../worktrees"},
 			}
-			err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/repo", false, defaultListDisplayOptionsForTests())
+			err := listCommandWithCommandExecutor(
+				cmd,
+				&buf,
+				mockExec,
+				cfg,
+				"/repo",
+				false,
+				defaultListDisplayOptionsForTests(),
+			)
 
 			assert.NoError(t, err, tt.description)
 			output := buf.String()
@@ -862,7 +950,15 @@ branch refs/heads/feature/long
 	cmd := &cli.Command{}
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		defaultListDisplayOptionsForTests(),
+	)
 	assert.NoError(t, err)
 
 	width := extractPathColumnWidth(t, buf.String())
@@ -892,7 +988,15 @@ branch refs/heads/feature/test
 	cmd := &cli.Command{}
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		defaultListDisplayOptionsForTests(),
+	)
 	assert.NoError(t, err)
 
 	width := extractPathColumnWidth(t, buf.String())
@@ -925,7 +1029,15 @@ branch refs/heads/feature/test
 	opts := defaultListDisplayOptionsForTests()
 	opts.OutputIsTTY = false
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, opts)
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		opts,
+	)
 	assert.NoError(t, err)
 
 	width := extractPathColumnWidth(t, buf.String())
@@ -958,7 +1070,15 @@ branch refs/heads/feature/test
 	opts := defaultListDisplayOptionsForTests()
 	opts.Compact = true
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, opts)
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		opts,
+	)
 	assert.NoError(t, err)
 
 	width := extractPathColumnWidth(t, buf.String())
@@ -992,7 +1112,15 @@ branch refs/heads/feature/long
 	opts := defaultListDisplayOptionsForTests()
 	opts.MaxPathWidth = 30
 
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", false, opts)
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		false,
+		opts,
+	)
 	assert.NoError(t, err)
 
 	width := extractPathColumnWidth(t, buf.String())
@@ -1017,7 +1145,15 @@ func TestListCommand_QuietMode_SingleWorktree(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		true,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -1057,7 +1193,15 @@ branch refs/heads/feature/another
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: ".worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		true,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -1089,7 +1233,15 @@ func TestListCommand_QuietMode_NoWorktrees(t *testing.T) {
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		true,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
@@ -1121,7 +1273,15 @@ detached
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: ".worktrees"},
 	}
-	err := listCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo", true, defaultListDisplayOptionsForTests())
+	err := listCommandWithCommandExecutor(
+		cmd,
+		&buf,
+		mockExec,
+		cfg,
+		"/test/repo",
+		true,
+		defaultListDisplayOptionsForTests(),
+	)
 
 	assert.NoError(t, err)
 	output := buf.String()
