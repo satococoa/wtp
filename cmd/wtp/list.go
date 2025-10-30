@@ -418,14 +418,11 @@ func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts l
 	)
 
 	pathHeaderWidth := len("PATH")
-	availableForPath := termWidth - spacing - branchWidth - spacing - statusWidth - spacing - headWidth
-	if availableForPath < pathHeaderWidth {
-		availableForPath = pathHeaderWidth
-	}
+	availableForPath := max(termWidth-spacing-branchWidth-spacing-statusWidth-spacing-headWidth, pathHeaderWidth)
 
 	pathWidth := availableForPath
-	if opts.MaxPathWidth > 0 && pathWidth > opts.MaxPathWidth {
-		pathWidth = opts.MaxPathWidth
+	if opts.MaxPathWidth > 0 {
+		pathWidth = min(pathWidth, opts.MaxPathWidth)
 	}
 
 	if opts.Compact {
@@ -434,15 +431,8 @@ func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts l
 		pathWidth = clampExpandedPathWidth(pathWidth, maxPathLen)
 	}
 
-	if pathWidth > availableForPath {
-		pathWidth = availableForPath
-	}
-	if pathWidth < pathHeaderWidth {
-		pathWidth = pathHeaderWidth
-	}
-	if pathWidth < 1 {
-		pathWidth = 1
-	}
+	pathWidth = max(min(pathWidth, availableForPath), pathHeaderWidth)
+	pathWidth = max(pathWidth, 1)
 
 	return pathWidth
 }
@@ -450,29 +440,15 @@ func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts l
 func clampCompactPathWidth(currentWidth, maxPathLen int) int {
 	pathHeaderWidth := len("PATH")
 	minCompactWidth := max(maxPathLen, pathHeaderWidth)
-	return max(pathHeaderWidth, min(currentWidth, minCompactWidth))
+	return max(min(currentWidth, minCompactWidth), pathHeaderWidth)
 }
 
 func clampExpandedPathWidth(currentWidth, maxPathLen int) int {
 	const minPathWidth = 20
 	pathHeaderWidth := len("PATH")
 
-	desiredWidth := maxPathLen + pathPadding
-	if desiredWidth < minPathWidth {
-		desiredWidth = minPathWidth
-	}
-	if desiredWidth < pathHeaderWidth {
-		desiredWidth = pathHeaderWidth
-	}
-
-	if currentWidth > desiredWidth {
-		currentWidth = desiredWidth
-	}
-	if currentWidth < minPathWidth {
-		currentWidth = minPathWidth
-	}
-
-	return currentWidth
+	desiredWidth := max(maxPathLen+pathPadding, minPathWidth, pathHeaderWidth)
+	return max(min(currentWidth, desiredWidth), minPathWidth)
 }
 
 type listDisplayOptions struct {
