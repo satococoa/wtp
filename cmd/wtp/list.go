@@ -419,14 +419,15 @@ func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts l
 	availableForPath = max(availableForPath, pathHeaderWidth)
 
 	pathWidth := availableForPath
-	if opts.MaxPathWidth > 0 {
-		pathWidth = min(pathWidth, opts.MaxPathWidth)
-	}
 
 	if opts.Compact {
 		pathWidth = clampCompactPathWidth(pathWidth, maxPathLen)
 	} else {
 		pathWidth = clampExpandedPathWidth(pathWidth, maxPathLen)
+	}
+
+	if opts.MaxPathWidth > 0 {
+		pathWidth = min(pathWidth, opts.MaxPathWidth)
 	}
 
 	pathWidth = max(min(pathWidth, availableForPath), pathHeaderWidth)
