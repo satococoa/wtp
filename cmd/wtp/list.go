@@ -30,6 +30,8 @@ const (
 	defaultMaxPathWidth = 56
 	superWideThreshold  = 160
 	pathPadding         = 2
+	minPathWidth        = 20
+	columnSpacing       = 3
 )
 
 // GitRepository interface for mocking
@@ -411,14 +413,10 @@ func clampBranchAndStatusWidths(
 }
 
 func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts listDisplayOptions) int {
-	const (
-		minPathWidth = 20
-		headWidth    = headDisplayLength
-		spacing      = 3
-	)
-
 	pathHeaderWidth := len("PATH")
-	availableForPath := max(termWidth-spacing-branchWidth-spacing-statusWidth-spacing-headWidth, pathHeaderWidth)
+	availableForPath := termWidth - columnSpacing - branchWidth - columnSpacing - statusWidth -
+		columnSpacing - headDisplayLength
+	availableForPath = max(availableForPath, pathHeaderWidth)
 
 	pathWidth := availableForPath
 	if opts.MaxPathWidth > 0 {
@@ -444,7 +442,6 @@ func clampCompactPathWidth(currentWidth, maxPathLen int) int {
 }
 
 func clampExpandedPathWidth(currentWidth, maxPathLen int) int {
-	const minPathWidth = 20
 	pathHeaderWidth := len("PATH")
 
 	desiredWidth := max(maxPathLen+pathPadding, minPathWidth, pathHeaderWidth)
