@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/urfave/cli/v3"
@@ -23,6 +24,14 @@ const (
 	branchHeaderDashes = 6
 	headDisplayLength  = 8
 	detachedKeyword    = "detached"
+)
+
+const (
+	defaultMaxPathWidth = 56
+	superWideThreshold  = 160
+	pathPadding         = 2
+	minPathWidth        = 20
+	columnSpacing       = 3
 )
 
 // GitRepository interface for mocking
@@ -55,6 +64,16 @@ func NewListCommand() *cli.Command {
 		Description:   "Shows all worktrees with their paths, branches, and HEAD commits.",
 		ShellComplete: completeList,
 		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "compact",
+				Aliases: []string{"c"},
+				Usage:   "Minimize column widths for narrow or redirected output",
+			},
+			&cli.IntFlag{
+				Name:  "max-path-width",
+				Usage: fmt.Sprintf("Maximum width for PATH column (default %d)", defaultMaxPathWidth),
+				Value: defaultMaxPathWidth,
+			},
 			&cli.BoolFlag{
 				Name:    "quiet",
 				Aliases: []string{"q"},
@@ -93,16 +112,20 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	// Load config to get base_dir
 	cfg, _ := config.LoadConfig(mainRepoPath)
 
+	// Resolve display options
+	opts := resolveListDisplayOptions(cmd, w)
+
 	// Get quiet flag
 	quiet := cmd.Bool("quiet")
 
 	// Use CommandExecutor-based implementation
 	executor := listNewExecutor()
-	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath, quiet)
+	return listCommandWithCommandExecutor(cmd, w, executor, cfg, mainRepoPath, quiet, opts)
 }
 
 func listCommandWithCommandExecutor(
 	_ *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string, quiet bool,
+	opts listDisplayOptions,
 ) error {
 	// Get current working directory
 	cwd, err := listGetwd()
@@ -131,7 +154,18 @@ func listCommandWithCommandExecutor(
 	if quiet {
 		displayWorktreesQuiet(w, worktrees, cfg, mainRepoPath)
 	} else {
-		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath)
+		termWidth := getTerminalWidth()
+		if opts.MaxPathWidth <= 0 {
+			opts.MaxPathWidth = defaultMaxPathWidth
+		}
+		if !opts.Compact {
+			if !opts.OutputIsTTY {
+				opts.Compact = true
+			} else if termWidth >= superWideThreshold {
+				opts.Compact = true
+			}
+		}
+		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath, termWidth, opts)
 	}
 	return nil
 }
@@ -243,113 +277,207 @@ func displayWorktreesQuiet(w io.Writer, worktrees []git.Worktree, cfg *config.Co
 // displayWorktreesRelative formats and displays worktree information with relative paths
 func displayWorktreesRelative(
 	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
+	termWidth int, opts listDisplayOptions,
 ) {
-	termWidth := getTerminalWidth()
-
-	// Minimum widths for columns
-	const minPathWidth = 20
-	const headWidth = headDisplayLength
-	const spacing = 3 // Spaces between columns
-
-	// Calculate initial column widths
-	maxBranchLen := 6 // "BRANCH"
-	maxPathLen := 4   // "PATH"
-	maxStatusLen := 6 // "STATUS"
-
-	// Find main worktree path is no longer needed since we pass it from the caller
-
-	// First pass: calculate max widths and prepare display data
-	type displayData struct {
-		path      string
-		branch    string
-		head      string
-		status    string
-		isCurrent bool
+	if termWidth <= 0 {
+		termWidth = 80
 	}
 
-	var displayItems []displayData
-
-	for _, wt := range worktrees {
-		var isCurrent bool
-
-		// Get worktree display name
-		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
-
-		// Check if this is the current worktree
-		if wt.Path == currentPath {
-			isCurrent = true
-			pathDisplay += "*"
-		}
-
-		branchDisplay := formatBranchDisplay(wt.Branch)
-
-		// Determine management status
-		var statusDisplay string
-		if isWorktreeManagedList(wt.Path, cfg, mainRepoPath, wt.IsMain) {
-			statusDisplay = "managed"
-		} else {
-			statusDisplay = "unmanaged"
-		}
-
-		if len(pathDisplay) > maxPathLen {
-			maxPathLen = len(pathDisplay)
-		}
-		if len(branchDisplay) > maxBranchLen {
-			maxBranchLen = len(branchDisplay)
-		}
-		if len(statusDisplay) > maxStatusLen {
-			maxStatusLen = len(statusDisplay)
-		}
-
-		displayItems = append(displayItems, displayData{
-			path:      pathDisplay,
-			branch:    branchDisplay,
-			head:      wt.HEAD,
-			status:    statusDisplay,
-			isCurrent: isCurrent,
-		})
+	items, metrics := collectListDisplayData(worktrees, currentPath, cfg, mainRepoPath)
+	if len(items) == 0 {
+		return
 	}
 
-	// Calculate available width for path column
-	// Total = path + spacing + branch + spacing + status + spacing + head
-	availableForPath := termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
+	pathWidth, branchWidth, statusWidth := computeListColumnWidths(metrics, termWidth, opts)
 
-	// If branch column is too wide, limit it as well
-	maxAvailableForBranch := termWidth - minPathWidth - spacing - maxStatusLen - spacing - spacing - headWidth
-	if maxBranchLen > maxAvailableForBranch {
-		maxBranchLen = maxAvailableForBranch
-		// Recalculate path width with truncated branch width
-		availableForPath = termWidth - spacing - maxBranchLen - spacing - maxStatusLen - spacing - headWidth
-	}
-
-	// Ensure minimum path width
-	if availableForPath < minPathWidth {
-		availableForPath = minPathWidth
-	}
-
-	// Print header
-	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n", availableForPath, "PATH", maxBranchLen, "BRANCH", maxStatusLen, "STATUS", "HEAD")
+	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n", pathWidth, "PATH", branchWidth, "BRANCH", statusWidth, "STATUS", "HEAD")
 	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
-		availableForPath, strings.Repeat("-", pathHeaderDashes),
-		maxBranchLen, strings.Repeat("-", branchHeaderDashes),
-		maxStatusLen, strings.Repeat("-", len("STATUS")),
+		pathWidth, strings.Repeat("-", pathHeaderDashes),
+		branchWidth, strings.Repeat("-", branchHeaderDashes),
+		statusWidth, strings.Repeat("-", len("STATUS")),
 		"----")
 
-	// Print worktrees
-	for _, item := range displayItems {
+	for _, item := range items {
 		headShort := item.head
 		if len(headShort) > headDisplayLength {
 			headShort = headShort[:headDisplayLength]
 		}
 
-		pathDisplay := truncatePath(item.path, availableForPath)
-		branchDisplayTrunc := truncatePath(item.branch, maxBranchLen)
-		statusDisplayTrunc := truncatePath(item.status, maxStatusLen)
-
 		fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
-			availableForPath, pathDisplay,
-			maxBranchLen, branchDisplayTrunc,
-			maxStatusLen, statusDisplayTrunc,
+			pathWidth, truncatePath(item.path, pathWidth),
+			branchWidth, truncatePath(item.branch, branchWidth),
+			statusWidth, truncatePath(item.status, statusWidth),
 			headShort)
+	}
+}
+
+type listDisplayData struct {
+	path   string
+	branch string
+	head   string
+	status string
+}
+
+type listColumnMetrics struct {
+	maxPathLen   int
+	maxBranchLen int
+	maxStatusLen int
+}
+
+func collectListDisplayData(
+	worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
+) ([]listDisplayData, listColumnMetrics) {
+	metrics := listColumnMetrics{
+		maxPathLen:   len("PATH"),
+		maxBranchLen: len("BRANCH"),
+		maxStatusLen: len("STATUS"),
+	}
+
+	items := make([]listDisplayData, 0, len(worktrees))
+
+	for _, wt := range worktrees {
+		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
+		if wt.Path == currentPath {
+			pathDisplay += "*"
+		}
+
+		branchDisplay := formatBranchDisplay(wt.Branch)
+
+		statusDisplay := "unmanaged"
+		if isWorktreeManagedList(wt.Path, cfg, mainRepoPath, wt.IsMain) {
+			statusDisplay = "managed"
+		}
+
+		if len(pathDisplay) > metrics.maxPathLen {
+			metrics.maxPathLen = len(pathDisplay)
+		}
+		if len(branchDisplay) > metrics.maxBranchLen {
+			metrics.maxBranchLen = len(branchDisplay)
+		}
+		if len(statusDisplay) > metrics.maxStatusLen {
+			metrics.maxStatusLen = len(statusDisplay)
+		}
+
+		items = append(items, listDisplayData{
+			path:   pathDisplay,
+			branch: branchDisplay,
+			head:   wt.HEAD,
+			status: statusDisplay,
+		})
+	}
+
+	return items, metrics
+}
+
+func computeListColumnWidths(
+	metrics listColumnMetrics,
+	termWidth int,
+	opts listDisplayOptions,
+) (pathWidth, branchWidth, statusWidth int) {
+	branchWidth, statusWidth = clampBranchAndStatusWidths(metrics.maxBranchLen, metrics.maxStatusLen, termWidth)
+	pathWidth = derivePathWidth(metrics.maxPathLen, branchWidth, statusWidth, termWidth, opts)
+	return pathWidth, branchWidth, statusWidth
+}
+
+func clampBranchAndStatusWidths(
+	maxBranchLen, maxStatusLen, termWidth int,
+) (branchWidth, statusWidth int) {
+	const (
+		minPathWidth = 20
+		headWidth    = headDisplayLength
+		spacing      = 3
+	)
+
+	branchWidth = maxBranchLen
+	statusWidth = maxStatusLen
+
+	branchHeaderWidth := len("BRANCH")
+	statusHeaderWidth := len("STATUS")
+
+	if branchWidth < branchHeaderWidth {
+		branchWidth = branchHeaderWidth
+	}
+	if statusWidth < statusHeaderWidth {
+		statusWidth = statusHeaderWidth
+	}
+
+	maxAvailableForBranch := termWidth - minPathWidth - spacing - statusWidth - spacing - spacing - headWidth
+	if branchWidth > maxAvailableForBranch {
+		branchWidth = maxAvailableForBranch
+		if branchWidth < branchHeaderWidth {
+			branchWidth = branchHeaderWidth
+		}
+	}
+
+	return branchWidth, statusWidth
+}
+
+func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts listDisplayOptions) int {
+	pathHeaderWidth := len("PATH")
+	availableForPath := termWidth - columnSpacing - branchWidth - columnSpacing - statusWidth -
+		columnSpacing - headDisplayLength
+	availableForPath = max(availableForPath, pathHeaderWidth)
+
+	pathWidth := availableForPath
+
+	if opts.Compact {
+		pathWidth = clampCompactPathWidth(pathWidth, maxPathLen)
+	} else {
+		pathWidth = clampExpandedPathWidth(pathWidth, maxPathLen)
+	}
+
+	if opts.MaxPathWidth > 0 {
+		pathWidth = min(pathWidth, opts.MaxPathWidth)
+	}
+
+	pathWidth = max(min(pathWidth, availableForPath), pathHeaderWidth)
+	pathWidth = max(pathWidth, 1)
+
+	return pathWidth
+}
+
+func clampCompactPathWidth(currentWidth, maxPathLen int) int {
+	pathHeaderWidth := len("PATH")
+	minCompactWidth := max(maxPathLen, pathHeaderWidth)
+	return max(min(currentWidth, minCompactWidth), pathHeaderWidth)
+}
+
+func clampExpandedPathWidth(currentWidth, maxPathLen int) int {
+	pathHeaderWidth := len("PATH")
+
+	desiredWidth := max(maxPathLen+pathPadding, minPathWidth, pathHeaderWidth)
+	return max(min(currentWidth, desiredWidth), minPathWidth)
+}
+
+type listDisplayOptions struct {
+	Compact      bool
+	MaxPathWidth int
+	OutputIsTTY  bool
+}
+
+func resolveListDisplayOptions(cmd *cli.Command, w io.Writer) listDisplayOptions {
+	maxPathWidth := cmd.Int("max-path-width")
+	if maxPathWidth == defaultMaxPathWidth && !cmd.IsSet("max-path-width") {
+		if envValue := os.Getenv("WTP_LIST_MAX_PATH"); envValue != "" {
+			if parsed, err := strconv.Atoi(envValue); err == nil && parsed > 0 {
+				maxPathWidth = parsed
+			}
+		}
+	}
+	if maxPathWidth <= 0 {
+		maxPathWidth = defaultMaxPathWidth
+	}
+
+	compact := cmd.Bool("compact")
+
+	outputIsTTY := false
+	if file, ok := w.(*os.File); ok {
+		outputIsTTY = term.IsTerminal(int(file.Fd()))
+	}
+
+	return listDisplayOptions{
+		Compact:      compact,
+		MaxPathWidth: maxPathWidth,
+		OutputIsTTY:  outputIsTTY,
 	}
 }
