@@ -374,7 +374,7 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 		results: []command.Result{
 			{
 				Output: "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n" +
-					"worktree /repo/.worktrees/feat/hogehoge\nHEAD def456\nbranch refs/heads/feat/hogehoge\n\n",
+					"worktree /somewhere/else/feat/hogehoge\nHEAD def456\nbranch refs/heads/feat/hogehoge\n\n",
 				Error: nil,
 			},
 		},
@@ -392,7 +392,7 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 }
 
 func TestRemoveCommand_FailsWhenRemovingCurrentWorktree(t *testing.T) {
-	targetPath := "/worktrees/feature/foo"
+	targetPath := "/worktrees/repo/feature/foo"
 	mockWorktreeList := fmt.Sprintf(
 		"worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n"+
 			"worktree %s\nHEAD def456\nbranch refs/heads/feature/foo\n\n",
