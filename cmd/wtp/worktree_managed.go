@@ -26,14 +26,23 @@ func isWorktreeManagedCommon(worktreePath string, cfg *config.Config, mainRepoPa
 	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
 	baseDir = strings.TrimSuffix(baseDir, string(filepath.Separator))
 
-	absWorktreePath, err := filepath.Abs(worktreePath)
-	if err != nil {
-		return false
+	// Convert to absolute paths only if they're not already absolute
+	absWorktreePath := worktreePath
+	if !filepath.IsAbs(worktreePath) {
+		var err error
+		absWorktreePath, err = filepath.Abs(worktreePath)
+		if err != nil {
+			return false
+		}
 	}
 
-	absBaseDir, err := filepath.Abs(baseDir)
-	if err != nil {
-		return false
+	absBaseDir := baseDir
+	if !filepath.IsAbs(baseDir) {
+		var err error
+		absBaseDir, err = filepath.Abs(baseDir)
+		if err != nil {
+			return false
+		}
 	}
 
 	relPath, err := filepath.Rel(absBaseDir, absWorktreePath)

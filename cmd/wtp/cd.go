@@ -62,8 +62,10 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 		return errors.NotInGitRepository()
 	}
 
+	rootCmd := cmd.Root()
+
 	// Get the writer from cli.Command
-	w := cmd.Root().Writer
+	w := rootCmd.Writer
 	if w == nil {
 		w = os.Stdout
 	}
@@ -74,7 +76,7 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 }
 
 func cdCommandWithCommandExecutor(
-	_ *cli.Command,
+	cmd *cli.Command,
 	w io.Writer,
 	executor command.Executor,
 	_ string,
@@ -92,6 +94,25 @@ func cdCommandWithCommandExecutor(
 
 	// Find the main worktree path
 	mainWorktreePath := findMainWorktreePath(worktrees)
+
+	errWriter := io.Discard
+	if cmd != nil {
+		if root := cmd.Root(); root != nil && root.ErrWriter != nil {
+			errWriter = root.ErrWriter
+		} else if root != nil && root.ErrWriter == nil {
+			errWriter = os.Stderr
+		}
+	}
+
+	if mainWorktreePath != "" {
+		cfgForWarning, cfgErr := config.LoadConfig(mainWorktreePath)
+		if cfgErr != nil {
+			cfgForWarning = &config.Config{
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
+			}
+		}
+		maybeWarnLegacyWorktreeLayout(errWriter, mainWorktreePath, cfgForWarning, worktrees)
+	}
 
 	// Find the worktree using multiple resolution strategies
 	targetPath := resolveCdWorktreePath(worktreeName, worktrees, mainWorktreePath)
@@ -240,10 +261,7 @@ func getWorktreeNameFromPathCd(worktreePath string, cfg *config.Config, mainRepo
 	}
 
 	// Get base_dir path
-	baseDir := cfg.Defaults.BaseDir
-	if !filepath.IsAbs(baseDir) {
-		baseDir = filepath.Join(mainRepoPath, baseDir)
-	}
+	baseDir := cfg.ResolveWorktreePath(mainRepoPath, "")
 
 	// Calculate relative path from base_dir
 	relPath, err := filepath.Rel(baseDir, worktreePath)

@@ -857,8 +857,12 @@ func TestExecutor_copyDir_DestinationCreateError(t *testing.T) {
 
 	executor := NewExecutor(nil, "/test/repo")
 
-	// Try to create directory where parent doesn't exist and we can't create it
-	invalidDest := "/root/nonexistent/dest" // Should fail on most systems
+	// Create a file to block directory creation at the target path
+	blockingFile := filepath.Join(tempDir, "dest-blocker")
+	err = os.WriteFile(blockingFile, []byte("blocker"), 0o644)
+	require.NoError(t, err)
+
+	invalidDest := filepath.Join(blockingFile, "nested")
 	err = executor.copyDir(srcDir, invalidDest)
 
 	assert.Error(t, err)
@@ -874,18 +878,15 @@ func TestExecutor_copyDir_ReadDirectoryError(t *testing.T) {
 	srcDir := filepath.Join(tempDir, "source")
 	dstDir := filepath.Join(tempDir, "dest")
 
-	// Create source directory
+	// Create source directory and then replace it with a file to force ReadDir to fail
 	err := os.MkdirAll(srcDir, directoryPermissions)
 	require.NoError(t, err)
 
-	// Remove read permission from source directory
-	err = os.Chmod(srcDir, 0200) // write-only
+	err = os.Remove(srcDir)
 	require.NoError(t, err)
 
-	// Restore permissions after test
-	defer func() {
-		_ = os.Chmod(srcDir, directoryPermissions)
-	}()
+	err = os.WriteFile(srcDir, []byte("not a directory"), 0o644)
+	require.NoError(t, err)
 
 	executor := NewExecutor(nil, "/test/repo")
 
@@ -947,19 +948,16 @@ func TestExecutor_copyDir_FailsWhenNestedFileCannotBeCopied(t *testing.T) {
 	err := os.MkdirAll(nestedDir, directoryPermissions)
 	require.NoError(t, err)
 
-	// Create a file that we'll make unreadable
+	// Create a file that we'll replace with a broken symlink to force a copy error
 	unreadableFile := filepath.Join(nestedDir, "unreadable.txt")
-	err = os.WriteFile(unreadableFile, []byte("content"), 0644)
+	err = os.WriteFile(unreadableFile, []byte("content"), 0o644)
 	require.NoError(t, err)
 
-	// Remove read permission from the file
-	err = os.Chmod(unreadableFile, 0000)
+	err = os.Remove(unreadableFile)
 	require.NoError(t, err)
 
-	// Restore permissions after test
-	defer func() {
-		_ = os.Chmod(unreadableFile, 0644)
-	}()
+	err = os.Symlink(filepath.Join(nestedDir, "missing-target"), unreadableFile)
+	require.NoError(t, err)
 
 	executor := NewExecutor(nil, "/test/repo")
 

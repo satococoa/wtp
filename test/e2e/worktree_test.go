@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -23,6 +24,25 @@ func TestWorktreeCreation(t *testing.T) {
 		worktrees := repo.ListWorktrees()
 		framework.AssertEqual(t, 2, len(worktrees))
 		framework.AssertWorktreeExists(t, repo, "feature/test-branch")
+
+		expectedBaseDir := filepath.Join(filepath.Dir(repo.Path()), "worktrees", filepath.Base(repo.Path()))
+		expectedPath := filepath.Clean(filepath.Join(expectedBaseDir, "feature", "test-branch"))
+		resolvedExpectedPath, err := filepath.EvalSymlinks(expectedPath)
+		framework.AssertNoError(t, err)
+
+		found := false
+		for _, wt := range worktrees {
+			if filepath.Clean(wt) == resolvedExpectedPath {
+				found = true
+				break
+			}
+		}
+
+		framework.AssertTrue(
+			t,
+			found,
+			"expected worktrees to include "+resolvedExpectedPath+"; got: "+strings.Join(worktrees, ", "),
+		)
 	})
 
 	t.Run("NonexistentBranch", func(t *testing.T) {

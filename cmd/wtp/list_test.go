@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -134,9 +135,10 @@ func TestListCommand_CommandConstruction(t *testing.T) {
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(
 				cmd,
@@ -211,9 +213,10 @@ func TestListCommand_Output(t *testing.T) {
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(
 				cmd,
@@ -264,9 +267,10 @@ func TestListCommand_ExecutionError(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(
 		cmd,
@@ -294,9 +298,10 @@ func TestListCommand_NoWorktrees(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(
 		cmd,
@@ -363,9 +368,10 @@ func TestListCommand_InternationalCharacters(t *testing.T) {
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(
 				cmd,
@@ -439,9 +445,10 @@ func TestListCommand_LongPaths(t *testing.T) {
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(
 				cmd,
@@ -497,9 +504,10 @@ branch refs/heads/feature/test
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(
 		cmd,
@@ -536,9 +544,10 @@ func TestListCommand_HeaderFormatting(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
-		Defaults: config.Defaults{BaseDir: "../worktrees"},
+		Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 	}
 	err := listCommandWithCommandExecutor(
 		cmd,
@@ -647,9 +656,10 @@ branch refs/heads/feature/awesome
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(
 				cmd,
@@ -783,6 +793,7 @@ branch refs/heads/hoge
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			// Extract main repo path from mock output
 			lines := strings.Split(tt.mockOutput, "\n")
@@ -792,7 +803,7 @@ branch refs/heads/hoge
 			}
 
 			// Special handling for the base_dir test case
-			baseDir := "../worktrees"
+			baseDir := config.DefaultBaseDir
 			if tt.name == "paths relative to main worktree when in subdirectory" {
 				baseDir = ".worktrees"
 				mainRepoPath = "/Users/satoshi/dev/src/github.com/satococoa/giselle"
@@ -889,9 +900,10 @@ branch refs/heads/feature/long-branch-name-that-might-also-be-truncated
 
 			var buf bytes.Buffer
 			cmd := &cli.Command{}
+			cmd.ErrWriter = io.Discard
 
 			cfg := &config.Config{
-				Defaults: config.Defaults{BaseDir: "../worktrees"},
+				Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
 			}
 			err := listCommandWithCommandExecutor(
 				cmd,
@@ -948,6 +960,7 @@ branch refs/heads/feature/long
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
 	err := listCommandWithCommandExecutor(
@@ -986,6 +999,7 @@ branch refs/heads/feature/test
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
 	err := listCommandWithCommandExecutor(
@@ -1024,6 +1038,7 @@ branch refs/heads/feature/test
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
 	opts := defaultListDisplayOptionsForTests()
@@ -1065,6 +1080,7 @@ branch refs/heads/feature/test
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
 	opts := defaultListDisplayOptionsForTests()
@@ -1107,6 +1123,7 @@ branch refs/heads/feature/long
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 	cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 
 	opts := defaultListDisplayOptionsForTests()
@@ -1141,6 +1158,7 @@ func TestListCommand_QuietMode_SingleWorktree(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
@@ -1189,6 +1207,7 @@ branch refs/heads/feature/another
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: ".worktrees"},
@@ -1229,6 +1248,7 @@ func TestListCommand_QuietMode_NoWorktrees(t *testing.T) {
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "../worktrees"},
@@ -1269,6 +1289,7 @@ detached
 
 	var buf bytes.Buffer
 	cmd := &cli.Command{}
+	cmd.ErrWriter = io.Discard
 
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: ".worktrees"},
