@@ -32,6 +32,7 @@ const (
 	pathPadding         = 2
 	minPathWidth        = 20
 	columnSpacing       = 3
+	columnSpacingSlots  = 3
 )
 
 // GitRepository interface for mocking
@@ -155,9 +156,6 @@ func listCommandWithCommandExecutor(
 		displayWorktreesQuiet(w, worktrees, cfg, mainRepoPath)
 	} else {
 		termWidth := getTerminalWidth()
-		if opts.MaxPathWidth <= 0 {
-			opts.MaxPathWidth = defaultMaxPathWidth
-		}
 		if !opts.Compact {
 			if !opts.OutputIsTTY {
 				opts.Compact = true
@@ -382,12 +380,6 @@ func computeListColumnWidths(
 func clampBranchAndStatusWidths(
 	maxBranchLen, maxStatusLen, termWidth int,
 ) (branchWidth, statusWidth int) {
-	const (
-		minPathWidth = 20
-		headWidth    = headDisplayLength
-		spacing      = 3
-	)
-
 	branchWidth = maxBranchLen
 	statusWidth = maxStatusLen
 
@@ -401,7 +393,8 @@ func clampBranchAndStatusWidths(
 		statusWidth = statusHeaderWidth
 	}
 
-	maxAvailableForBranch := termWidth - minPathWidth - spacing - statusWidth - spacing - spacing - headWidth
+	spacingTotal := columnSpacing * columnSpacingSlots
+	maxAvailableForBranch := termWidth - minPathWidth - statusWidth - spacingTotal - headDisplayLength
 	if branchWidth > maxAvailableForBranch {
 		branchWidth = maxAvailableForBranch
 		if branchWidth < branchHeaderWidth {
@@ -431,7 +424,6 @@ func derivePathWidth(maxPathLen, branchWidth, statusWidth, termWidth int, opts l
 	}
 
 	pathWidth = max(min(pathWidth, availableForPath), pathHeaderWidth)
-	pathWidth = max(pathWidth, 1)
 
 	return pathWidth
 }
