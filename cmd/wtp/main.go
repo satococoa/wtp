@@ -6,11 +6,16 @@ import (
 	"os"
 )
 
-// Version information (set by GoReleaser)
+// Version information
+// - In releases: set by GoReleaser via ldflags
+// - In dev builds: set by Taskfile via ldflags from git describe
+// - Default: used only when built without ldflags (e.g., go run)
+// Note: commit and date are set via ldflags but not currently displayed.
+// They are available for future use (e.g., verbose version info).
 var (
-	version = "2.3.1"
-	_       = "none"    // commit - set by GoReleaser but not used
-	_       = "unknown" // date - set by GoReleaser but not used
+	version = "dev"
+	commit  = "none"    //nolint:unused // Set via ldflags, available for future use
+	date    = "unknown" //nolint:unused // Set via ldflags, available for future use
 )
 
 func main() {
