@@ -59,8 +59,10 @@ func NewRemoveCommand() *cli.Command {
 }
 
 func removeCommand(_ context.Context, cmd *cli.Command) error {
+	rootCmd := cmd.Root()
+
 	// Get the writer from cli.Command
-	w := cmd.Root().Writer
+	w := rootCmd.Writer
 	if w == nil {
 		w = os.Stdout
 	}
@@ -93,7 +95,7 @@ func removeCommand(_ context.Context, cmd *cli.Command) error {
 }
 
 func removeCommandWithCommandExecutor(
-	_ *cli.Command,
+	cmd *cli.Command,
 	w io.Writer,
 	executor command.Executor,
 	cwd string,
@@ -110,15 +112,71 @@ func removeCommandWithCommandExecutor(
 	// Parse worktrees from command output
 	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
-	// Find target worktree
-	targetWorktree, err := findTargetWorktreeFromList(worktrees, worktreeName)
+	notifyLegacyLayout(cmd, worktrees)
+
+	targetWorktree, err := locateTargetWorktree(worktrees, worktreeName)
 	if err != nil {
 		return err
 	}
 
-	absTargetPath, err := filepath.Abs(targetWorktree.Path)
+	if err := guardAgainstRemovingCurrentWorktree(targetWorktree.Path, cwd, worktreeName); err != nil {
+		return err
+	}
+
+	if err := executeWorktreeRemoval(executor, targetWorktree.Path, force); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path)
+
+	if withBranch && targetWorktree.Branch != "" {
+		if err := removeBranchWithCommandExecutor(w, executor, targetWorktree.Branch, forceBranch); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func notifyLegacyLayout(cmd *cli.Command, worktrees []git.Worktree) {
+	errWriter := io.Discard
+	if cmd != nil {
+		if root := cmd.Root(); root != nil && root.ErrWriter != nil {
+			errWriter = root.ErrWriter
+		} else if root != nil && root.ErrWriter == nil {
+			errWriter = os.Stderr
+		}
+	}
+
+	mainRepoPath := findMainWorktreePath(worktrees)
+	if mainRepoPath == "" {
+		return
+	}
+
+	cfgForWarning, cfgErr := config.LoadConfig(mainRepoPath)
+	if cfgErr != nil {
+		cfgForWarning = &config.Config{
+			Defaults: config.Defaults{BaseDir: config.DefaultBaseDir},
+		}
+	}
+	maybeWarnLegacyWorktreeLayout(errWriter, mainRepoPath, cfgForWarning, worktrees)
+}
+
+func locateTargetWorktree(worktrees []git.Worktree, worktreeName string) (*git.Worktree, error) {
+	targetWorktree, err := findTargetWorktreeFromList(worktrees, worktreeName)
 	if err != nil {
-		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
+		return nil, err
+	}
+	if targetWorktree == nil {
+		return nil, errors.WorktreeNotFound(worktreeName, nil)
+	}
+	return targetWorktree, nil
+}
+
+func guardAgainstRemovingCurrentWorktree(targetPath, cwd, worktreeName string) error {
+	absTargetPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		return errors.WorktreeRemovalFailed(targetPath, err)
 	}
 
 	absCwd, err := filepath.Abs(cwd)
@@ -129,30 +187,23 @@ func removeCommandWithCommandExecutor(
 	if isPathWithin(absTargetPath, absCwd) {
 		return errors.CannotRemoveCurrentWorktree(worktreeName, absTargetPath)
 	}
+	return nil
+}
 
-	// Remove worktree using CommandExecutor
-	removeCmd := command.GitWorktreeRemove(targetWorktree.Path, force)
-	result, err = executor.Execute([]command.Command{removeCmd})
+func executeWorktreeRemoval(executor command.Executor, worktreePath string, force bool) error {
+	removeCmd := command.GitWorktreeRemove(worktreePath, force)
+	result, err := executor.Execute([]command.Command{removeCmd})
 	if err != nil {
-		return errors.WorktreeRemovalFailed(targetWorktree.Path, err)
+		return errors.WorktreeRemovalFailed(worktreePath, err)
 	}
 	if len(result.Results) > 0 && result.Results[0].Error != nil {
 		gitOutput := result.Results[0].Output
 		if gitOutput != "" {
 			combinedError := fmt.Errorf("%v: %s", result.Results[0].Error, gitOutput)
-			return errors.WorktreeRemovalFailed(targetWorktree.Path, combinedError)
+			return errors.WorktreeRemovalFailed(worktreePath, combinedError)
 		}
-		return errors.WorktreeRemovalFailed(targetWorktree.Path, result.Results[0].Error)
+		return errors.WorktreeRemovalFailed(worktreePath, result.Results[0].Error)
 	}
-	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path)
-
-	// Remove branch if requested
-	if withBranch && targetWorktree.Branch != "" {
-		if err := removeBranchWithCommandExecutor(w, executor, targetWorktree.Branch, forceBranch); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 

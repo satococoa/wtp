@@ -103,8 +103,10 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 		return errors.GitCommandFailed("get main worktree path", err.Error())
 	}
 
+	rootCmd := cmd.Root()
+
 	// Get the writer from cli.Command
-	w := cmd.Root().Writer
+	w := rootCmd.Writer
 	if w == nil {
 		w = os.Stdout
 	}
@@ -124,7 +126,7 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 }
 
 func listCommandWithCommandExecutor(
-	_ *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string, quiet bool,
+	cmd *cli.Command, w io.Writer, executor command.Executor, cfg *config.Config, mainRepoPath string, quiet bool,
 	opts listDisplayOptions,
 ) error {
 	// Get current working directory
@@ -149,6 +151,16 @@ func listCommandWithCommandExecutor(
 		}
 		return nil
 	}
+
+	errWriter := io.Discard
+	if cmd != nil {
+		if root := cmd.Root(); root != nil && root.ErrWriter != nil {
+			errWriter = root.ErrWriter
+		} else if root != nil && root.ErrWriter == nil {
+			errWriter = os.Stderr
+		}
+	}
+	maybeWarnLegacyWorktreeLayout(errWriter, mainRepoPath, cfg, worktrees)
 
 	// Display worktrees
 	if quiet {

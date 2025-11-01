@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -809,6 +810,8 @@ func createRemoveTestCLICommand(flags map[string]any, args []string) *cli.Comman
 			},
 		},
 	}
+
+	app.ErrWriter = io.Discard
 
 	cmdArgs := []string{"test", "remove"}
 	for key, value := range flags {
