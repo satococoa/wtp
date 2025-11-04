@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/satococoa/wtp/test/e2e/framework"
+	"github.com/satococoa/wtp/v2/test/e2e/framework"
 )
 
 // TestConfigBaseDirIntegration tests that base_dir configuration is properly handled

@@ -90,7 +90,7 @@ brew install satococoa/tap/wtp
 ### Using Go
 
 ```bash
-go install github.com/satococoa/wtp/cmd/wtp@latest
+go install github.com/satococoa/wtp/v2/cmd/wtp@latest
 ```
 
 ### Download Binary

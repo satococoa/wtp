@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/v2/internal/config"
 )
 
 const (
