@@ -47,8 +47,8 @@ func TestMain(t *testing.T) {
 func TestVersionInfo(t *testing.T) {
 	// Test version is set
 	assert.NotEmpty(t, version)
-	// In tests, version is usually "dev"
-	if version != "dev" {
+	// In tests, version is usually the default
+	if version != defaultVersion {
 		// If not dev, should be a valid version format
 		assert.Regexp(t, `^\d+\.\d+\.\d+`, version)
 	}
