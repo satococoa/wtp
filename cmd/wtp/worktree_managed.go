@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/v2/internal/config"
 )
 
 // isWorktreeManagedCommon determines whether a worktree path is considered managed by wtp.

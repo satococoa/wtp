@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/satococoa/wtp/internal/errors"
+	"github.com/satococoa/wtp/v2/internal/errors"
 )
 
 type Repository struct {

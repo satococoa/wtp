@@ -12,10 +12,10 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"github.com/satococoa/wtp/internal/command"
-	"github.com/satococoa/wtp/internal/config"
-	"github.com/satococoa/wtp/internal/errors"
-	"github.com/satococoa/wtp/internal/git"
+	"github.com/satococoa/wtp/v2/internal/command"
+	"github.com/satococoa/wtp/v2/internal/config"
+	"github.com/satococoa/wtp/v2/internal/errors"
+	"github.com/satococoa/wtp/v2/internal/git"
 )
 
 // isWorktreeManagedCd determines if a worktree is managed by wtp (for cd command)

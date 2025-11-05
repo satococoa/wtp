@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/satococoa/wtp/internal/config"
+	"github.com/satococoa/wtp/v2/internal/config"
 )
 
 // RunWriterCommonTests runs a common pair of tests for functions that write

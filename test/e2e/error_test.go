@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/satococoa/wtp/test/e2e/framework"
+	"github.com/satococoa/wtp/v2/test/e2e/framework"
 )
 
 func TestErrorMessages(t *testing.T) {
