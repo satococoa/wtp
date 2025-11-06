@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -38,7 +39,7 @@ type Hook struct {
 const (
 	ConfigFileName        = ".wtp.yml"
 	CurrentVersion        = "1.0"
-	DefaultBaseDir        = "../worktrees"
+	DefaultBaseDir        = "../worktrees/${WTP_REPO_BASENAME}"
 	HookTypeCopy          = "copy"
 	HookTypeCommand       = "command"
 	configFilePermissions = 0o600
@@ -53,7 +54,7 @@ func LoadConfig(repoRoot string) (*Config, error) {
 		return &Config{
 			Version: CurrentVersion,
 			Defaults: Defaults{
-				BaseDir: "../worktrees",
+				BaseDir: DefaultBaseDir,
 			},
 			Hooks: Hooks{},
 		}, nil
@@ -149,9 +150,20 @@ func (c *Config) HasHooks() bool {
 
 // ResolveWorktreePath resolves the full path for a worktree given a name
 func (c *Config) ResolveWorktreePath(repoRoot, worktreeName string) string {
-	baseDir := c.Defaults.BaseDir
+	baseDir := expandBaseDirVariables(c.Defaults.BaseDir, repoRoot)
 	if !filepath.IsAbs(baseDir) {
 		baseDir = filepath.Join(repoRoot, baseDir)
 	}
 	return filepath.Join(baseDir, worktreeName)
+}
+
+func expandBaseDirVariables(baseDir, repoRoot string) string {
+	if baseDir == "" {
+		return baseDir
+	}
+
+	repoBaseName := filepath.Base(repoRoot)
+	expanded := strings.ReplaceAll(baseDir, "${WTP_REPO_BASENAME}", repoBaseName)
+
+	return expanded
 }

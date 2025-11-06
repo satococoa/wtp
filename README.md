@@ -12,7 +12,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 solution:** `wtp add feature/auth`
 
 wtp automatically generates sensible paths based on branch names. Your
-`feature/auth` branch goes to `../worktrees/feature/auth` - no redundant typing,
+`feature/auth` branch goes to `../worktrees/<repo-name>/feature/auth` - no redundant typing,
 no path errors.
 
 ### 🧹 Clean Branch Management
@@ -127,20 +127,20 @@ sudo mv wtp /usr/local/bin/  # or add to PATH
 
 ```bash
 # Create worktree from existing branch (local or remote)
-# → Creates worktree at ../worktrees/feature/auth
+# → Creates worktree at ../worktrees/<repo-name>/feature/auth
 # Automatically tracks remote branch if not found locally
 wtp add feature/auth
 
 # Create worktree with new branch
-# → Creates worktree at ../worktrees/feature/new-feature
+# → Creates worktree at ../worktrees/<repo-name>/feature/new-feature
 wtp add -b feature/new-feature
 
 # Create new branch from specific commit
-# → Creates worktree at ../worktrees/hotfix/urgent
+# → Creates worktree at ../worktrees/<repo-name>/hotfix/urgent
 wtp add -b hotfix/urgent abc1234
 
 # Create new branch tracking a different remote branch
-# → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
+# → Creates worktree at ../worktrees/<repo-name>/feature/test with branch tracking origin/main
 wtp add -b feature/test origin/main
 
 # Remote branch handling examples:
@@ -188,7 +188,8 @@ wtp uses `.wtp.yml` for project-specific configuration:
 version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
-  base_dir: "../worktrees"
+  # ${WTP_REPO_BASENAME} expands to the repository directory name
+  base_dir: "../worktrees/${WTP_REPO_BASENAME}"
 
 hooks:
   post_create:
@@ -212,6 +213,17 @@ hooks:
       command: "make db:setup"
       work_dir: "."
 ```
+
+The `${WTP_REPO_BASENAME}` placeholder expands to the repository's directory
+name when resolving paths, ensuring zero-config isolation between different
+repositories. You can combine it with additional path segments as needed.
+
+> **Breaking change (vNEXT):** If you relied on the previous implicit default
+> of `../worktrees` without a `.wtp.yml`, existing worktrees will now appear
+> unmanaged because the new default expects
+> `../worktrees/${WTP_REPO_BASENAME}`. Add a `.wtp.yml` with
+> `base_dir: "../worktrees"` (or reorganize your worktrees) before upgrading
+> to keep the legacy layout working.
 
 ### Copy Hooks: Main Worktree Reference
 
@@ -326,7 +338,7 @@ evaluates `wtp shell-init <shell>` once for your session—tab completion and
 
 ## Worktree Structure
 
-With the default configuration (`base_dir: "../worktrees"`):
+With the default configuration (`base_dir: "../worktrees/${WTP_REPO_BASENAME}"`):
 
 ```
 <project-root>/
@@ -335,12 +347,13 @@ With the default configuration (`base_dir: "../worktrees"`):
 └── src/
 
 ../worktrees/
-├── main/
-├── feature/
-│   ├── auth/          # wtp add feature/auth
-│   └── payment/       # wtp add feature/payment
-└── hotfix/
-    └── bug-123/       # wtp add hotfix/bug-123
+└── <repo-name>/
+    ├── main/
+    ├── feature/
+    │   ├── auth/          # wtp add feature/auth
+    │   └── payment/       # wtp add feature/payment
+    └── hotfix/
+        └── bug-123/       # wtp add hotfix/bug-123
 ```
 
 Branch names with slashes are preserved as directory structure, automatically
