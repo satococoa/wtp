@@ -16,7 +16,7 @@
 - Install: `go tool task install` → installs to `GOBIN`/`GOPATH/bin`.
 - Test (unit + race + coverage): `go tool task test` → writes `coverage.out`.
 - Lint: `go tool task lint` (golangci-lint).
-- Format: `go tool task fmt` (gofmt + goimports).
+- Format: `go tool task fmt` (golangci-lint fmt → gofmt + goimports).
 - E2E tests: `go tool task test-e2e` (uses built binary; override with `WTP_E2E_BINARY=/abs/path/wtp`).
 - Direct build (no Task): `go build -o wtp ./cmd/wtp`.
 - Dev cycle: `go tool task dev` (runs clean, fmt, lint, test, build).

@@ -90,9 +90,10 @@ func TestGetWorktrees_WithWorktrees(t *testing.T) {
 	// Check main worktree
 	var mainWorktree, featureWorktree *Worktree
 	for i := range worktrees {
-		if worktrees[i].Branch == "main" {
+		switch worktrees[i].Branch {
+		case "main":
 			mainWorktree = &worktrees[i]
-		} else if worktrees[i].Branch == "feature/test" {
+		case "feature/test":
 			featureWorktree = &worktrees[i]
 		}
 	}

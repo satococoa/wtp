@@ -160,7 +160,9 @@ func generateCompletionScript(t *testing.T, shell string) string {
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
 	}
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 
 	app.Writer = w
 	app.ErrWriter = w
@@ -176,7 +178,7 @@ func generateCompletionScript(t *testing.T, shell string) string {
 	args := normalizeCompletionArgs([]string{"wtp", "completion", shell})
 	runErr := app.Run(context.Background(), args)
 	if closeErr := w.Close(); closeErr != nil {
-		t.Fatalf("failed to close writer: %v", err)
+		t.Fatalf("failed to close writer: %v", closeErr)
 	}
 
 	if runErr != nil {

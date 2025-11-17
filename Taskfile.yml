@@ -70,5 +70,4 @@ tasks:
     desc: Format code
     cmds:
       - echo "Formatting code..."
-      - go fmt ./...
-      - go tool goimports -w .
+      - go tool golangci-lint fmt ./...

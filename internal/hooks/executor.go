@@ -214,13 +214,17 @@ func (e *Executor) copyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
-	defer sourceFile.Close()
+	defer func() {
+		_ = sourceFile.Close()
+	}()
 
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
 	}
-	defer destFile.Close()
+	defer func() {
+		_ = destFile.Close()
+	}()
 
 	if _, copyErr := io.Copy(destFile, sourceFile); copyErr != nil {
 		return fmt.Errorf("failed to copy file: %w", copyErr)
