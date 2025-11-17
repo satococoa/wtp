@@ -139,7 +139,7 @@ func removeCommandWithCommandExecutor(
 	if len(result.Results) > 0 && result.Results[0].Error != nil {
 		gitOutput := result.Results[0].Output
 		if gitOutput != "" {
-			combinedError := fmt.Errorf("%v: %s", result.Results[0].Error, gitOutput)
+			combinedError := fmt.Errorf("%w: %s", result.Results[0].Error, gitOutput)
 			return errors.WorktreeRemovalFailed(targetWorktree.Path, combinedError)
 		}
 		return errors.WorktreeRemovalFailed(targetWorktree.Path, result.Results[0].Error)
@@ -197,7 +197,7 @@ func removeBranchWithCommandExecutor(
 	if len(result.Results) > 0 && result.Results[0].Error != nil {
 		gitOutput := result.Results[0].Output
 		if gitOutput != "" {
-			combinedError := fmt.Errorf("%v: %s", result.Results[0].Error, gitOutput)
+			combinedError := fmt.Errorf("%w: %s", result.Results[0].Error, gitOutput)
 			return errors.BranchRemovalFailed(branchName, combinedError, forceBranch)
 		}
 		return errors.BranchRemovalFailed(branchName, result.Results[0].Error, forceBranch)

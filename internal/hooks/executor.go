@@ -187,7 +187,7 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 
 	// Wait for command to complete
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("command failed: %s", err)
+		return fmt.Errorf("command failed: %w", err)
 	}
 
 	return nil
