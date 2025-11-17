@@ -13,6 +13,7 @@ linters:
     - dogsled
     - dupl
     - errcheck
+    - errorlint
     - exhaustive
     - gochecknoinits
     - goconst
