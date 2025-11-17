@@ -109,14 +109,5 @@ formatters:
         - github.com/satococoa/wtp/v2
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - mnd
-        - goconst
-        - gosec
-    - linters:
-        - lll
-      source: "^//go:generate "
   max-issues-per-linter: 0
   max-same-issues: 0
