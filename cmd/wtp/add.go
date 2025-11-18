@@ -106,14 +106,11 @@ func addCommandWithCommandExecutor(
 		return analyzeGitWorktreeError(workTreePath, branchName, gitError, gitOutput)
 	}
 
-	// Display success message
-	displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath)
-
-	// Execute post-create hooks
 	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
-		// Log warning but don't fail the entire operation
 		fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
 	}
+
+	displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath)
 
 	return nil
 }
