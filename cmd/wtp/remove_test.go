@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,15 +55,15 @@ func TestRemoveCommand_WorktreeResolution(t *testing.T) {
 			name:         "find by exact name",
 			worktreeName: "feature-branch",
 			worktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
-			expectedPath: "/path/to/worktrees/feature-branch",
+				"worktree /path/to/worktrees/main/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
+			expectedPath: "/path/to/worktrees/main/feature-branch",
 			shouldFind:   true,
 		},
 		{
 			name:         "not found",
 			worktreeName: "nonexistent",
 			worktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-				"worktree /path/to/worktrees/other\nHEAD def456\nbranch refs/heads/other\n\n",
+				"worktree /path/to/worktrees/main/other\nHEAD def456\nbranch refs/heads/other\n\n",
 			expectedPath: "",
 			shouldFind:   false,
 		},
@@ -142,7 +143,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 			flags:        map[string]any{},
 			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
+				"worktree /path/to/worktrees/main/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 			expectedCommands: []command.Command{
 				{
 					Name: "git",
@@ -150,7 +151,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 				},
 				{
 					Name: "git",
-					Args: []string{"worktree", "remove", "/path/to/worktrees/feature-branch"},
+					Args: []string{"worktree", "remove", "/path/to/worktrees/main/feature-branch"},
 				},
 			},
 		},
@@ -159,7 +160,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 			flags:        map[string]any{"force": true},
 			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
+				"worktree /path/to/worktrees/main/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 			expectedCommands: []command.Command{
 				{
 					Name: "git",
@@ -167,7 +168,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 				},
 				{
 					Name: "git",
-					Args: []string{"worktree", "remove", "--force", "/path/to/worktrees/feature-branch"},
+					Args: []string{"worktree", "remove", "--force", "/path/to/worktrees/main/feature-branch"},
 				},
 			},
 		},
@@ -176,7 +177,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 			flags:        map[string]any{"branch": true},
 			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
+				"worktree /path/to/worktrees/main/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 			expectedCommands: []command.Command{
 				{
 					Name: "git",
@@ -184,7 +185,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 				},
 				{
 					Name: "git",
-					Args: []string{"worktree", "remove", "/path/to/worktrees/feature-branch"},
+					Args: []string{"worktree", "remove", "/path/to/worktrees/main/feature-branch"},
 				},
 				{
 					Name: "git",
@@ -263,7 +264,7 @@ func TestRemoveCommand_SuccessMessage(t *testing.T) {
 				results: []command.Result{
 					{
 						Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-							"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
+							"worktree /path/to/worktrees/main/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 						Error: nil,
 					},
 					{
@@ -374,7 +375,7 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 		results: []command.Result{
 			{
 				Output: "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n" +
-					"worktree /repo/.worktrees/feat/hogehoge\nHEAD def456\nbranch refs/heads/feat/hogehoge\n\n",
+					"worktree /somewhere/else/feat/hogehoge\nHEAD def456\nbranch refs/heads/feat/hogehoge\n\n",
 				Error: nil,
 			},
 		},
@@ -392,7 +393,7 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 }
 
 func TestRemoveCommand_FailsWhenRemovingCurrentWorktree(t *testing.T) {
-	targetPath := "/worktrees/feature/foo"
+	targetPath := "/worktrees/repo/feature/foo"
 	mockWorktreeList := fmt.Sprintf(
 		"worktree /repo\nHEAD abc123\nbranch refs/heads/main\n\n"+
 			"worktree %s\nHEAD def456\nbranch refs/heads/feature/foo\n\n",
@@ -446,7 +447,7 @@ func TestRemoveCommand_ExecutionError(t *testing.T) {
 		results: []command.Result{
 			{
 				Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-					"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
+					"worktree /path/to/worktrees/main/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
 				Error: nil,
 			},
 		},
@@ -474,7 +475,7 @@ func TestRemoveCommand_DirtyWorktree(t *testing.T) {
 		{
 			name:      "remove dirty worktree without force fails",
 			forceFlag: false,
-			gitError: "fatal: '/path/to/worktrees/dirty-feature' " +
+			gitError: "fatal: '/path/to/worktrees/main/dirty-feature' " +
 				"contains modified or untracked files, use --force to delete it",
 			shouldSucceed: false,
 			expectedMsg: []string{
@@ -501,7 +502,7 @@ func TestRemoveCommand_DirtyWorktree(t *testing.T) {
 			// First result is always the worktree list
 			mockResults = append(mockResults, command.Result{
 				Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-					"worktree /path/to/worktrees/dirty-feature\nHEAD def456\nbranch refs/heads/dirty-feature\n\n",
+					"worktree /path/to/worktrees/main/dirty-feature\nHEAD def456\nbranch refs/heads/dirty-feature\n\n",
 				Error: nil,
 			})
 
@@ -590,7 +591,7 @@ func TestRemoveCommand_BranchRemovalWithUnmergedCommits(t *testing.T) {
 			mockResults = append(mockResults,
 				command.Result{
 					Output: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
-						"worktree /path/to/worktrees/feature-unmerged\nHEAD def456\nbranch refs/heads/feature-unmerged\n\n",
+						"worktree /path/to/worktrees/main/feature-unmerged\nHEAD def456\nbranch refs/heads/feature-unmerged\n\n",
 					Error: nil,
 				},
 				command.Result{
@@ -658,17 +659,17 @@ func TestRemoveCommand_InternationalCharacters(t *testing.T) {
 		{
 			name:         "Japanese characters",
 			branchName:   "機能/ログイン",
-			worktreePath: "/path/to/worktrees/機能/ログイン",
+			worktreePath: "/path/to/worktrees/main/機能/ログイン",
 		},
 		{
 			name:         "Spanish accents",
 			branchName:   "función/añadir",
-			worktreePath: "/path/to/worktrees/función/añadir",
+			worktreePath: "/path/to/worktrees/main/función/añadir",
 		},
 		{
 			name:         "Emoji characters",
 			branchName:   "feature/🚀-rocket",
-			worktreePath: "/path/to/worktrees/feature/🚀-rocket",
+			worktreePath: "/path/to/worktrees/main/feature/🚀-rocket",
 		},
 	}
 
@@ -704,7 +705,7 @@ func TestRemoveCommand_InternationalCharacters(t *testing.T) {
 }
 
 func TestRemoveCommand_PathWithSpaces(t *testing.T) {
-	worktreePath := "/path/to/main/../worktrees/feature branch"
+	worktreePath := "/path/to/main/../worktrees/main/feature branch"
 	mockOutput := "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 		"worktree " + worktreePath + "\nHEAD def456\nbranch refs/heads/feature-branch\n\n"
 
@@ -738,15 +739,15 @@ func TestRemoveCommand_MultipleMatchingWorktrees(t *testing.T) {
 HEAD abc123
 branch refs/heads/main
 
-worktree /path/to/worktrees/feature-test
+worktree /path/to/worktrees/main/feature-test
 HEAD def456
 branch refs/heads/feature-test
 
-worktree /path/to/worktrees/feature-test-2
+worktree /path/to/worktrees/main/feature-test-2
 HEAD ghi789
 branch refs/heads/feature-test-2
 
-worktree /path/to/worktrees/test-feature
+worktree /path/to/worktrees/main/test-feature
 HEAD jkl012
 branch refs/heads/test-feature
 
@@ -756,9 +757,9 @@ branch refs/heads/test-feature
 		input        string
 		expectedPath string
 	}{
-		{"feature-test", "/path/to/worktrees/feature-test"},
-		{"feature-test-2", "/path/to/worktrees/feature-test-2"},
-		{"test-feature", "/path/to/worktrees/test-feature"},
+		{"feature-test", "/path/to/worktrees/main/feature-test"},
+		{"feature-test-2", "/path/to/worktrees/main/feature-test-2"},
+		{"test-feature", "/path/to/worktrees/main/test-feature"},
 	}
 
 	for _, tt := range tests {
@@ -809,6 +810,8 @@ func createRemoveTestCLICommand(flags map[string]any, args []string) *cli.Comman
 			},
 		},
 	}
+
+	app.ErrWriter = io.Discard
 
 	cmdArgs := []string{"test", "remove"}
 	for key, value := range flags {
