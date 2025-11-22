@@ -1,6 +1,7 @@
 package git
 
 import (
+	stdErrors "errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -142,7 +143,8 @@ func (r *Repository) BranchExists(branch string) (bool, error) {
 	cmd.Dir = r.path
 	err := cmd.Run()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		var exitErr *exec.ExitError
+		if stdErrors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to check branch existence: %w", err)

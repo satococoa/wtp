@@ -1,90 +1,113 @@
+version: "2"
+
 run:
   timeout: 5m
   modules-download-mode: readonly
 
-linters-settings:
-  depguard:
-    rules:
-      main:
-        files:
-          - "$all"
-          - "!$test"
-        list-mode: lax
-        allow:
-          - $gostd
-          - github.com/satococoa/wtp/v2
-          - github.com/urfave/cli/v3
-          - go.yaml.in/yaml/v3
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-  gocyclo:
-    min-complexity: 15
-  misspell:
-    locale: US
-  lll:
-    line-length: 120
-  goimports:
-    local-prefixes: github.com/satococoa/wtp/v2
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-
 linters:
+  default: none
   enable:
     - bodyclose
-    - copyloopvar     # replaces exportloopref for Go 1.22+
+    - copyloopvar
     - depguard
     - dogsled
     - dupl
     - errcheck
+    - errorlint
     - exhaustive
     - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - mnd             # replaces gomnd
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - lll
     - misspell
+    - mnd
     - nakedret
-    - noctx
     - nolintlint
     - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
-    - unused          # replaces deadcode, structcheck, varcheck
+    - unused
     - whitespace
 
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - mnd
-        - goconst
-        - gosec
-    - linters:
-        - lll
-      source: "^//go:generate "
+  settings:
+    depguard:
+      rules:
+        main:
+          files:
+            - "$all"
+            - "!$test"
+          list-mode: lax
+          allow:
+            - $gostd
+            - github.com/satococoa/wtp/v2
+            - github.com/urfave/cli/v3
+            - go.yaml.in/yaml/v3
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Print
+        - fmt.Printf
+        - fmt.Println
+        - os.Setenv
+        - os.Unsetenv
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    gocyclo:
+      min-complexity: 15
+    misspell:
+      locale: US
+    lll:
+      line-length: 120
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - dupImport
+        - ifElseChain
+        - octalLiteral
+        - whyNoLint
+    gosec:
+      excludes:
+        - G204
+        - G304
+    revive:
+      rules:
+        - name: indent-error-flow
 
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - mnd
+          - goconst
+          - gosec
+      - linters:
+          - lll
+        source: "^//go:generate "
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/satococoa/wtp/v2
+
+issues:
   max-issues-per-linter: 0
   max-same-issues: 0

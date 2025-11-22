@@ -204,7 +204,7 @@ Details: %s
 
 Tip: Check that the parent directory exists and you have write permissions.
 
-Original error: %v`, workTreePath, gitOutput, gitError)
+Original error: %w`, workTreePath, gitOutput, gitError)
 	}
 
 	// Default error with helpful context
@@ -216,7 +216,7 @@ Details: %s
 
 Tip: Run 'git worktree list' to see existing worktrees, or check git documentation for valid worktree paths.
 
-Original error: %v`, workTreePath, gitOutput, gitError)
+Original error: %w`, workTreePath, gitOutput, gitError)
 }
 
 // Helper functions to reduce cyclomatic complexity
