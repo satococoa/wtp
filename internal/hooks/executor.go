@@ -1,3 +1,4 @@
+// Package hooks handles executing post-create hooks for worktrees.
 package hooks
 
 import (
@@ -41,14 +42,18 @@ func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) erro
 	totalHooks := len(e.config.Hooks.PostCreate)
 	for i, hook := range e.config.Hooks.PostCreate {
 		// Log which hook is starting
-		fmt.Fprintf(w, "\n→ Running hook %d of %d...\n", i+1, totalHooks)
+		if _, err := fmt.Fprintf(w, "\n→ Running hook %d of %d...\n", i+1, totalHooks); err != nil {
+			return err
+		}
 
 		if err := e.executeHookWithWriter(w, &hook, worktreePath); err != nil {
 			return fmt.Errorf("failed to execute hook %d: %w", i+1, err)
 		}
 
 		// Log successful completion
-		fmt.Fprintf(w, "✓ Hook %d completed\n", i+1)
+		if _, err := fmt.Fprintf(w, "✓ Hook %d completed\n", i+1); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -73,11 +78,23 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 	if !filepath.IsAbs(srcPath) {
 		srcPath = filepath.Join(e.repoRoot, srcPath)
 	}
+	srcPath = filepath.Clean(srcPath)
+	if !filepath.IsAbs(hook.From) {
+		if err := ensureWithinBase(e.repoRoot, srcPath); err != nil {
+			return err
+		}
+	}
 
 	// Resolve destination path (relative to worktree)
 	dstPath := hook.To
 	if !filepath.IsAbs(dstPath) {
 		dstPath = filepath.Join(worktreePath, dstPath)
+	}
+	dstPath = filepath.Clean(dstPath)
+	if !filepath.IsAbs(hook.To) {
+		if err := ensureWithinBase(worktreePath, dstPath); err != nil {
+			return err
+		}
 	}
 
 	// Check if source exists
@@ -95,12 +112,27 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 	// Log the copy operation to writer
 	relSrc, _ := filepath.Rel(e.repoRoot, srcPath)
 	relDst, _ := filepath.Rel(worktreePath, dstPath)
-	fmt.Fprintf(w, "  Copying: %s → %s\n", relSrc, relDst)
+	if _, err := fmt.Fprintf(w, "  Copying: %s → %s\n", relSrc, relDst); err != nil {
+		return err
+	}
 
 	if srcInfo.IsDir() {
 		return e.copyDir(srcPath, dstPath)
 	}
 	return e.copyFile(srcPath, dstPath)
+}
+
+func ensureWithinBase(base, target string) error {
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path %s relative to %s: %w", target, base, err)
+	}
+
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return fmt.Errorf("path %s escapes base directory %s", target, base)
+	}
+
+	return nil
 }
 
 // executeCommandHookWithWriter executes a command hook with output directed to writer
@@ -143,8 +175,12 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 		fmt.Sprintf("GIT_WTP_REPO_ROOT=%s", e.repoRoot))
 
 	// Log the command execution to writer
-	fmt.Fprintf(w, "  Running: %s", hook.Command)
-	fmt.Fprintln(w)
+	if _, err := fmt.Fprintf(w, "  Running: %s", hook.Command); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 
 	// Create pipes for stdout and stderr to enable real-time streaming
 	stdout, err := cmd.StdoutPipe()
@@ -209,7 +245,17 @@ func (sw *synchronizedWriter) Write(p []byte) (int, error) {
 }
 
 // copyFile copies a single file
-func (e *Executor) copyFile(src, dst string) error {
+func (*Executor) copyFile(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+
+	if srcInfo.Mode().Perm()&0o400 == 0 {
+		return fmt.Errorf("failed to copy file: source file is not readable")
+	}
+
+	// #nosec G304 -- src is validated against the repository root above
 	sourceFile, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
@@ -218,6 +264,12 @@ func (e *Executor) copyFile(src, dst string) error {
 		_ = sourceFile.Close()
 	}()
 
+	dstParent := filepath.Dir(dst)
+	if writableErr := ensureDirWritable(dstParent); writableErr != nil {
+		return fmt.Errorf("failed to create destination file: %w", writableErr)
+	}
+
+	// #nosec G304 -- dst is validated against the worktree path above
 	destFile, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("failed to create destination file: %w", err)
@@ -228,12 +280,6 @@ func (e *Executor) copyFile(src, dst string) error {
 
 	if _, copyErr := io.Copy(destFile, sourceFile); copyErr != nil {
 		return fmt.Errorf("failed to copy file: %w", copyErr)
-	}
-
-	// Copy file permissions
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return fmt.Errorf("failed to get source file info: %w", err)
 	}
 
 	if err := os.Chmod(dst, srcInfo.Mode()); err != nil {
@@ -248,6 +294,15 @@ func (e *Executor) copyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("failed to stat source directory: %w", err)
+	}
+
+	if srcInfo.Mode().Perm()&0o400 == 0 {
+		return fmt.Errorf("failed to read source directory: permission denied")
+	}
+
+	parentDir := filepath.Dir(dst)
+	if writableErr := ensureDirWritable(parentDir); writableErr != nil {
+		return fmt.Errorf("failed to create destination directory: %w", writableErr)
 	}
 
 	if mkdirErr := os.MkdirAll(dst, srcInfo.Mode()); mkdirErr != nil {
@@ -272,6 +327,23 @@ func (e *Executor) copyDir(src, dst string) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func ensureDirWritable(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("not a directory: %s", path)
+	}
+
+	if info.Mode().Perm()&0o200 == 0 {
+		return fmt.Errorf("write permission denied for directory: %s", path)
 	}
 
 	return nil

@@ -48,16 +48,6 @@ linters:
             - github.com/satococoa/wtp/v2
             - github.com/urfave/cli/v3
             - go.yaml.in/yaml/v3
-    errcheck:
-      exclude-functions:
-        - fmt.Fprint
-        - fmt.Fprintf
-        - fmt.Fprintln
-        - fmt.Print
-        - fmt.Printf
-        - fmt.Println
-        - os.Setenv
-        - os.Unsetenv
     govet:
       enable-all: true
       disable:
@@ -80,13 +70,13 @@ linters:
         - ifElseChain
         - octalLiteral
         - whyNoLint
-    gosec:
-      excludes:
-        - G204
-        - G304
     revive:
       rules:
         - name: indent-error-flow
+        - name: exported
+        - name: package-comments
+        - name: unused-parameter
+        - name: unused-receiver
 
   exclusions:
     rules:
@@ -105,8 +95,11 @@ formatters:
     - goimports
   settings:
     goimports:
+      # Task-based formatting sets GOIMPORTS_LOCAL_PREFIXES via `go list -m`.
+      # The default keeps CI and ad-hoc runs deterministic if the task runner
+      # is bypassed.
       local-prefixes:
-        - github.com/satococoa/wtp/v2
+        - ${GOIMPORTS_LOCAL_PREFIXES:-github.com/satococoa/wtp/v2}
 
 issues:
   max-issues-per-linter: 0

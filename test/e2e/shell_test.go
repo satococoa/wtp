@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -52,8 +51,7 @@ func TestShellIntegration(t *testing.T) {
 		repo := env.CreateTestRepo("shell-cd-nonexistent")
 
 		// Simulate shell integration
-		os.Setenv("WTP_SHELL_INTEGRATION", "1")
-		defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+		t.Setenv("WTP_SHELL_INTEGRATION", "1")
 
 		output, err := repo.RunWTP("cd", "nonexistent")
 		framework.AssertError(t, err)
@@ -134,8 +132,7 @@ func TestShellCompletionBehavior(t *testing.T) {
 		_, _ = repo.RunWTP("add", "bugfix/three")
 
 		// Simulate shell integration for cd command
-		os.Setenv("WTP_SHELL_INTEGRATION", "1")
-		defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+		t.Setenv("WTP_SHELL_INTEGRATION", "1")
 
 		// List command should work and show all worktrees
 		output, err := repo.RunWTP("list")
@@ -152,8 +149,7 @@ func TestShellCompletionBehavior(t *testing.T) {
 		_, _ = repo.RunWTP("add", "feature/authentication")
 		_, _ = repo.RunWTP("add", "feature/authorization")
 
-		os.Setenv("WTP_SHELL_INTEGRATION", "1")
-		defer os.Unsetenv("WTP_SHELL_INTEGRATION")
+		t.Setenv("WTP_SHELL_INTEGRATION", "1")
 
 		// Try partial match (this behavior might vary)
 		output, err := repo.RunWTP("cd", "auth")

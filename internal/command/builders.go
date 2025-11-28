@@ -1,3 +1,4 @@
+// Package command provides helpers to build and execute git commands.
 package command
 
 // GitWorktreeAddOptions represents options for git worktree add command

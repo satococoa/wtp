@@ -1,3 +1,4 @@
+// Package framework contains helpers for constructing repositories during end-to-end tests.
 package framework
 
 import (
@@ -15,6 +16,7 @@ const (
 	filePerm = 0600
 )
 
+// TestEnvironment manages the temporary state for an end-to-end test run.
 type TestEnvironment struct {
 	t         *testing.T
 	tmpDir    string
@@ -22,6 +24,7 @@ type TestEnvironment struct {
 	cleanup   []func()
 }
 
+// NewTestEnvironment builds a new test environment and compiles the wtp binary when needed.
 func NewTestEnvironment(t *testing.T) *TestEnvironment {
 	t.Helper()
 
@@ -48,6 +51,7 @@ func (e *TestEnvironment) buildWTP() {
 		}
 	} else {
 		projectRoot := e.findProjectRoot()
+		// #nosec G204 -- test helper builds the binary in an isolated temp directory
 		cmd := exec.Command("go", "build", "-o", wtpBinary, "./cmd/wtp")
 		cmd.Dir = projectRoot
 		if output, err := cmd.CombinedOutput(); err != nil {
@@ -86,6 +90,7 @@ func (e *TestEnvironment) findProjectRoot() string {
 	}
 }
 
+// CreateTestRepo initializes a new git repository within the test environment.
 func (e *TestEnvironment) CreateTestRepo(name string) *TestRepo {
 	e.t.Helper()
 
@@ -150,6 +155,7 @@ func (e *TestEnvironment) writeFile(path, content string) {
 	}
 }
 
+// RunWTP executes the wtp binary with the provided arguments.
 func (e *TestEnvironment) RunWTP(args ...string) (string, error) {
 	// Validate args don't contain dangerous characters
 	for _, arg := range args {
@@ -164,10 +170,12 @@ func (e *TestEnvironment) RunWTP(args ...string) (string, error) {
 	return string(output), err
 }
 
+// TmpDir returns the temporary directory used by the test environment.
 func (e *TestEnvironment) TmpDir() string {
 	return e.tmpDir
 }
 
+// CreateNonRepoDir creates a directory that is not initialized as a git repository.
 func (e *TestEnvironment) CreateNonRepoDir(name string) *TestRepo {
 	e.t.Helper()
 
@@ -182,30 +190,36 @@ func (e *TestEnvironment) CreateNonRepoDir(name string) *TestRepo {
 	}
 }
 
+// WriteFile writes file contents relative to the test environment root.
 func (e *TestEnvironment) WriteFile(path, content string) {
 	e.writeFile(path, content)
 }
 
-func (e *TestEnvironment) FileExists(path string) bool {
+// FileExists checks whether a file exists relative to the test environment root.
+func (*TestEnvironment) FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
+// RunInDir executes a command in the specified directory and returns combined output.
 func (e *TestEnvironment) RunInDir(dir, command string, args ...string) string {
 	return e.runInDir(dir, command, args...)
 }
 
+// Cleanup runs registered cleanup callbacks for the environment.
 func (e *TestEnvironment) Cleanup() {
 	for _, fn := range e.cleanup {
 		fn()
 	}
 }
 
+// TestRepo wraps a git repository created inside the test environment.
 type TestRepo struct {
 	env  *TestEnvironment
 	path string
 }
 
+// RunWTP executes the wtp binary from the repository directory.
 func (r *TestRepo) RunWTP(args ...string) (string, error) {
 	// Validate args don't contain dangerous characters
 	for _, arg := range args {
@@ -223,24 +237,29 @@ func (r *TestRepo) RunWTP(args ...string) (string, error) {
 	return string(output), err
 }
 
+// CreateBranch creates a new branch in the repository.
 func (r *TestRepo) CreateBranch(name string) {
 	r.env.runInDir(r.path, "git", "branch", name)
 }
 
+// CheckoutBranch switches to the specified branch.
 func (r *TestRepo) CheckoutBranch(name string) {
 	r.env.runInDir(r.path, "git", "checkout", name)
 }
 
+// CommitFile writes a file and commits it with the provided message.
 func (r *TestRepo) CommitFile(filename, content, message string) {
 	r.env.writeFile(filepath.Join(r.path, filename), content)
 	r.env.runInDir(r.path, "git", "add", filename)
 	r.env.runInDir(r.path, "git", "commit", "-m", message)
 }
 
+// AddRemote adds a git remote to the repository.
 func (r *TestRepo) AddRemote(name, url string) {
 	r.env.runInDir(r.path, "git", "remote", "add", name, url)
 }
 
+// CreateRemoteBranch pushes a branch to the specified remote.
 func (r *TestRepo) CreateRemoteBranch(remote, branch string) {
 	refPath := filepath.Join(r.path, ".git", "refs", "remotes", remote)
 	if err := os.MkdirAll(refPath, dirPerm); err != nil {
@@ -253,23 +272,28 @@ func (r *TestRepo) CreateRemoteBranch(remote, branch string) {
 	r.env.writeFile(filepath.Join(refPath, branch), commit)
 }
 
+// Path returns the filesystem path of the repository.
 func (r *TestRepo) Path() string {
 	return r.path
 }
 
+// WriteConfig writes a .wtp.yml configuration file into the repository.
 func (r *TestRepo) WriteConfig(content string) {
 	configPath := filepath.Join(r.path, ".wtp.yml")
 	r.env.writeFile(configPath, content)
 }
 
+// HasFile reports whether a file exists relative to the repository root.
 func (r *TestRepo) HasFile(path string) bool {
 	fullPath := filepath.Join(r.path, path)
 	_, err := os.Stat(fullPath)
 	return err == nil
 }
 
+// ReadFile returns the contents of a file relative to the repository root.
 func (r *TestRepo) ReadFile(path string) string {
 	fullPath := filepath.Join(r.path, path)
+	// #nosec G304 -- file paths are confined to the temporary test repository
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		r.env.t.Fatalf("Failed to read file %s: %v", path, err)
@@ -277,25 +301,30 @@ func (r *TestRepo) ReadFile(path string) string {
 	return string(content)
 }
 
+// GitStatus returns the output of `git status --short` for the repository.
 func (r *TestRepo) GitStatus() string {
 	return r.env.runInDir(r.path, "git", "status", "--porcelain")
 }
 
+// CurrentBranch returns the currently checked-out branch name.
 func (r *TestRepo) CurrentBranch() string {
 	output := r.env.runInDir(r.path, "git", "branch", "--show-current")
 	return strings.TrimSpace(output)
 }
 
+// GetCommitHash returns the HEAD commit hash.
 func (r *TestRepo) GetCommitHash() string {
 	output := r.env.runInDir(r.path, "git", "rev-parse", "HEAD")
 	return strings.TrimSpace(output)
 }
 
+// GetBranchCommitHash returns the commit hash for the specified branch.
 func (r *TestRepo) GetBranchCommitHash(branch string) string {
 	output := r.env.runInDir(r.path, "git", "rev-parse", branch)
 	return strings.TrimSpace(output)
 }
 
+// ListWorktrees returns the list of worktrees known to the repository.
 func (r *TestRepo) ListWorktrees() []string {
 	output := r.env.runInDir(r.path, "git", "worktree", "list", "--porcelain")
 	lines := strings.Split(strings.TrimSpace(output), "\n")
@@ -309,6 +338,7 @@ func (r *TestRepo) ListWorktrees() []string {
 	return worktrees
 }
 
+// WithTimeout adds a timeout to an exec command for use in helpers.
 func WithTimeout(timeout time.Duration) func(cmd *exec.Cmd) {
 	return func(cmd *exec.Cmd) {
 		timer := time.AfterFunc(timeout, func() {

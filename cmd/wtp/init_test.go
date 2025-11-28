@@ -183,6 +183,12 @@ func TestInitCommand_WriteFileError(t *testing.T) {
 	err := os.Chdir(tempDir)
 	assert.NoError(t, err)
 
+	originalWriteFile := writeFile
+	writeFile = func(string, []byte, os.FileMode) error {
+		return assert.AnError
+	}
+	defer func() { writeFile = originalWriteFile }()
+
 	// Initialize as a git repository
 	gitCmd := exec.Command("git", "init")
 	gitCmd.Dir = tempDir
@@ -190,11 +196,6 @@ func TestInitCommand_WriteFileError(t *testing.T) {
 	if err != nil {
 		t.Skip("git not available")
 	}
-
-	// Make directory read-only to cause write error
-	err = os.Chmod(tempDir, 0555)
-	assert.NoError(t, err)
-	defer func() { _ = os.Chmod(tempDir, 0755) }() // Restore permissions for cleanup
 
 	cmd := NewInitCommand()
 	ctx := context.Background()

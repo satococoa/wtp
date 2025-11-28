@@ -27,7 +27,7 @@ func main() {
 
 	args := normalizeCompletionArgs(os.Args)
 	if err := app.Run(context.Background(), args); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 }

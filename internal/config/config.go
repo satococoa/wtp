@@ -1,3 +1,4 @@
+// Package config defines the configuration schema and helpers for wtp.
 package config
 
 import (
@@ -36,17 +37,31 @@ type Hook struct {
 }
 
 const (
-	ConfigFileName        = ".wtp.yml"
-	CurrentVersion        = "1.0"
-	DefaultBaseDir        = "../worktrees"
-	HookTypeCopy          = "copy"
+	// ConfigFileName is the default filename for the wtp configuration.
+	ConfigFileName = ".wtp.yml"
+	// CurrentVersion represents the current configuration version written to disk.
+	CurrentVersion = "1.0"
+	// DefaultBaseDir is the default directory for new worktrees relative to a repository.
+	DefaultBaseDir = "../worktrees"
+	// HookTypeCopy identifies a hook that copies files.
+	HookTypeCopy = "copy"
+	// HookTypeCommand identifies a hook that executes a command.
 	HookTypeCommand       = "command"
 	configFilePermissions = 0o600
 )
 
 // LoadConfig loads configuration from .wtp.yml in the repository root
 func LoadConfig(repoRoot string) (*Config, error) {
-	configPath := filepath.Join(repoRoot, ConfigFileName)
+	cleanedRoot := filepath.Clean(repoRoot)
+	if !filepath.IsAbs(cleanedRoot) {
+		absRoot, err := filepath.Abs(cleanedRoot)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve repository root: %w", err)
+		}
+		cleanedRoot = absRoot
+	}
+
+	configPath := filepath.Join(cleanedRoot, ConfigFileName)
 
 	// If config file doesn't exist, return default config
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -59,6 +74,7 @@ func LoadConfig(repoRoot string) (*Config, error) {
 		}, nil
 	}
 
+	// #nosec G304 -- configPath is derived from the validated repository root and fixed file name
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)

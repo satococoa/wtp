@@ -47,7 +47,9 @@ func completeFlagSuggestions(cmd *cli.Command, current string) bool {
 		}
 
 		seen[completion] = struct{}{}
-		fmt.Fprintln(writer, completion)
+		if _, err := fmt.Fprintln(writer, completion); err != nil {
+			return false
+		}
 		emitted = true
 	}
 

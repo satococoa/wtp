@@ -146,14 +146,18 @@ func listCommandWithCommandExecutor(
 
 	if len(worktrees) == 0 {
 		if !quiet {
-			fmt.Fprintln(w, "No worktrees found")
+			if _, err := fmt.Fprintln(w, "No worktrees found"); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
 
 	// Display worktrees
 	if quiet {
-		displayWorktreesQuiet(w, worktrees, cfg, mainRepoPath)
+		if err := displayWorktreesQuiet(w, worktrees, cfg, mainRepoPath); err != nil {
+			return err
+		}
 	} else {
 		termWidth := getTerminalWidth()
 		if !opts.Compact {
@@ -163,7 +167,9 @@ func listCommandWithCommandExecutor(
 				opts.Compact = true
 			}
 		}
-		displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath, termWidth, opts)
+		if err := displayWorktreesRelative(w, worktrees, cwd, cfg, mainRepoPath, termWidth, opts); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -265,35 +271,50 @@ func getWorktreeDisplayName(wt git.Worktree, cfg *config.Config, mainRepoPath st
 }
 
 // displayWorktreesQuiet outputs only the worktree names (as shown in PATH column), one per line
-func displayWorktreesQuiet(w io.Writer, worktrees []git.Worktree, cfg *config.Config, mainRepoPath string) {
+func displayWorktreesQuiet(w io.Writer, worktrees []git.Worktree, cfg *config.Config, mainRepoPath string) error {
 	for _, wt := range worktrees {
 		pathDisplay := getWorktreeDisplayName(wt, cfg, mainRepoPath)
-		fmt.Fprintln(w, pathDisplay)
+		if _, err := fmt.Fprintln(w, pathDisplay); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 // displayWorktreesRelative formats and displays worktree information with relative paths
 func displayWorktreesRelative(
 	w io.Writer, worktrees []git.Worktree, currentPath string, cfg *config.Config, mainRepoPath string,
 	termWidth int, opts listDisplayOptions,
-) {
+) error {
 	if termWidth <= 0 {
 		termWidth = 80
 	}
 
 	items, metrics := collectListDisplayData(worktrees, currentPath, cfg, mainRepoPath)
 	if len(items) == 0 {
-		return
+		return nil
 	}
 
 	pathWidth, branchWidth, statusWidth := computeListColumnWidths(metrics, termWidth, opts)
 
-	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n", pathWidth, "PATH", branchWidth, "BRANCH", statusWidth, "STATUS", "HEAD")
-	fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
+	if _, err := fmt.Fprintf(
+		w,
+		"%-*s %-*s %-*s %s\n",
+		pathWidth, "PATH",
+		branchWidth, "BRANCH",
+		statusWidth, "STATUS",
+		"HEAD",
+	); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
 		pathWidth, strings.Repeat("-", pathHeaderDashes),
 		branchWidth, strings.Repeat("-", branchHeaderDashes),
 		statusWidth, strings.Repeat("-", len("STATUS")),
-		"----")
+		"----"); err != nil {
+		return err
+	}
 
 	for _, item := range items {
 		headShort := item.head
@@ -301,12 +322,16 @@ func displayWorktreesRelative(
 			headShort = headShort[:headDisplayLength]
 		}
 
-		fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
+		if _, err := fmt.Fprintf(w, "%-*s %-*s %-*s %s\n",
 			pathWidth, truncatePath(item.path, pathWidth),
 			branchWidth, truncatePath(item.branch, branchWidth),
 			statusWidth, truncatePath(item.status, statusWidth),
-			headShort)
+			headShort); err != nil {
+			return err
+		}
 	}
+
+	return nil
 }
 
 type listDisplayData struct {

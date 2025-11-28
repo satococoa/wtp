@@ -10,13 +10,24 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+var allowedShells = map[string]struct{}{
+	"bash": {},
+	"zsh":  {},
+	"fish": {},
+}
+
 var runCompletionCommand = func(shell string) ([]byte, error) {
+	if _, ok := allowedShells[shell]; !ok {
+		return nil, fmt.Errorf("unsupported shell: %s", shell)
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
 		// Fallback to "wtp" if we can't find the executable
 		exe = "wtp"
 	}
 
+	// #nosec G204 -- exe comes from the running binary and shell is validated above
 	cmd := exec.Command(exe, "completion", shell)
 	return cmd.Output()
 }
@@ -67,10 +78,11 @@ func shellInitBash(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Then output hook
-	fmt.Fprintln(w)
-	printBashHook(w)
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 
-	return nil
+	return printBashHook(w)
 }
 
 func shellInitZsh(_ context.Context, cmd *cli.Command) error {
@@ -85,10 +97,11 @@ func shellInitZsh(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Then output hook
-	fmt.Fprintln(w)
-	printZshHook(w)
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 
-	return nil
+	return printZshHook(w)
 }
 
 func shellInitFish(_ context.Context, cmd *cli.Command) error {
@@ -103,10 +116,11 @@ func shellInitFish(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Then output hook
-	fmt.Fprintln(w)
-	printFishHook(w)
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
 
-	return nil
+	return printFishHook(w)
 }
 
 // outputCompletion executes wtp completion command and writes output to w

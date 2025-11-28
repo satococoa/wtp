@@ -389,6 +389,14 @@ go tool task build
 ./wtp --help
 ```
 
+### Formatting
+
+Run `go tool task fmt` before sending changes. The formatter uses
+`golangci-lint fmt` (gofmt + goimports) and automatically derives the
+`goimports` `-local` prefix from `go list -m`, so forks and renamed modules
+stay grouped correctly. `go tool golangci-lint fmt ./...` still works for
+one-off runs, but the task is the authoritative workflow.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.

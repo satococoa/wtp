@@ -1,3 +1,4 @@
+// Package errors provides user-friendly error helpers for the wtp CLI.
 package errors
 
 import (
@@ -6,9 +7,7 @@ import (
 	"strings"
 )
 
-// Common error messages with helpful context and suggestions
-
-// Git Repository Errors
+// NotInGitRepository returns an error indicating the command must run inside a Git repository.
 func NotInGitRepository() error {
 	msg := `not in a git repository
 
@@ -19,6 +18,7 @@ Solutions:
 	return errors.New(msg)
 }
 
+// GitCommandFailed wraps an error from a git command with the command and output details.
 func GitCommandFailed(command, output string) error {
 	// Clean up the output for better readability
 	cleanOutput := strings.TrimSpace(output)
@@ -34,7 +34,7 @@ Tip: Try running the git command manually to see the full error`, command, clean
 	return errors.New(msg)
 }
 
-// Validation Errors
+// BranchNameRequired reports that a branch name argument is missing.
 func BranchNameRequired(commandExample string) error {
 	msg := fmt.Sprintf(`branch name is required
 
@@ -47,6 +47,7 @@ Examples:
 	return errors.New(msg)
 }
 
+// WorktreeNameRequired reports that a worktree name argument is missing.
 func WorktreeNameRequired() error {
 	msg := `worktree name is required
 
@@ -56,6 +57,7 @@ Tip: Run 'wtp list' to see available worktrees`
 	return errors.New(msg)
 }
 
+// WorktreeNameRequiredForRemove reports that a worktree name is required for removal.
 func WorktreeNameRequiredForRemove() error {
 	msg := `worktree name is required
 
@@ -70,6 +72,7 @@ Tip: Run 'wtp list' to see available worktrees`
 	return errors.New(msg)
 }
 
+// InvalidBranchName reports that the provided branch name violates git naming rules.
 func InvalidBranchName(branchName string) error {
 	msg := fmt.Sprintf(`invalid branch name: '%s'
 
@@ -82,7 +85,7 @@ See 'git check-ref-format --help' for full rules`, branchName)
 	return errors.New(msg)
 }
 
-// Worktree Errors
+// WorktreeNotFound returns an error when the requested worktree is not present.
 func WorktreeNotFound(name string, availableWorktrees []string) error {
 	msg := fmt.Sprintf("worktree '%s' not found", name)
 
@@ -99,6 +102,7 @@ func WorktreeNotFound(name string, availableWorktrees []string) error {
 	return errors.New(msg)
 }
 
+// WorktreeCreationFailed wraps a git error encountered while creating a worktree.
 func WorktreeCreationFailed(path, branch string, gitError error) error {
 	msg := fmt.Sprintf("failed to create worktree at '%s' for branch '%s'", path, branch)
 
@@ -130,6 +134,7 @@ Solutions:
 	return errors.New(msg)
 }
 
+// WorktreeRemovalFailed returns a descriptive error when a worktree cannot be removed.
 func WorktreeRemovalFailed(path string, gitError error) error {
 	msg := fmt.Sprintf("failed to remove worktree at '%s'", path)
 
@@ -165,6 +170,7 @@ func WorktreeRemovalFailed(path string, gitError error) error {
 	return errors.New(msg)
 }
 
+// CannotRemoveCurrentWorktree indicates the user is trying to delete the active worktree.
 func CannotRemoveCurrentWorktree(worktreeName, path string) error {
 	msg := fmt.Sprintf("cannot remove worktree '%s' while you are currently inside it", worktreeName)
 	msg += fmt.Sprintf("\n\nCurrent location: %s", path)
@@ -172,6 +178,7 @@ func CannotRemoveCurrentWorktree(worktreeName, path string) error {
 	return errors.New(msg)
 }
 
+// BranchRemovalFailed wraps errors that occur when deleting a git branch.
 func BranchRemovalFailed(branchName string, gitError error, isForced bool) error {
 	msg := fmt.Sprintf("failed to remove branch '%s'", branchName)
 
@@ -197,7 +204,7 @@ Solution: Switch to a different branch first`
 	return errors.New(msg)
 }
 
-// Configuration Errors
+// ConfigLoadFailed reports a failure to read or parse the configuration file.
 func ConfigLoadFailed(configPath string, parseError error) error {
 	msg := fmt.Sprintf("failed to load configuration from '%s'", configPath)
 
@@ -226,6 +233,7 @@ Solution: Check file permissions with 'ls -la .wtp.yml'`
 	return errors.New(msg)
 }
 
+// ConfigAlreadyExists indicates that a configuration file already exists at the target path.
 func ConfigAlreadyExists(configPath string) error {
 	msg := fmt.Sprintf(`configuration file already exists: %s
 
@@ -236,7 +244,7 @@ Options:
 	return errors.New(msg)
 }
 
-// File System Errors
+// DirectoryAccessFailed reports errors encountered while interacting with a directory path.
 func DirectoryAccessFailed(operation, path string, originalError error) error {
 	msg := fmt.Sprintf("failed to %s directory: %s", operation, path)
 
@@ -263,7 +271,7 @@ Solutions:
 	return errors.New(msg)
 }
 
-// Shell Integration Errors
+// ShellIntegrationRequired indicates shell integration is needed for the requested command.
 func ShellIntegrationRequired() error {
 	msg := `cd command requires shell integration
 
@@ -275,6 +283,7 @@ Help: Run 'wtp shell-init --help' for more details`
 	return errors.New(msg)
 }
 
+// UnsupportedShell reports that the requested shell is not supported for integration.
 func UnsupportedShell(shell string, supportedShells []string) error {
 	msg := fmt.Sprintf("unsupported shell: %s", shell)
 
@@ -289,7 +298,7 @@ func UnsupportedShell(shell string, supportedShells []string) error {
 	return errors.New(msg)
 }
 
-// Branch Resolution Errors
+// BranchNotFound reports that a branch cannot be found locally or remotely.
 func BranchNotFound(branchName string) error {
 	msg := fmt.Sprintf(`branch '%s' not found in local or remote branches
 
@@ -301,6 +310,7 @@ Suggestions:
 	return errors.New(msg)
 }
 
+// MultipleBranchesFound reports that a branch name matches multiple remotes and needs a track specifier.
 func MultipleBranchesFound(branchName string, remotes []string) error {
 	msg := fmt.Sprintf("branch '%s' exists in multiple remotes: %s", branchName, strings.Join(remotes, ", "))
 	msg += fmt.Sprintf(`
@@ -315,7 +325,7 @@ Solution: Specify the remote explicitly:
 	return errors.New(msg)
 }
 
-// Hook Errors
+// HookExecutionFailed wraps an error that occurred while executing a configured hook.
 func HookExecutionFailed(hookIndex int, hookType string, originalError error) error {
 	msg := fmt.Sprintf("failed to execute %s hook #%d", hookType, hookIndex+1)
 

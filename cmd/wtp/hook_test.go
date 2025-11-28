@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 )
 
@@ -132,9 +133,9 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 
 			switch tt.shell {
 			case "bash":
-				printBashHook(&buf)
+				require.NoError(t, printBashHook(&buf))
 			case "fish":
-				printFishHook(&buf)
+				require.NoError(t, printFishHook(&buf))
 			}
 
 			output := buf.String()

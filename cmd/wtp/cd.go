@@ -125,7 +125,10 @@ func cdCommandWithCommandExecutor(
 	}
 
 	// Output the path for the shell function to cd to
-	fmt.Fprintln(w, targetPath)
+	if _, err := fmt.Fprintln(w, targetPath); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -287,28 +290,52 @@ func getWorktreesForCd(w io.Writer) error {
 		return err
 	}
 
-	// Print @ for main worktree
+	if err := writeMainWorktreeForCd(w, worktrees, cwd); err != nil {
+		return err
+	}
+
+	return writeManagedWorktreesForCd(w, worktrees, cfg, mainRepoPath, cwd)
+}
+
+func writeMainWorktreeForCd(w io.Writer, worktrees []git.Worktree, cwd string) error {
 	for i := range worktrees {
 		wt := &worktrees[i]
 		if wt.IsMain {
 			if wt.Path == cwd {
-				fmt.Fprintln(w, "@*")
+				if _, err := fmt.Fprintln(w, "@*"); err != nil {
+					return err
+				}
 			} else {
-				fmt.Fprintln(w, "@")
+				if _, err := fmt.Fprintln(w, "@"); err != nil {
+					return err
+				}
 			}
 			break
 		}
 	}
 
-	// Print other worktrees with current marker (managed only)
+	return nil
+}
+
+func writeManagedWorktreesForCd(
+	w io.Writer,
+	worktrees []git.Worktree,
+	cfg *config.Config,
+	mainRepoPath string,
+	cwd string,
+) error {
 	for i := range worktrees {
 		wt := &worktrees[i]
 		if !wt.IsMain && isWorktreeManagedCd(wt.Path, cfg, mainRepoPath, wt.IsMain) {
 			name := getWorktreeNameFromPathCd(wt.Path, cfg, mainRepoPath, wt.IsMain)
 			if wt.Path == cwd {
-				fmt.Fprintf(w, "%s*\n", name)
+				if _, err := fmt.Fprintf(w, "%s*\n", name); err != nil {
+					return err
+				}
 			} else {
-				fmt.Fprintln(w, name)
+				if _, err := fmt.Fprintln(w, name); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -362,6 +389,8 @@ func completeWorktreesForCd(_ context.Context, cmd *cli.Command) {
 			continue
 		}
 
-		fmt.Println(candidate)
+		if _, err := fmt.Println(candidate); err != nil {
+			return
+		}
 	}
 }

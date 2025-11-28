@@ -1,3 +1,4 @@
+// Package main provides the entrypoint for the wtp CLI commands.
 package main
 
 import (
@@ -107,10 +108,14 @@ func addCommandWithCommandExecutor(
 	}
 
 	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
-		fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err)
+		if _, warnErr := fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err); warnErr != nil {
+			return warnErr
+		}
 	}
 
-	displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath)
+	if err := displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -253,7 +258,7 @@ func isInvalidPathError(errorOutput, workTreePath, gitOutput string) bool {
 		gitOutput == ""
 }
 
-// Custom error types for specific worktree errors
+// WorktreeAlreadyExistsError reports that a branch already has an attached worktree.
 type WorktreeAlreadyExistsError struct {
 	BranchName string
 	Path       string
@@ -273,6 +278,7 @@ Solutions:
 Original error: %v`, e.BranchName, e.BranchName, e.GitError)
 }
 
+// BranchAlreadyExistsError indicates that a branch creation request conflicts with an existing branch.
 type BranchAlreadyExistsError struct {
 	BranchName string
 	GitError   error
@@ -291,6 +297,7 @@ Solutions:
 Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.GitError)
 }
 
+// PathAlreadyExistsError indicates that the destination directory already exists.
 type PathAlreadyExistsError struct {
 	Path     string
 	GitError error
@@ -309,6 +316,7 @@ Solutions:
 Original error: %v`, e.Path, e.GitError)
 }
 
+// MultipleBranchesError reports that a branch name resolves to multiple remotes and needs disambiguation.
 type MultipleBranchesError struct {
 	BranchName string
 	GitError   error
@@ -326,14 +334,18 @@ Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.B
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
 	if cfg.HasHooks() {
-		fmt.Fprintln(w, "\nExecuting post-create hooks...")
+		if _, err := fmt.Fprintln(w, "\nExecuting post-create hooks..."); err != nil {
+			return err
+		}
 
 		executor := hooks.NewExecutor(cfg, repoPath)
 		if err := executor.ExecutePostCreateHooks(w, workTreePath); err != nil {
 			return err
 		}
 
-		fmt.Fprintln(w, "✓ All hooks executed successfully")
+		if _, err := fmt.Fprintln(w, "✓ All hooks executed successfully"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -415,7 +427,9 @@ func getBranches(w io.Writer) error {
 		}
 
 		seen[displayName] = true
-		fmt.Fprintln(w, displayName)
+		if _, err := fmt.Fprintln(w, displayName); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -436,35 +450,60 @@ func completeBranches(_ context.Context, cmd *cli.Command) {
 	// Output each line using fmt.Println for urfave/cli compatibility
 	scanner := bufio.NewScanner(&buf)
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+		if _, err := fmt.Println(scanner.Text()); err != nil {
+			return
+		}
 	}
 }
 
 // displaySuccessMessage is a convenience wrapper for displaySuccessMessageWithCommitish
-func displaySuccessMessage(w io.Writer, branchName, workTreePath string, cfg *config.Config, mainRepoPath string) {
-	displaySuccessMessageWithCommitish(w, branchName, workTreePath, "", cfg, mainRepoPath)
+func displaySuccessMessage(
+	w io.Writer,
+	branchName, workTreePath string,
+	cfg *config.Config,
+	mainRepoPath string,
+) error {
+	return displaySuccessMessageWithCommitish(w, branchName, workTreePath, "", cfg, mainRepoPath)
 }
 
 func displaySuccessMessageWithCommitish(
 	w io.Writer, branchName, workTreePath, commitish string, cfg *config.Config, mainRepoPath string,
-) {
-	fmt.Fprintln(w, "✅ Worktree created successfully!")
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "📁 Location: %s\n", workTreePath)
-
-	if branchName != "" {
-		fmt.Fprintf(w, "🌿 Branch: %s\n", branchName)
-	} else if commitish != "" {
-		fmt.Fprintf(w, "🏷️  Commit: %s\n", commitish)
+) error {
+	if _, err := fmt.Fprintln(w, "✅ Worktree created successfully!"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "📁 Location: %s\n", workTreePath); err != nil {
+		return err
 	}
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "💡 To switch to the new worktree, run:")
+	if branchName != "" {
+		if _, err := fmt.Fprintf(w, "🌿 Branch: %s\n", branchName); err != nil {
+			return err
+		}
+	} else if commitish != "" {
+		if _, err := fmt.Fprintf(w, "🏷️  Commit: %s\n", commitish); err != nil {
+			return err
+		}
+	}
+
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, "💡 To switch to the new worktree, run:"); err != nil {
+		return err
+	}
 
 	// Use the consistent worktree naming logic
 	isMain := isMainWorktree(workTreePath, mainRepoPath)
 	worktreeName := getWorktreeNameFromPath(workTreePath, cfg, mainRepoPath, isMain)
-	fmt.Fprintf(w, "   wtp cd %s\n", worktreeName)
+	if _, err := fmt.Fprintf(w, "   wtp cd %s\n", worktreeName); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // isMainWorktree checks if the given path is the main worktree

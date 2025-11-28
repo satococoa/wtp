@@ -857,8 +857,12 @@ func TestExecutor_copyDir_DestinationCreateError(t *testing.T) {
 
 	executor := NewExecutor(nil, "/test/repo")
 
-	// Try to create directory where parent doesn't exist and we can't create it
-	invalidDest := "/root/nonexistent/dest" // Should fail on most systems
+	// Create a file where the destination directory should be to force an error
+	invalidDest := filepath.Join(tempDir, "existing-file")
+	err = os.WriteFile(invalidDest, []byte("content"), 0644)
+	require.NoError(t, err)
+	invalidDest = filepath.Join(invalidDest, "nested")
+
 	err = executor.copyDir(srcDir, invalidDest)
 
 	assert.Error(t, err)
@@ -866,26 +870,13 @@ func TestExecutor_copyDir_DestinationCreateError(t *testing.T) {
 }
 
 func TestExecutor_copyDir_ReadDirectoryError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Permission test not applicable on Windows")
-	}
-
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "source")
 	dstDir := filepath.Join(tempDir, "dest")
 
-	// Create source directory
-	err := os.MkdirAll(srcDir, directoryPermissions)
+	// Create a file instead of a directory to trigger ReadDir failure
+	err := os.WriteFile(srcDir, []byte("not a directory"), 0644)
 	require.NoError(t, err)
-
-	// Remove read permission from source directory
-	err = os.Chmod(srcDir, 0200) // write-only
-	require.NoError(t, err)
-
-	// Restore permissions after test
-	defer func() {
-		_ = os.Chmod(srcDir, directoryPermissions)
-	}()
 
 	executor := NewExecutor(nil, "/test/repo")
 
@@ -934,10 +925,6 @@ func TestExecutor_copyDir_NestedDirectorySuccess(t *testing.T) {
 }
 
 func TestExecutor_copyDir_FailsWhenNestedFileCannotBeCopied(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("Permission test not applicable on Windows")
-	}
-
 	tempDir := t.TempDir()
 	srcDir := filepath.Join(tempDir, "source")
 	dstDir := filepath.Join(tempDir, "dest")
@@ -947,19 +934,14 @@ func TestExecutor_copyDir_FailsWhenNestedFileCannotBeCopied(t *testing.T) {
 	err := os.MkdirAll(nestedDir, directoryPermissions)
 	require.NoError(t, err)
 
-	// Create a file that we'll make unreadable
+	// Create a file that will conflict with the destination path
 	unreadableFile := filepath.Join(nestedDir, "unreadable.txt")
 	err = os.WriteFile(unreadableFile, []byte("content"), 0644)
 	require.NoError(t, err)
 
-	// Remove read permission from the file
-	err = os.Chmod(unreadableFile, 0000)
+	conflictingDest := filepath.Join(dstDir, "nested", "unreadable.txt")
+	err = os.MkdirAll(conflictingDest, directoryPermissions)
 	require.NoError(t, err)
-
-	// Restore permissions after test
-	defer func() {
-		_ = os.Chmod(unreadableFile, 0644)
-	}()
 
 	executor := NewExecutor(nil, "/test/repo")
 
