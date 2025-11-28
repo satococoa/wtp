@@ -342,7 +342,7 @@ func ensureDirWritable(path string) error {
 		return fmt.Errorf("not a directory: %s", path)
 	}
 
-	if info.Mode().Perm()&0o200 == 0 {
+	if info.Mode().Perm()&0o222 == 0 {
 		return fmt.Errorf("write permission denied for directory: %s", path)
 	}
 

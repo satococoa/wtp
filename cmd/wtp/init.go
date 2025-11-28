@@ -54,7 +54,7 @@ func initCommand(_ context.Context, cmd *cli.Command) error {
 		return errors.DirectoryAccessFailed("access repository", repo.Path(), repoStatErr)
 	}
 
-	if repoInfo.Mode().Perm()&0o200 == 0 {
+	if repoInfo.Mode().Perm()&0o222 == 0 {
 		return errors.DirectoryAccessFailed(
 			"create configuration file",
 			configPath,
