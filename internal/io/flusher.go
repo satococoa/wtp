@@ -1,3 +1,4 @@
+// Package io contains helpers for streaming output.
 package io
 
 import (

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/urfave/cli/v3"
 
@@ -16,6 +17,7 @@ const configFileMode = 0o600
 
 // Variable to allow mocking in tests
 var osGetwd = os.Getwd
+var writeFile = os.WriteFile
 
 // NewInitCommand creates the init command definition
 func NewInitCommand() *cli.Command {
@@ -43,8 +45,21 @@ func initCommand(_ context.Context, cmd *cli.Command) error {
 
 	// Check if config file already exists
 	configPath := fmt.Sprintf("%s/%s", repo.Path(), config.ConfigFileName)
-	if _, err := os.Stat(configPath); err == nil {
+	if _, statErr := os.Stat(configPath); statErr == nil {
 		return errors.ConfigAlreadyExists(configPath)
+	}
+
+	repoInfo, repoStatErr := os.Stat(repo.Path())
+	if repoStatErr != nil {
+		return errors.DirectoryAccessFailed("access repository", repo.Path(), repoStatErr)
+	}
+
+	if repoInfo.Mode().Perm()&0o222 == 0 {
+		return errors.DirectoryAccessFailed(
+			"create configuration file",
+			configPath,
+			fmt.Errorf("repository directory is read-only"),
+		)
 	}
 
 	// Create configuration with comments
@@ -86,8 +101,12 @@ hooks:
     #   command: echo "Created new worktree!"
 `
 
+	if err := ensureWritableDirectory(repo.Path()); err != nil {
+		return errors.DirectoryAccessFailed("create configuration file", repo.Path(), err)
+	}
+
 	// Write configuration file with comments
-	if err := os.WriteFile(configPath, []byte(configContent), configFileMode); err != nil {
+	if err := writeFile(configPath, []byte(configContent), configFileMode); err != nil {
 		return errors.DirectoryAccessFailed("create configuration file", configPath, err)
 	}
 
@@ -97,7 +116,26 @@ hooks:
 		w = os.Stdout
 	}
 
-	fmt.Fprintf(w, "Configuration file created: %s\n", configPath)
-	fmt.Fprintln(w, "Edit this file to customize your worktree setup.")
+	if _, printErr := fmt.Fprintf(w, "Configuration file created: %s\n", configPath); printErr != nil {
+		return printErr
+	}
+	_, printLnErr := fmt.Fprintln(w, "Edit this file to customize your worktree setup.")
+	return printLnErr
+}
+
+func ensureWritableDirectory(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if !info.IsDir() {
+		return fmt.Errorf("%s is not a directory", filepath.Base(path))
+	}
+
+	if info.Mode().Perm()&0o200 == 0 {
+		return fmt.Errorf("write permission denied for directory: %s", path)
+	}
+
 	return nil
 }

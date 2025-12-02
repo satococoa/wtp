@@ -1,3 +1,4 @@
+// Package git provides helpers for interacting with git repositories and worktrees.
 package git
 
 import (
@@ -10,10 +11,12 @@ import (
 	"github.com/satococoa/wtp/v2/internal/errors"
 )
 
+// Repository represents a git repository and offers helper methods for worktree operations.
 type Repository struct {
 	path string
 }
 
+// NewRepository constructs a Repository for the given path after validating it is a git repository.
 func NewRepository(path string) (*Repository, error) {
 	if !isGitRepository(path) {
 		return nil, errors.NotInGitRepository()
@@ -21,6 +24,7 @@ func NewRepository(path string) (*Repository, error) {
 	return &Repository{path: path}, nil
 }
 
+// Path returns the root path for the repository.
 func (r *Repository) Path() string {
 	return r.path
 }
@@ -70,6 +74,7 @@ func (r *Repository) GetMainWorktreePath() (string, error) {
 	return commonDir, nil
 }
 
+// GetWorktrees lists the worktrees associated with the repository.
 func (r *Repository) GetWorktrees() ([]Worktree, error) {
 	cmd := exec.Command("git", "worktree", "list", "--porcelain")
 	cmd.Dir = r.path
@@ -88,6 +93,7 @@ func (r *Repository) GetWorktrees() ([]Worktree, error) {
 	return worktrees, nil
 }
 
+// CreateWorktree creates a new worktree at the given path and optionally checks out the branch.
 func (r *Repository) CreateWorktree(path, branch string) error {
 	args := []string{"worktree", "add"}
 	args = append(args, path)
@@ -103,6 +109,7 @@ func (r *Repository) CreateWorktree(path, branch string) error {
 	return nil
 }
 
+// RemoveWorktree removes the worktree at the provided path, optionally forcing removal.
 func (r *Repository) RemoveWorktree(path string, force bool) error {
 	args := []string{"worktree", "remove"}
 	if force {

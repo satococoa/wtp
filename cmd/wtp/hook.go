@@ -48,8 +48,7 @@ func hookBash(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
-	printBashHook(w)
-	return nil
+	return printBashHook(w)
 }
 
 func hookZsh(_ context.Context, cmd *cli.Command) error {
@@ -57,8 +56,7 @@ func hookZsh(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
-	printZshHook(w)
-	return nil
+	return printZshHook(w)
 }
 
 func hookFish(_ context.Context, cmd *cli.Command) error {
@@ -66,12 +64,11 @@ func hookFish(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
-	printFishHook(w)
-	return nil
+	return printFishHook(w)
 }
 
-func printBashHook(w io.Writer) {
-	fmt.Fprintln(w, `# wtp cd command hook for bash
+func printBashHook(w io.Writer) error {
+	_, err := fmt.Fprintln(w, `# wtp cd command hook for bash
 wtp() {
     for arg in "$@"; do
         if [[ "$arg" == "--generate-shell-completion" ]]; then
@@ -95,10 +92,12 @@ wtp() {
         command wtp "$@"
     fi
 }`)
+
+	return err
 }
 
-func printZshHook(w io.Writer) {
-	fmt.Fprintln(w, `# wtp cd command hook for zsh
+func printZshHook(w io.Writer) error {
+	_, err := fmt.Fprintln(w, `# wtp cd command hook for zsh
 wtp() {
     for arg in "$@"; do
         if [[ "$arg" == "--generate-shell-completion" ]]; then
@@ -122,10 +121,12 @@ wtp() {
         command wtp "$@"
     fi
 }`)
+
+	return err
 }
 
-func printFishHook(w io.Writer) {
-	fmt.Fprintln(w, `# wtp cd command hook for fish
+func printFishHook(w io.Writer) error {
+	_, err := fmt.Fprintln(w, `# wtp cd command hook for fish
 function wtp
     for arg in $argv
         if test "$arg" = "--generate-shell-completion"
@@ -148,4 +149,6 @@ function wtp
         command wtp $argv
     end
 end`)
+
+	return err
 }

@@ -1,3 +1,4 @@
+// Package git provides helpers for interacting with git repositories and worktrees.
 package git
 
 import (
@@ -7,10 +8,13 @@ import (
 )
 
 const (
-	MainBranch   = "main"
+	// MainBranch is the default branch name used for primary repositories.
+	MainBranch = "main"
+	// MasterBranch is kept for backward compatibility with repositories using master.
 	MasterBranch = "master"
 )
 
+// Worktree represents a git worktree with basic metadata.
 type Worktree struct {
 	Path   string
 	Branch string
@@ -18,6 +22,7 @@ type Worktree struct {
 	IsMain bool // True if this is the main/root worktree
 }
 
+// Name returns the directory name of the worktree path.
 func (w *Worktree) Name() string {
 	return filepath.Base(w.Path)
 }

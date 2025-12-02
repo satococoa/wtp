@@ -144,7 +144,9 @@ func removeCommandWithCommandExecutor(
 		}
 		return errors.WorktreeRemovalFailed(targetWorktree.Path, result.Results[0].Error)
 	}
-	fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path)
+	if _, err := fmt.Fprintf(w, "Removed worktree '%s' at %s\n", worktreeName, targetWorktree.Path); err != nil {
+		return err
+	}
 
 	// Remove branch if requested
 	if withBranch && targetWorktree.Branch != "" {
@@ -202,8 +204,8 @@ func removeBranchWithCommandExecutor(
 		}
 		return errors.BranchRemovalFailed(branchName, result.Results[0].Error, forceBranch)
 	}
-	fmt.Fprintf(w, "Removed branch '%s'\n", branchName)
-	return nil
+	_, err = fmt.Fprintf(w, "Removed branch '%s'\n", branchName)
+	return err
 }
 
 func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (*git.Worktree, error) {
@@ -335,7 +337,9 @@ func getWorktreesForRemove(w io.Writer) error {
 		if !wt.IsMain && isWorktreeManaged(wt.Path, cfg, mainRepoPath, wt.IsMain) {
 			// Calculate worktree name as relative path from base_dir
 			name := getWorktreeNameFromPath(wt.Path, cfg, mainRepoPath, wt.IsMain)
-			fmt.Fprintln(w, name)
+			if _, err := fmt.Fprintln(w, name); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -376,6 +380,8 @@ func completeWorktrees(_ context.Context, cmd *cli.Command) {
 		if currentNormalized != "" && name == currentNormalized {
 			continue
 		}
-		fmt.Println(name)
+		if _, err := fmt.Println(name); err != nil {
+			return
+		}
 	}
 }

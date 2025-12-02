@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 )
 
@@ -83,13 +84,13 @@ func TestCdCommand_NoEnvironmentVariableDependency(t *testing.T) {
 
 	// Make sure no environment variables affect the core function
 	originalEnv := os.Getenv("WTP_SHELL_INTEGRATION")
-	defer func() {
+	t.Cleanup(func() {
 		if originalEnv != "" {
-			os.Setenv("WTP_SHELL_INTEGRATION", originalEnv)
+			require.NoError(t, os.Setenv("WTP_SHELL_INTEGRATION", originalEnv))
 		} else {
-			os.Unsetenv("WTP_SHELL_INTEGRATION")
+			require.NoError(t, os.Unsetenv("WTP_SHELL_INTEGRATION"))
 		}
-	}()
+	})
 
 	// Test with various environment states
 	envStates := []struct {
@@ -105,9 +106,9 @@ func TestCdCommand_NoEnvironmentVariableDependency(t *testing.T) {
 	for _, env := range envStates {
 		t.Run(env.name, func(t *testing.T) {
 			if env.value == "" {
-				os.Unsetenv("WTP_SHELL_INTEGRATION")
+				require.NoError(t, os.Unsetenv("WTP_SHELL_INTEGRATION"))
 			} else {
-				os.Setenv("WTP_SHELL_INTEGRATION", env.value)
+				require.NoError(t, os.Setenv("WTP_SHELL_INTEGRATION", env.value))
 			}
 
 			// The core resolution function should work regardless of environment

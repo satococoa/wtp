@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 
 	"github.com/satococoa/wtp/v2/internal/command"
@@ -750,7 +751,7 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
-		displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath)
+		require.NoError(t, displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath))
 
 		// Then: should display friendly message with emojis and guidance
 		output := buf.String()
@@ -770,7 +771,7 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
-		displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath)
+		require.NoError(t, displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath))
 
 		// Then: should display friendly message without branch info
 		output := buf.String()
@@ -790,7 +791,7 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
-		displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath)
+		require.NoError(t, displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath))
 
 		// Then: should show @ for main worktree in cd command
 		output := buf.String()
@@ -809,7 +810,7 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		mainRepoPath := "/repo"
 
 		// When: displaying success message for detached HEAD
-		displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath)
+		require.NoError(t, displaySuccessMessage(&buf, branchName, workTreePath, cfg, mainRepoPath))
 
 		// Then: should show commit info instead of branch info
 		output := buf.String()
@@ -829,7 +830,7 @@ func TestDisplaySuccessMessage_Integration(t *testing.T) {
 		mainRepoPath := "/repo"
 
 		// When: displaying success message
-		displaySuccessMessageWithCommitish(&buf, branchName, workTreePath, "HEAD~1", cfg, mainRepoPath)
+		require.NoError(t, displaySuccessMessageWithCommitish(&buf, branchName, workTreePath, "HEAD~1", cfg, mainRepoPath))
 
 		// Then: should show commit reference
 		output := buf.String()
