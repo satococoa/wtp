@@ -172,8 +172,8 @@ func (c *Config) ResolveWorktreePath(repoRoot, worktreeName string) string {
 	return filepath.Join(baseDir, worktreeName)
 }
 
-// ConfigFileExists reports whether the config file exists in the given repository root.
-func ConfigFileExists(repoRoot string) bool {
+// FileExists reports whether the config file exists in the given repository root.
+func FileExists(repoRoot string) bool {
 	cleanedRoot := filepath.Clean(repoRoot)
 	if !filepath.IsAbs(cleanedRoot) {
 		absRoot, err := filepath.Abs(cleanedRoot)

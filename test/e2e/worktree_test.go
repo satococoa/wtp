@@ -142,7 +142,15 @@ func TestWorktreeRemoval(t *testing.T) {
 		repo := env.CreateTestRepo("remove-different-basedir")
 
 		// Create worktree with default location
-		env.RunInDir(repo.Path(), "git", "worktree", "add", ".git/wtp/worktrees/feature/remove-test", "-b", "feature/remove-test")
+		env.RunInDir(
+			repo.Path(),
+			"git",
+			"worktree",
+			"add",
+			".git/wtp/worktrees/feature/remove-test",
+			"-b",
+			"feature/remove-test",
+		)
 
 		// Create config with different base_dir
 		configContent := `version: 1

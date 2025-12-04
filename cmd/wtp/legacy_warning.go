@@ -9,12 +9,17 @@ import (
 	"github.com/satococoa/wtp/v2/internal/config"
 )
 
+const (
+	legacyWarningMessage = "Warning: detected legacy worktrees directory at %s\n"
+	legacyConfigMessage  = "Set base_dir: \"../worktrees\" in %s to keep using it, or move worktrees to %s\n"
+)
+
 func warnLegacyBaseDir(errWriter io.Writer, repoRoot string) {
 	if errWriter == nil {
 		errWriter = os.Stderr
 	}
 
-	if config.ConfigFileExists(repoRoot) {
+	if config.FileExists(repoRoot) {
 		return
 	}
 
@@ -32,6 +37,10 @@ func warnLegacyBaseDir(errWriter io.Writer, repoRoot string) {
 	newDefault := filepath.Clean(filepath.Join(repoRoot, config.DefaultBaseDir))
 	configPath := filepath.Join(repoRoot, config.ConfigFileName)
 
-	fmt.Fprintf(errWriter, "Warning: detected legacy worktrees directory at %s\n", legacyBaseDir)
-	fmt.Fprintf(errWriter, "Set base_dir: \"../worktrees\" in %s to keep using it, or move worktrees to %s\n", configPath, newDefault)
+	if _, err := fmt.Fprintf(errWriter, legacyWarningMessage, legacyBaseDir); err != nil {
+		return
+	}
+	if _, err := fmt.Fprintf(errWriter, legacyConfigMessage, configPath, newDefault); err != nil {
+		return
+	}
 }

@@ -95,10 +95,10 @@ hooks:
 	}
 }
 
-func TestConfigFileExists(t *testing.T) {
+func TestFileExists(t *testing.T) {
 	tempDir := t.TempDir()
 
-	if ConfigFileExists(tempDir) {
+	if FileExists(tempDir) {
 		t.Fatal("Expected config file to be missing")
 	}
 
@@ -107,7 +107,7 @@ func TestConfigFileExists(t *testing.T) {
 		t.Fatalf("Failed to write config: %v", err)
 	}
 
-	if !ConfigFileExists(tempDir) {
+	if !FileExists(tempDir) {
 		t.Fatal("Expected config file to exist")
 	}
 }
