@@ -69,7 +69,7 @@ version: "1.0"
 # Default settings for worktrees
 defaults:
   # Base directory for worktrees (relative to repository root)
-  base_dir: ../worktrees
+  base_dir: .git/wtp/worktrees
 
 # Hooks that run after creating a worktree
 hooks:
