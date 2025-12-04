@@ -142,7 +142,7 @@ func TestWorktreeRemoval(t *testing.T) {
 		repo := env.CreateTestRepo("remove-different-basedir")
 
 		// Create worktree with default location
-		env.RunInDir(repo.Path(), "git", "worktree", "add", "../worktrees/feature/remove-test", "-b", "feature/remove-test")
+		env.RunInDir(repo.Path(), "git", "worktree", "add", ".git/wtp/worktrees/feature/remove-test", "-b", "feature/remove-test")
 
 		// Create config with different base_dir
 		configContent := `version: 1
@@ -156,7 +156,7 @@ defaults:
 		framework.AssertOutputContains(t, output, "not found")
 
 		// Verify worktree is still there since remove failed
-		worktreePath := env.TmpDir() + "/worktrees/feature/remove-test"
+		worktreePath := repo.Path() + "/.git/wtp/worktrees/feature/remove-test"
 		framework.AssertTrue(t, env.FileExists(worktreePath), "Worktree should still exist")
 	})
 }
@@ -273,7 +273,7 @@ defaults:
 		// Create config with hooks
 		configContent := `version: "1.0"
 defaults:
-  base_dir: ../worktrees
+  base_dir: .git/wtp/worktrees
 hooks:
   post_create:
     - type: copy
@@ -288,7 +288,7 @@ hooks:
 		framework.AssertNoError(t, err)
 
 		// Verify hooks were executed
-		worktreePath := env.TmpDir() + "/worktrees/feature/hooks"
+		worktreePath := repo.Path() + "/.git/wtp/worktrees/feature/hooks"
 		framework.AssertTrue(t, env.FileExists(worktreePath+"/copied.txt"), "Copied file should exist")
 		framework.AssertTrue(t, env.FileExists(worktreePath+"/hook-executed.txt"), "Hook-executed file should exist")
 		framework.AssertOutputContains(t, output, "Executing post-create hooks")

@@ -21,7 +21,7 @@ func TestCdCommand_AlwaysOutputsAbsolutePath(t *testing.T) {
 HEAD abc123
 branch refs/heads/main
 
-worktree /Users/dev/project/worktrees/feature/auth
+worktree /Users/dev/project/main/.git/wtp/worktrees/feature/auth
 HEAD def456
 branch refs/heads/feature/auth
 
@@ -42,13 +42,13 @@ branch refs/heads/feature/auth
 		{
 			name:          "feature worktree by branch name",
 			worktreeName:  "feature/auth",
-			expectedPath:  "/Users/dev/project/worktrees/feature/auth",
+			expectedPath:  "/Users/dev/project/main/.git/wtp/worktrees/feature/auth",
 			shouldSucceed: true,
 		},
 		{
 			name:          "feature worktree by directory name",
 			worktreeName:  "auth",
-			expectedPath:  "/Users/dev/project/worktrees/feature/auth",
+			expectedPath:  "/Users/dev/project/main/.git/wtp/worktrees/feature/auth",
 			shouldSucceed: true, // Directory-based resolution works as expected
 		},
 		{
