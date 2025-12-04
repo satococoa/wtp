@@ -34,6 +34,7 @@ func initializeTestRepo(t *testing.T, repoDir string) {
 	runGitCommand(t, repoDir, "init")
 	runGitCommand(t, repoDir, "config", "user.name", "Test User")
 	runGitCommand(t, repoDir, "config", "user.email", "test@example.com")
+	runGitCommand(t, repoDir, "config", "commit.gpgsign", "false")
 
 	// Create initial commit
 	readmeFile := filepath.Join(repoDir, "README.md")
