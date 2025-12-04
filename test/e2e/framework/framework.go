@@ -231,7 +231,13 @@ func (r *TestRepo) RunWTP(args ...string) (string, error) {
 	// Create command with validated binary path
 	cmd := createSafeCommand(r.env.wtpBinary, args...)
 	cmd.Dir = r.path
-	cmd.Env = append(os.Environ(), "HOME="+r.env.tmpDir)
+	// Use a subdirectory for XDG_CONFIG_HOME to avoid conflicts with the wtp binary
+	// which is placed at $tmpDir/wtp
+	xdgConfigDir := filepath.Join(r.env.tmpDir, "xdg-config")
+	cmd.Env = append(os.Environ(),
+		"HOME="+r.env.tmpDir,
+		"XDG_CONFIG_HOME="+xdgConfigDir,
+	)
 
 	output, err := cmd.CombinedOutput()
 	return string(output), err

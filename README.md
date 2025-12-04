@@ -246,6 +246,37 @@ hooks:
 This behavior applies regardless of where you run `wtp add` from (main worktree
 or any other worktree).
 
+### Global Configuration
+
+For settings you want across all repositories, create a global config at
+`$XDG_CONFIG_HOME/wtp/config.yml` (defaults to `~/.config/wtp/config.yml`):
+
+```yaml
+version: "1.0"
+defaults:
+  # git clone https://pro.je/c/t.git project/main, create all worktrees/branches as siblings:
+  # - repos/project/main
+  # - repos/project/feature
+  # instead of
+  # - repos/project/ 
+  # - repos/worktrees/feature or
+  # - repos/project/.git/wtp/worktrees/feature
+  base_dir: ".."
+
+hooks:
+  post_create:
+    # Common hooks that run for all repositories
+    - type: copy
+      from: "AGENTS.md"
+      to: "AGENTS.md"
+```
+
+**Merge behavior:**
+
+- `base_dir`: project `.wtp.yml` overrides global if set
+- `hooks`: concatenate (global hooks run first, then project hooks)
+- `version`: project takes precedence
+
 ## Shell Integration
 
 ### Tab Completion Setup

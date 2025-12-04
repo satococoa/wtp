@@ -50,7 +50,8 @@ const (
 	configFilePermissions = 0o600
 )
 
-// LoadConfig loads configuration from .wtp.yml in the repository root
+// LoadConfig loads configuration by merging global config (from XDG_CONFIG_HOME/wtp/config.yml)
+// with project-local config (.wtp.yml in the repository root). Project settings override global.
 func LoadConfig(repoRoot string) (*Config, error) {
 	cleanedRoot := filepath.Clean(repoRoot)
 	if !filepath.IsAbs(cleanedRoot) {
@@ -61,36 +62,40 @@ func LoadConfig(repoRoot string) (*Config, error) {
 		cleanedRoot = absRoot
 	}
 
+	globalCfg, err := LoadGlobalConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load global config: %w", err)
+	}
+
 	configPath := filepath.Join(cleanedRoot, ConfigFileName)
 
-	// If config file doesn't exist, return default config
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return &Config{
-			Version: CurrentVersion,
-			Defaults: Defaults{
-				BaseDir: "../worktrees",
-			},
-			Hooks: Hooks{},
-		}, nil
+	var projectCfg *Config
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			projectCfg = nil
+		} else {
+			return nil, fmt.Errorf("failed to check config file: %w", err)
+		}
+	} else {
+		// #nosec G304 -- configPath is derived from the validated repository root and fixed file name
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+
+		projectCfg = &Config{}
+		if err := yaml.Unmarshal(data, projectCfg); err != nil {
+			return nil, fmt.Errorf("failed to parse config file: %w", err)
+		}
 	}
 
-	// #nosec G304 -- configPath is derived from the validated repository root and fixed file name
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
+	merged := MergeConfigs(globalCfg, projectCfg)
 
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
-	}
-
-	// Validate configuration
-	if err := config.Validate(); err != nil {
+	if err := merged.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	return &config, nil
+	return merged, nil
 }
 
 // SaveConfig saves configuration to .git-worktree-plus.yml in the repository root
@@ -170,4 +175,82 @@ func (c *Config) ResolveWorktreePath(repoRoot, worktreeName string) string {
 		baseDir = filepath.Join(repoRoot, baseDir)
 	}
 	return filepath.Join(baseDir, worktreeName)
+}
+
+// GlobalConfigFileName is the filename for the global wtp configuration.
+const GlobalConfigFileName = "config.yml"
+
+// LoadGlobalConfig loads the global configuration from XDG_CONFIG_HOME/wtp/config.yml
+// or falls back to ~/.config/wtp/config.yml. Returns an empty Config if no global
+// config exists (not an error).
+func LoadGlobalConfig() (*Config, error) {
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return &Config{}, nil
+		}
+		configDir = filepath.Join(home, ".config")
+	}
+
+	configPath := filepath.Join(configDir, "wtp", GlobalConfigFileName)
+
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			return &Config{}, nil
+		}
+		return nil, fmt.Errorf("failed to check global config file: %w", err)
+	}
+
+	// #nosec G304 -- configPath is derived from user's config directory
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read global config file: %w", err)
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse global config file: %w", err)
+	}
+
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid global configuration: %w", err)
+	}
+
+	return &config, nil
+}
+
+// MergeConfigs merges global and project configs. Project settings override global,
+// except hooks which are concatenated (global first, then project).
+//
+// When adding new fields to Defaults, add a corresponding check here:
+// project value wins if non-empty, otherwise use global.
+func MergeConfigs(global, project *Config) *Config {
+	if global == nil && project == nil {
+		return &Config{}
+	}
+	if global == nil {
+		return project
+	}
+	if project == nil {
+		return global
+	}
+
+	result := &Config{
+		Version: project.Version,
+	}
+
+	if result.Version == "" {
+		result.Version = global.Version
+	}
+
+	result.Defaults = global.Defaults
+	if project.Defaults.BaseDir != "" {
+		result.Defaults.BaseDir = project.Defaults.BaseDir
+	}
+
+	result.Hooks.PostCreate = append(result.Hooks.PostCreate, global.Hooks.PostCreate...)
+	result.Hooks.PostCreate = append(result.Hooks.PostCreate, project.Hooks.PostCreate...)
+
+	return result
 }
