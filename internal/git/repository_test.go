@@ -36,6 +36,12 @@ func setupTestRepo(t *testing.T) string {
 		t.Fatalf("Failed to configure git email: %v", err)
 	}
 
+	cmd = exec.Command("git", "config", "commit.gpgsign", "false")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to disable gpgsign: %v", err)
+	}
+
 	// Create initial commit
 	readmeFile := filepath.Join(tempDir, "README.md")
 	if err := os.WriteFile(readmeFile, []byte("# Test Repo"), 0644); err != nil {
