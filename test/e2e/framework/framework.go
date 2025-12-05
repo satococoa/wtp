@@ -99,6 +99,7 @@ func (e *TestEnvironment) CreateTestRepo(name string) *TestRepo {
 	e.run("git", "init", repoDir)
 	e.runInDir(repoDir, "git", "config", "user.name", "Test User")
 	e.runInDir(repoDir, "git", "config", "user.email", "test@example.com")
+	e.runInDir(repoDir, "git", "config", "commit.gpgsign", "false")
 
 	// Ensure the default branch is 'main' regardless of global git config
 	e.runInDir(repoDir, "git", "config", "init.defaultBranch", "main")
