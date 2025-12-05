@@ -38,6 +38,8 @@
 ## Security & Configuration Tips
 - Project hooks are defined in `.wtp.yml`. Keep commands deterministic and safe; avoid destructive steps by default.
 - Do not commit secrets; use example files (e.g., `.env.example`) and copy in hooks.
+- Global config is loaded from `$XDG_CONFIG_HOME/wtp/config.yml` (or `~/.config/wtp/config.yml` fallback).
+- Global settings are merged with project-local `.wtp.yml`; project settings override global for `base_dir`, hooks concatenate (global first, then project).
 
 ## TDD Workflow
 ### Development Cycle Expectations

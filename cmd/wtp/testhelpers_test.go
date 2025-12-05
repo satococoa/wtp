@@ -12,6 +12,31 @@ import (
 	"github.com/satococoa/wtp/v2/internal/config"
 )
 
+// TestMain sets up the test environment for all tests in the package.
+// It isolates tests from the user's real global config by setting XDG_CONFIG_HOME
+// to a temporary directory.
+func TestMain(m *testing.M) {
+	// Create a temp directory for XDG_CONFIG_HOME to isolate tests
+	// from the user's real global config
+	tmpDir, err := os.MkdirTemp("", "wtp-test-config-*")
+	if err != nil {
+		os.Exit(1)
+	}
+
+	if err := os.Setenv("XDG_CONFIG_HOME", tmpDir); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		os.Exit(1)
+	}
+
+	code := m.Run()
+
+	// Cleanup
+	_ = os.Unsetenv("XDG_CONFIG_HOME")
+	_ = os.RemoveAll(tmpDir)
+
+	os.Exit(code)
+}
+
 // RunWriterCommonTests runs a common pair of tests for functions that write
 // to an io.Writer and may interact with a Git repo. It validates that the
 // function does not panic in non-repo contexts and when a bare .git dir exists.
