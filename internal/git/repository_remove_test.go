@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/satococoa/wtp/v2/internal/testutil"
 )
 
 // runGitCommand is a helper to run git commands in tests
@@ -32,9 +34,9 @@ func checkoutMainBranch(t *testing.T, repoDir string) {
 func initializeTestRepo(t *testing.T, repoDir string) {
 	t.Helper()
 	runGitCommand(t, repoDir, "init")
-	runGitCommand(t, repoDir, "config", "user.name", "Test User")
-	runGitCommand(t, repoDir, "config", "user.email", "test@example.com")
-	runGitCommand(t, repoDir, "config", "commit.gpgsign", "false")
+	testutil.ConfigureTestRepo(t, repoDir, func(dir string, args ...string) {
+		runGitCommand(t, dir, args...)
+	})
 
 	// Create initial commit
 	readmeFile := filepath.Join(repoDir, "README.md")
