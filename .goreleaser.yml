@@ -14,12 +14,15 @@ builds:
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
     ignore:
       - goos: darwin
         goarch: amd64  # Intel Macを除外
+      - goos: windows
+        goarch: arm64  # Windows ARM64サポートは将来的に追加
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -31,6 +34,9 @@ builds:
 archives:
   - id: wtp
     format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
     name_template: >-
       wtp_
       {{- .Version }}_

@@ -14,6 +14,7 @@ var allowedShells = map[string]struct{}{
 	"bash": {},
 	"zsh":  {},
 	"fish": {},
+	"pwsh": {},
 }
 
 var runCompletionCommand = func(shell string) ([]byte, error) {
@@ -42,7 +43,8 @@ func NewShellInitCommand() *cli.Command {
 			"To enable full shell integration, add the following to your shell config:\n" +
 			"  Bash (~/.bashrc):         eval \"$(wtp shell-init bash)\"\n" +
 			"  Zsh (~/.zshrc):           eval \"$(wtp shell-init zsh)\"\n" +
-			"  Fish (~/.config/fish/config.fish): wtp shell-init fish | source",
+			"  Fish (~/.config/fish/config.fish): wtp shell-init fish | source\n" +
+			"  PowerShell ($PROFILE):    Invoke-Expression -Command (& wtp shell-init pwsh | Out-String)",
 		Commands: []*cli.Command{
 			{
 				Name:        "bash",
@@ -61,6 +63,12 @@ func NewShellInitCommand() *cli.Command {
 				Usage:       "Generate fish initialization script",
 				Description: "Generate fish initialization script with completion and cd functionality",
 				Action:      shellInitFish,
+			},
+			{
+				Name:        "pwsh",
+				Usage:       "Generate PowerShell initialization script",
+				Description: "Generate PowerShell initialization script with completion and cd functionality",
+				Action:      shellInitPowerShell,
 			},
 		},
 	}
@@ -121,6 +129,25 @@ func shellInitFish(_ context.Context, cmd *cli.Command) error {
 	}
 
 	return printFishHook(w)
+}
+
+func shellInitPowerShell(_ context.Context, cmd *cli.Command) error {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+
+	// Output completion first
+	if err := outputCompletion(w, "pwsh"); err != nil {
+		return err
+	}
+
+	// Then output hook
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+
+	return printPowerShellHook(w)
 }
 
 // outputCompletion executes wtp completion command and writes output to w
