@@ -6,10 +6,22 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/satococoa/wtp/v2/internal/testutil"
 )
 
 func setupTestRepo(t *testing.T) string {
 	tempDir := t.TempDir()
+
+	runGitCommand := func(dir string, args ...string) {
+		t.Helper()
+
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to run git %v: %v", args, err)
+		}
+	}
 
 	// Initialize git repository
 	cmd := exec.Command("git", "init")
@@ -23,24 +35,7 @@ func setupTestRepo(t *testing.T) string {
 	cmd.Dir = tempDir
 	_ = cmd.Run() // Ignore error if git version is too old
 
-	// Configure git user
-	cmd = exec.Command("git", "config", "user.name", "Test User")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to configure git user: %v", err)
-	}
-
-	cmd = exec.Command("git", "config", "user.email", "test@example.com")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to configure git email: %v", err)
-	}
-
-	cmd = exec.Command("git", "config", "commit.gpgsign", "false")
-	cmd.Dir = tempDir
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to disable gpgsign: %v", err)
-	}
+	testutil.ConfigureTestRepo(t, tempDir, runGitCommand)
 
 	// Create initial commit
 	readmeFile := filepath.Join(tempDir, "README.md")
