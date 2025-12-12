@@ -6,6 +6,18 @@ import (
 	"testing"
 )
 
+func TestMain(m *testing.M) {
+	tmpDir, err := os.MkdirTemp("", "wtp-config-test-*")
+	if err != nil {
+		os.Exit(1)
+	}
+	_ = os.Setenv("XDG_CONFIG_HOME", tmpDir)
+	code := m.Run()
+	_ = os.Unsetenv("XDG_CONFIG_HOME")
+	_ = os.RemoveAll(tmpDir)
+	os.Exit(code)
+}
+
 func TestLoadConfig_NonExistentFile(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -419,5 +431,317 @@ func TestHasHooks(t *testing.T) {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestLoadGlobalConfig_FromXDGConfigHome(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "wtp")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("Failed to create config dir: %v", err)
+	}
+
+	configContent := `version: "1.0"
+defaults:
+  base_dir: ".."
+hooks:
+  post_create:
+    - type: command
+      command: "echo global"
+`
+	configPath := filepath.Join(configDir, "config.yml")
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
+
+	cfg, err := LoadGlobalConfig()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.Defaults.BaseDir != ".." {
+		t.Errorf("Expected base_dir '..', got %s", cfg.Defaults.BaseDir)
+	}
+
+	if len(cfg.Hooks.PostCreate) != 1 {
+		t.Errorf("Expected 1 hook, got %d", len(cfg.Hooks.PostCreate))
+	}
+}
+
+func TestLoadGlobalConfig_FallbackToHomeConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, ".config", "wtp")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("Failed to create config dir: %v", err)
+	}
+
+	configContent := `version: "1.0"
+defaults:
+  base_dir: "../my-worktrees"
+`
+	configPath := filepath.Join(configDir, "config.yml")
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", tempDir)
+
+	cfg, err := LoadGlobalConfig()
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if cfg.Defaults.BaseDir != "../my-worktrees" {
+		t.Errorf("Expected base_dir '../my-worktrees', got %s", cfg.Defaults.BaseDir)
+	}
+}
+
+func TestLoadGlobalConfig_ReturnsEmptyWhenMissing(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
+	t.Setenv("HOME", tempDir)
+
+	cfg, err := LoadGlobalConfig()
+	if err != nil {
+		t.Fatalf("Expected no error when global config missing, got %v", err)
+	}
+
+	if cfg == nil {
+		t.Fatal("Expected non-nil config")
+	}
+
+	if cfg.Version != "" {
+		t.Errorf("Expected empty version, got %s", cfg.Version)
+	}
+}
+
+func TestMergeConfigs(t *testing.T) {
+	tests := []struct {
+		name          string
+		global        *Config
+		project       *Config
+		expectedDir   string
+		expectedHooks int
+		expectedVer   string
+	}{
+		{
+			name: "project overrides global base_dir",
+			global: &Config{
+				Version:  "1.0",
+				Defaults: Defaults{BaseDir: ".."},
+			},
+			project: &Config{
+				Version:  "1.0",
+				Defaults: Defaults{BaseDir: ".worktrees"},
+			},
+			expectedDir:   ".worktrees",
+			expectedHooks: 0,
+			expectedVer:   "1.0",
+		},
+		{
+			name: "global base_dir used when project empty",
+			global: &Config{
+				Version:  "1.0",
+				Defaults: Defaults{BaseDir: ".."},
+			},
+			project: &Config{
+				Version: "1.0",
+			},
+			expectedDir:   "..",
+			expectedHooks: 0,
+			expectedVer:   "1.0",
+		},
+		{
+			name: "hooks concatenate global then project",
+			global: &Config{
+				Version: "1.0",
+				Hooks: Hooks{
+					PostCreate: []Hook{
+						{Type: HookTypeCopy, From: "a", To: "b"},
+					},
+				},
+			},
+			project: &Config{
+				Version: "1.0",
+				Hooks: Hooks{
+					PostCreate: []Hook{
+						{Type: HookTypeCommand, Command: "echo test"},
+					},
+				},
+			},
+			expectedDir:   "",
+			expectedHooks: 2,
+			expectedVer:   "1.0",
+		},
+		{
+			name: "project version preferred",
+			global: &Config{
+				Version: "0.9",
+			},
+			project: &Config{
+				Version: "1.0",
+			},
+			expectedDir:   "",
+			expectedHooks: 0,
+			expectedVer:   "1.0",
+		},
+		{
+			name:   "nil global config",
+			global: nil,
+			project: &Config{
+				Version:  "1.0",
+				Defaults: Defaults{BaseDir: "../worktrees"},
+			},
+			expectedDir:   "../worktrees",
+			expectedHooks: 0,
+			expectedVer:   "1.0",
+		},
+		{
+			name: "nil project config",
+			global: &Config{
+				Version:  "1.0",
+				Defaults: Defaults{BaseDir: ".."},
+				Hooks: Hooks{
+					PostCreate: []Hook{
+						{Type: HookTypeCommand, Command: "npm install"},
+					},
+				},
+			},
+			project:       nil,
+			expectedDir:   "..",
+			expectedHooks: 1,
+			expectedVer:   "1.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MergeConfigs(tt.global, tt.project)
+
+			if result.Defaults.BaseDir != tt.expectedDir {
+				t.Errorf("Expected base_dir %q, got %q", tt.expectedDir, result.Defaults.BaseDir)
+			}
+
+			if len(result.Hooks.PostCreate) != tt.expectedHooks {
+				t.Errorf("Expected %d hooks, got %d", tt.expectedHooks, len(result.Hooks.PostCreate))
+			}
+
+			if result.Version != tt.expectedVer {
+				t.Errorf("Expected version %q, got %q", tt.expectedVer, result.Version)
+			}
+		})
+	}
+}
+
+func TestMergeConfigs_HookOrder(t *testing.T) {
+	global := &Config{
+		Hooks: Hooks{
+			PostCreate: []Hook{
+				{Type: HookTypeCommand, Command: "echo global"},
+			},
+		},
+	}
+	project := &Config{
+		Hooks: Hooks{
+			PostCreate: []Hook{
+				{Type: HookTypeCommand, Command: "echo project"},
+			},
+		},
+	}
+
+	result := MergeConfigs(global, project)
+
+	if len(result.Hooks.PostCreate) != 2 {
+		t.Fatalf("Expected 2 hooks, got %d", len(result.Hooks.PostCreate))
+	}
+
+	if result.Hooks.PostCreate[0].Command != "echo global" {
+		t.Errorf("Expected first hook to be global, got %s", result.Hooks.PostCreate[0].Command)
+	}
+
+	if result.Hooks.PostCreate[1].Command != "echo project" {
+		t.Errorf("Expected second hook to be project, got %s", result.Hooks.PostCreate[1].Command)
+	}
+}
+
+func TestLoadConfig_StatError(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, ConfigFileName)
+
+	// Create a config file
+	if err := os.WriteFile(configPath, []byte("version: \"1.0\"\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	// Make the directory unsearchable (permission denied on stat)
+	if err := os.Chmod(tempDir, 0o000); err != nil {
+		t.Fatalf("Failed to chmod: %v", err)
+	}
+	defer func() {
+		_ = os.Chmod(tempDir, 0o755)
+	}()
+
+	_, err := LoadConfig(tempDir)
+	if err == nil {
+		t.Error("Expected error for stat failure, got nil")
+	}
+}
+
+func TestLoadGlobalConfig_StatError(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "wtp")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("Failed to create config dir: %v", err)
+	}
+
+	configPath := filepath.Join(configDir, GlobalConfigFileName)
+	if err := os.WriteFile(configPath, []byte("version: \"1.0\"\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	// Make the config directory unsearchable
+	if err := os.Chmod(configDir, 0o000); err != nil {
+		t.Fatalf("Failed to chmod: %v", err)
+	}
+	defer func() {
+		_ = os.Chmod(configDir, 0o755)
+	}()
+
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
+
+	_, err := LoadGlobalConfig()
+	if err == nil {
+		t.Error("Expected error for stat failure, got nil")
+	}
+}
+
+func TestLoadGlobalConfig_InvalidConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	configDir := filepath.Join(tempDir, "wtp")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("Failed to create config dir: %v", err)
+	}
+
+	// Write a config with invalid hook (missing required fields)
+	configContent := `version: "1.0"
+hooks:
+  post_create:
+    - type: copy
+      from: ".env.example"
+      # Missing 'to' field - should fail validation
+`
+	configPath := filepath.Join(configDir, GlobalConfigFileName)
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
+
+	_, err := LoadGlobalConfig()
+	if err == nil {
+		t.Error("Expected validation error for invalid global config, got nil")
 	}
 }
