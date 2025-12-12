@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/satococoa/wtp/v2/internal/testutil"
 )
 
 const (
@@ -97,9 +99,9 @@ func (e *TestEnvironment) CreateTestRepo(name string) *TestRepo {
 	repoDir := filepath.Join(e.tmpDir, name)
 
 	e.run("git", "init", repoDir)
-	e.runInDir(repoDir, "git", "config", "user.name", "Test User")
-	e.runInDir(repoDir, "git", "config", "user.email", "test@example.com")
-	e.runInDir(repoDir, "git", "config", "commit.gpgsign", "false")
+	testutil.ConfigureTestRepo(e.t, repoDir, func(dir string, args ...string) {
+		e.runInDir(dir, "git", args...)
+	})
 
 	// Ensure the default branch is 'main' regardless of global git config
 	e.runInDir(repoDir, "git", "config", "init.defaultBranch", "main")
