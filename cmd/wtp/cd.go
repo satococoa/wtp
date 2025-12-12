@@ -57,9 +57,14 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	}
 
 	// Initialize repository to check if we're in a git repo
-	_, err = git.NewRepository(cwd)
+	repo, err := git.NewRepository(cwd)
 	if err != nil {
 		return errors.NotInGitRepository()
+	}
+
+	mainRepoPath, err := repo.GetMainWorktreePath()
+	if err != nil {
+		mainRepoPath = repo.Path()
 	}
 
 	// Get the writer from cli.Command
@@ -67,6 +72,12 @@ func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
+	errWriter := cmd.Root().ErrWriter
+	if errWriter == nil {
+		errWriter = os.Stderr
+	}
+
+	warnLegacyBaseDir(errWriter, mainRepoPath)
 
 	// Use CommandExecutor-based implementation
 	executor := command.NewRealExecutor()

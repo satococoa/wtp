@@ -109,9 +109,15 @@ func listCommand(_ context.Context, cmd *cli.Command) error {
 	if w == nil {
 		w = os.Stdout
 	}
+	errWriter := cmd.Root().ErrWriter
+	if errWriter == nil {
+		errWriter = os.Stderr
+	}
 
 	// Load config to get base_dir
 	cfg, _ := config.LoadConfig(mainRepoPath)
+
+	warnLegacyBaseDir(errWriter, mainRepoPath)
 
 	// Resolve display options
 	opts := resolveListDisplayOptions(cmd, w)
