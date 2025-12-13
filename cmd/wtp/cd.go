@@ -28,15 +28,17 @@ func NewCdCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "cd",
 		Usage: "Output absolute path to worktree",
-		Description: "Output the absolute path to the specified worktree.\n\n" +
+		Description: "Output the absolute path to the specified worktree.\n" +
+			"If no worktree is specified, outputs the main worktree path (like cd goes to $HOME).\n\n" +
 			"Usage:\n" +
 			"  Direct:     cd \"$(wtp cd feature)\"\n" +
-			"  With hook:  wtp cd feature\n\n" +
+			"  With hook:  wtp cd feature\n" +
+			"  Go home:    wtp cd\n\n" +
 			"To enable the hook for easier navigation:\n" +
 			"  Bash: eval \"$(wtp hook bash)\"\n" +
 			"  Zsh:  eval \"$(wtp hook zsh)\"\n" +
 			"  Fish: wtp hook fish | source",
-		ArgsUsage:     "<worktree-name>",
+		ArgsUsage:     "[worktree-name]",
 		Action:        cdToWorktree,
 		ShellComplete: completeWorktreesForCd,
 	}
@@ -44,11 +46,12 @@ func NewCdCommand() *cli.Command {
 
 func cdToWorktree(_ context.Context, cmd *cli.Command) error {
 	args := cmd.Args()
-	if args.Len() == 0 {
-		return errors.WorktreeNameRequired()
-	}
 
-	worktreeName := args.Get(0)
+	// Default to main worktree (@) when no argument provided, like cd goes to $HOME
+	worktreeName := "@"
+	if args.Len() > 0 {
+		worktreeName = args.Get(0)
+	}
 
 	// Get current directory
 	cwd, err := os.Getwd()
