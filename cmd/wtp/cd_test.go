@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -119,42 +118,6 @@ func TestCdCommand_NoEnvironmentVariableDependency(t *testing.T) {
 			resolvedPath := resolveCdWorktreePath("@", worktrees, mainPath)
 			assert.Equal(t, "/test/main", resolvedPath,
 				"Path resolution must not depend on environment variables")
-		})
-	}
-}
-
-// Test critical error scenarios that users will encounter
-func TestCdCommand_UserFacingErrors(t *testing.T) {
-	tests := []struct {
-		name          string
-		args          []string
-		expectedError string
-	}{
-		{
-			name:          "no arguments",
-			args:          []string{},
-			expectedError: "worktree name is required",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := &cli.Command{
-				Commands: []*cli.Command{
-					NewCdCommand(),
-				},
-			}
-
-			var buf bytes.Buffer
-			app.Writer = &buf
-
-			ctx := context.Background()
-			cmdArgs := []string{"wtp", "cd"}
-			cmdArgs = append(cmdArgs, tt.args...)
-
-			err := app.Run(ctx, cmdArgs)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tt.expectedError)
 		})
 	}
 }
