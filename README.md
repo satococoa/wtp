@@ -58,7 +58,7 @@ requirements.
 path) **wtp solution:** `wtp cd feature/auth` with tab completion
 
 Jump between worktrees instantly. Use `wtp cd @` to return to your main
-worktree. No more terminal tab confusion.
+worktree (or just `wtp cd`). No more terminal tab confusion.
 
 ## Requirements
 
@@ -295,6 +295,9 @@ two ways:
 cd "$(wtp cd feature/auth)"
 
 # Change to the main worktree
+cd "$(wtp cd)"
+
+# Or explicitly:
 cd "$(wtp cd @)"
 ```
 
@@ -310,6 +313,9 @@ Then use the simplified syntax:
 ```bash
 # Change to a worktree by its name
 wtp cd feature/auth
+
+# Go to the main worktree (same as @)
+wtp cd
 
 # Change to the root worktree using the '@' shorthand
 wtp cd @

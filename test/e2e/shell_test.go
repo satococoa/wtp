@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +11,23 @@ import (
 func TestShellIntegration(t *testing.T) {
 	env := framework.NewTestEnvironment(t)
 	defer env.Cleanup()
+
+	t.Run("CDCommandNoArgsDefaultsToMainWorktree", func(t *testing.T) {
+		repo := env.CreateTestRepo("shell-cd-default")
+
+		output, err := repo.RunWTP("cd")
+		framework.AssertNoError(t, err)
+
+		outputPath := strings.TrimSpace(output)
+		worktrees := repo.ListWorktrees()
+		framework.AssertTrue(t, len(worktrees) > 0, "Should have at least one worktree")
+
+		expectedPath := worktrees[0]
+		framework.AssertTrue(t,
+			filepath.Clean(outputPath) == filepath.Clean(expectedPath),
+			"Should output main worktree path",
+		)
+	})
 
 	t.Run("CDCommandOutputsPath", func(t *testing.T) {
 		repo := env.CreateTestRepo("shell-cd-path")
@@ -49,9 +67,6 @@ func TestShellIntegration(t *testing.T) {
 
 	t.Run("CDNonexistentWorktree", func(t *testing.T) {
 		repo := env.CreateTestRepo("shell-cd-nonexistent")
-
-		// Simulate shell integration
-		t.Setenv("WTP_SHELL_INTEGRATION", "1")
 
 		output, err := repo.RunWTP("cd", "nonexistent")
 		framework.AssertError(t, err)
@@ -131,9 +146,6 @@ func TestShellCompletionBehavior(t *testing.T) {
 		_, _ = repo.RunWTP("add", "feature/two")
 		_, _ = repo.RunWTP("add", "bugfix/three")
 
-		// Simulate shell integration for cd command
-		t.Setenv("WTP_SHELL_INTEGRATION", "1")
-
 		// List command should work and show all worktrees
 		output, err := repo.RunWTP("list")
 		framework.AssertNoError(t, err)
@@ -148,8 +160,6 @@ func TestShellCompletionBehavior(t *testing.T) {
 		repo.CreateBranch("feature/authorization")
 		_, _ = repo.RunWTP("add", "feature/authentication")
 		_, _ = repo.RunWTP("add", "feature/authorization")
-
-		t.Setenv("WTP_SHELL_INTEGRATION", "1")
 
 		// Try partial match (this behavior might vary)
 		output, err := repo.RunWTP("cd", "auth")
