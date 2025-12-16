@@ -122,6 +122,19 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			},
 		},
 		{
+			name:  "zsh hook supports no-arg cd",
+			shell: "zsh",
+			requiredLogic: []string{
+				"if [[ -z \"$2\" ]]",               // No-arg branch
+				"target_dir=$(command wtp cd",      // Uses `wtp cd` default behavior
+				"target_dir=$(command wtp cd \"$2", // Uses explicit worktree name when present
+			},
+			notContains: []string{
+				"Usage: wtp cd <worktree>",
+				"echo \"Usage:",
+			},
+		},
+		{
 			name:  "fish hook supports no-arg cd",
 			shell: "fish",
 			requiredLogic: []string{
@@ -144,6 +157,8 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			switch tt.shell {
 			case "bash":
 				require.NoError(t, printBashHook(&buf))
+			case "zsh":
+				require.NoError(t, printZshHook(&buf))
 			case "fish":
 				require.NoError(t, printFishHook(&buf))
 			}
