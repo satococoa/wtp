@@ -112,7 +112,7 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			name:  "bash hook supports no-arg cd",
 			shell: "bash",
 			requiredLogic: []string{
-				"if [[ -z \"$2\" ]]",              // No-arg branch
+				"if [[ -z \"$2\" ]]",               // No-arg branch
 				"target_dir=$(command wtp cd",      // Uses `wtp cd` default behavior
 				"target_dir=$(command wtp cd \"$2", // Uses explicit worktree name when present
 			},
@@ -126,9 +126,9 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			shell: "fish",
 			requiredLogic: []string{
 				"if test -z \"$argv[2]\"",           // No-arg branch
-				"set -l target_dir (command wtp cd",  // Uses `wtp cd` default behavior
-				"command wtp cd $argv[2]",            // Uses explicit worktree name when present
-				"cd \"$target_dir\"",                 // Handles spaces safely
+				"set -l target_dir (command wtp cd", // Uses `wtp cd` default behavior
+				"command wtp cd $argv[2]",           // Uses explicit worktree name when present
+				"cd \"$target_dir\"",                // Handles spaces safely
 			},
 			notContains: []string{
 				"Usage: wtp cd <worktree>",

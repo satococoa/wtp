@@ -41,4 +41,5 @@ Thumbs.db
 .gocache/
 .gomodcache/
 .gopath/
+.golangci-cache/
 .tmp_repro/
