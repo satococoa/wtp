@@ -77,16 +77,20 @@ wtp() {
         fi
     done
     if [[ "$1" == "cd" ]]; then
-        if [[ -z "$2" ]]; then
-            echo "Usage: wtp cd <worktree>" >&2
-            return 1
-        fi
         local target_dir
-        target_dir=$(command wtp cd "$2" 2>/dev/null)
+        if [[ -z "$2" ]]; then
+            target_dir=$(command wtp cd 2>/dev/null)
+        else
+            target_dir=$(command wtp cd "$2" 2>/dev/null)
+        fi
         if [[ $? -eq 0 && -n "$target_dir" ]]; then
             cd "$target_dir"
         else
-            command wtp cd "$2"
+            if [[ -z "$2" ]]; then
+                command wtp cd
+            else
+                command wtp cd "$2"
+            fi
         fi
     else
         command wtp "$@"
@@ -106,16 +110,20 @@ wtp() {
         fi
     done
     if [[ "$1" == "cd" ]]; then
-        if [[ -z "$2" ]]; then
-            echo "Usage: wtp cd <worktree>" >&2
-            return 1
-        fi
         local target_dir
-        target_dir=$(command wtp cd "$2" 2>/dev/null)
+        if [[ -z "$2" ]]; then
+            target_dir=$(command wtp cd 2>/dev/null)
+        else
+            target_dir=$(command wtp cd "$2" 2>/dev/null)
+        fi
         if [[ $? -eq 0 && -n "$target_dir" ]]; then
             cd "$target_dir"
         else
-            command wtp cd "$2"
+            if [[ -z "$2" ]]; then
+                command wtp cd
+            else
+                command wtp cd "$2"
+            fi
         fi
     else
         command wtp "$@"
@@ -136,14 +144,18 @@ function wtp
     end
     if test "$argv[1]" = "cd"
         if test -z "$argv[2]"
-            echo "Usage: wtp cd <worktree>" >&2
-            return 1
-        end
-        set -l target_dir (command wtp cd $argv[2] 2>/dev/null)
-        if test $status -eq 0 -a -n "$target_dir"
-            cd $target_dir
+            set -l target_dir (command wtp cd 2>/dev/null)
         else
-            command wtp cd $argv[2]
+            set -l target_dir (command wtp cd $argv[2] 2>/dev/null)
+        end
+        if test $status -eq 0 -a -n "$target_dir"
+            cd "$target_dir"
+        else
+            if test -z "$argv[2]"
+                command wtp cd
+            else
+                command wtp cd $argv[2]
+            end
         end
     else
         command wtp $argv

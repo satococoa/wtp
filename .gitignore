@@ -36,3 +36,10 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Local caches (Codex sandbox / local runs)
+.gocache/
+.gomodcache/
+.gopath/
+.golangci-cache/
+.tmp_repro/
