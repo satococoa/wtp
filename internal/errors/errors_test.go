@@ -79,15 +79,6 @@ func TestBranchNameRequired(t *testing.T) {
 	assert.Contains(t, err.Error(), "Examples:")
 }
 
-func TestWorktreeNameRequired(t *testing.T) {
-	err := WorktreeNameRequired()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "worktree name is required")
-	assert.Contains(t, err.Error(), "wtp cd")
-	assert.Contains(t, err.Error(), "wtp list")
-}
-
 func TestWorktreeNameRequiredForRemove(t *testing.T) {
 	err := WorktreeNameRequiredForRemove()
 
@@ -434,9 +425,9 @@ func TestErrorMessages_HelpfulContent(t *testing.T) {
 			keywords: []string{"Solutions:", "git init", "Navigate"},
 		},
 		{
-			name:     "WorktreeNameRequired contains examples",
-			errorFn:  WorktreeNameRequired,
-			keywords: []string{"wtp cd", "wtp list"},
+			name:     "WorktreeNameRequiredForRemove contains examples",
+			errorFn:  WorktreeNameRequiredForRemove,
+			keywords: []string{"wtp remove", "wtp list"},
 		},
 		{
 			name:     "ShellIntegrationRequired contains setup",
@@ -466,7 +457,7 @@ func TestErrorMessages_Format(t *testing.T) {
 	tests := []func() error{
 		NotInGitRepository,
 		func() error { return BranchNameRequired("example") },
-		WorktreeNameRequired,
+		WorktreeNameRequiredForRemove,
 		ShellIntegrationRequired,
 	}
 
