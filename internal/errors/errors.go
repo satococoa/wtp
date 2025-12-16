@@ -47,16 +47,6 @@ Examples:
 	return errors.New(msg)
 }
 
-// WorktreeNameRequired reports that a worktree name argument is missing.
-func WorktreeNameRequired() error {
-	msg := `worktree name is required
-
-Usage: wtp cd <worktree-name>
-
-Tip: Run 'wtp list' to see available worktrees`
-	return errors.New(msg)
-}
-
 // WorktreeNameRequiredForRemove reports that a worktree name is required for removal.
 func WorktreeNameRequiredForRemove() error {
 	msg := `worktree name is required

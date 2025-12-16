@@ -155,7 +155,7 @@ Following Git's own behavior:
 
 The `wtp cd` command uses a two-part architecture:
 
-1. **Go Command**: `wtp cd <worktree>` finds the worktree path and outputs it
+1. **Go Command**: `wtp cd [worktree]` finds the worktree path and outputs it (defaults to the main worktree when omitted)
 2. **Shell Function**: Wraps the Go command and performs the actual `cd`
 
 ### Shell Integration Flow
@@ -165,7 +165,7 @@ The `wtp cd` command uses a two-part architecture:
 wtp cd feature/auth
 
 # Shell function intercepts, runs:
-WTP_SHELL_INTEGRATION=1 wtp cd feature/auth
+command wtp cd feature/auth
 
 # Go command returns path:
 /path/to/worktrees/feature/auth
@@ -176,8 +176,8 @@ cd /path/to/worktrees/feature/auth
 
 ### Key Design Decisions
 
-- **Environment Variable Check**: `WTP_SHELL_INTEGRATION=1` prevents accidental direct usage
-- **Shell Function Wrapper**: Required because child processes can't change parent's directory
+- **Pure Path Output**: `wtp cd` only prints a path (no side effects), so hooks can safely consume it
+- **Shell Function Wrapper**: Required because child processes can't change the parent shell's directory
 - **Unified Setup Command**: `wtp shell-init <shell>` generates both completion and cd functionality
 - **Cross-Shell Support**: Bash, Zsh, and Fish implementations
 

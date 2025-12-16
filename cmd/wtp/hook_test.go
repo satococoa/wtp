@@ -66,7 +66,7 @@ func TestHookCommand_GeneratesValidShellScripts(t *testing.T) {
 				"function wtp",
 				"if test \"$argv[1]\" = \"cd\"",
 				"command wtp cd",
-				"cd $target_dir",
+				"cd \"$target_dir\"",
 			},
 		},
 	}
@@ -106,23 +106,46 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 		name          string
 		shell         string
 		requiredLogic []string
+		notContains   []string
 	}{
 		{
-			name:  "bash hook handles empty argument",
+			name:  "bash hook supports no-arg cd",
 			shell: "bash",
 			requiredLogic: []string{
-				"if [[ -z \"$2\" ]]", // Empty argument check
-				"echo \"Usage:",      // Error message
-				"return 1",           // Error exit
+				"if [[ -z \"$2\" ]]",               // No-arg branch
+				"target_dir=$(command wtp cd",      // Uses `wtp cd` default behavior
+				"target_dir=$(command wtp cd \"$2", // Uses explicit worktree name when present
+			},
+			notContains: []string{
+				"Usage: wtp cd <worktree>",
+				"echo \"Usage:",
 			},
 		},
 		{
-			name:  "fish hook handles empty argument",
+			name:  "zsh hook supports no-arg cd",
+			shell: "zsh",
+			requiredLogic: []string{
+				"if [[ -z \"$2\" ]]",               // No-arg branch
+				"target_dir=$(command wtp cd",      // Uses `wtp cd` default behavior
+				"target_dir=$(command wtp cd \"$2", // Uses explicit worktree name when present
+			},
+			notContains: []string{
+				"Usage: wtp cd <worktree>",
+				"echo \"Usage:",
+			},
+		},
+		{
+			name:  "fish hook supports no-arg cd",
 			shell: "fish",
 			requiredLogic: []string{
-				"if test -z \"$argv[2]\"", // Empty argument check
-				"echo \"Usage:",           // Error message
-				"return 1",                // Error exit
+				"if test -z \"$argv[2]\"",           // No-arg branch
+				"set -l target_dir (command wtp cd", // Uses `wtp cd` default behavior
+				"command wtp cd $argv[2]",           // Uses explicit worktree name when present
+				"cd \"$target_dir\"",                // Handles spaces safely
+			},
+			notContains: []string{
+				"Usage: wtp cd <worktree>",
+				"echo \"Usage:",
 			},
 		},
 	}
@@ -134,6 +157,8 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			switch tt.shell {
 			case "bash":
 				require.NoError(t, printBashHook(&buf))
+			case "zsh":
+				require.NoError(t, printZshHook(&buf))
 			case "fish":
 				require.NoError(t, printFishHook(&buf))
 			}
@@ -141,6 +166,9 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			output := buf.String()
 			for _, logic := range tt.requiredLogic {
 				assert.Contains(t, output, logic, "Hook must handle edge cases properly")
+			}
+			for _, unexpected := range tt.notContains {
+				assert.NotContains(t, output, unexpected)
 			}
 		})
 	}
