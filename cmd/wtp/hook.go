@@ -143,10 +143,11 @@ function wtp
         end
     end
     if test "$argv[1]" = "cd"
+        set -l target_dir
         if test -z "$argv[2]"
-            set -l target_dir (command wtp cd 2>/dev/null)
+            set target_dir (command wtp cd 2>/dev/null)
         else
-            set -l target_dir (command wtp cd $argv[2] 2>/dev/null)
+            set target_dir (command wtp cd $argv[2] 2>/dev/null)
         end
         if test $status -eq 0 -a -n "$target_dir"
             cd "$target_dir"

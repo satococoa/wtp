@@ -101,6 +101,24 @@ func TestHookCommand_GeneratesValidShellScripts(t *testing.T) {
 }
 
 // Test the core business logic that matters most
+// Test fish variable scoping: target_dir must be declared outside if/else block
+func TestFishHook_VariableScoping(t *testing.T) {
+	var buf bytes.Buffer
+	require.NoError(t, printFishHook(&buf))
+	output := buf.String()
+
+	// target_dir must be declared BEFORE the if/else block (outside block scope)
+	// Correct: "set -l target_dir" on its own line, then "set target_dir ..." inside blocks
+	assert.Contains(t, output, "set -l target_dir\n",
+		"target_dir must be declared outside if/else block for proper fish scoping")
+
+	// Inside if/else blocks, assignment should NOT use -l flag
+	assert.Contains(t, output, "set target_dir (command wtp cd 2>/dev/null)",
+		"target_dir assignment in if block should not use -l flag")
+	assert.Contains(t, output, "set target_dir (command wtp cd $argv[2] 2>/dev/null)",
+		"target_dir assignment in else block should not use -l flag")
+}
+
 func TestHookScripts_HandleEdgeCases(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -138,10 +156,10 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 			name:  "fish hook supports no-arg cd",
 			shell: "fish",
 			requiredLogic: []string{
-				"if test -z \"$argv[2]\"",           // No-arg branch
-				"set -l target_dir (command wtp cd", // Uses `wtp cd` default behavior
-				"command wtp cd $argv[2]",           // Uses explicit worktree name when present
-				"cd \"$target_dir\"",                // Handles spaces safely
+				"if test -z \"$argv[2]\"",     // No-arg branch
+				"set target_dir (command wtp", // Uses `wtp cd` (no -l inside block)
+				"command wtp cd $argv[2]",     // Uses explicit worktree name when present
+				"cd \"$target_dir\"",          // Handles spaces safely
 			},
 			notContains: []string{
 				"Usage: wtp cd <worktree>",
