@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func TestMain(t *testing.T) {
+func TestAppSetup(t *testing.T) {
 	// Test main function doesn't crash
 	// This is tricky to test directly, so we test the app setup instead
 	t.Run("app setup", func(t *testing.T) {
