@@ -138,7 +138,7 @@ func TestInitCommand_Success(t *testing.T) {
 	// Check for required sections
 	assert.Contains(t, contentStr, "version: \"1.0\"")
 	assert.Contains(t, contentStr, "defaults:")
-	assert.Contains(t, contentStr, "base_dir: ../worktrees")
+	assert.Contains(t, contentStr, "base_dir: .git/wtp/worktrees")
 	assert.Contains(t, contentStr, "hooks:")
 	assert.Contains(t, contentStr, "post_create:")
 

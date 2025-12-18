@@ -16,7 +16,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 		// When: executing a single git command
 		cmd := Command{
 			Name: "git",
-			Args: []string{"worktree", "add", "../worktrees/feature", "feature"},
+			Args: []string{"worktree", "add", ".git/wtp/worktrees/feature", "feature"},
 		}
 		result, err := executor.Execute([]Command{cmd})
 
@@ -35,7 +35,7 @@ func TestCommandExecutor_Interface(t *testing.T) {
 
 		// When: executing multiple commands
 		commands := []Command{
-			{Name: "git", Args: []string{"worktree", "add", "../worktrees/feature", "feature"}},
+			{Name: "git", Args: []string{"worktree", "add", ".git/wtp/worktrees/feature", "feature"}},
 			{Name: "git", Args: []string{"branch", "-D", "old-feature"}},
 		}
 		result, err := executor.Execute(commands)
@@ -165,7 +165,7 @@ func TestExtractBranchName(t *testing.T) {
 func TestCommandBuilder(t *testing.T) {
 	t.Run("should build git worktree add command", func(t *testing.T) {
 		// When: building a worktree add command
-		cmd := GitWorktreeAdd("../worktrees/feature", "feature", GitWorktreeAddOptions{
+		cmd := GitWorktreeAdd(".git/wtp/worktrees/feature", "feature", GitWorktreeAddOptions{
 			Force:  true,
 			Branch: "new-feature",
 		})
@@ -173,13 +173,13 @@ func TestCommandBuilder(t *testing.T) {
 		// Then: command should have correct structure
 		assert.Equal(t, "git", cmd.Name)
 		assert.Equal(t,
-			[]string{"worktree", "add", "--force", "-b", "new-feature", "../worktrees/feature", "feature"},
+			[]string{"worktree", "add", "--force", "-b", "new-feature", ".git/wtp/worktrees/feature", "feature"},
 			cmd.Args)
 	})
 
 	t.Run("should build git worktree remove command", func(t *testing.T) {
 		// Given: a worktree path to remove
-		path := "../worktrees/feature"
+		path := ".git/wtp/worktrees/feature"
 
 		// When: building a worktree remove command
 		cmd := GitWorktreeRemove(path, false)
@@ -191,7 +191,7 @@ func TestCommandBuilder(t *testing.T) {
 
 	t.Run("should build forced git worktree remove command", func(t *testing.T) {
 		// Given: a worktree path to remove forcefully
-		path := "../worktrees/feature"
+		path := ".git/wtp/worktrees/feature"
 
 		// When: building a forced worktree remove command
 		cmd := GitWorktreeRemove(path, true)
