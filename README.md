@@ -211,7 +211,24 @@ hooks:
     - type: command
       command: "make db:setup"
       work_dir: "."
+
+  pre_remove:
+    # Run before git worktree remove
+    - type: command
+      command: "echo before remove"
+
+  post_remove:
+    # Run after git worktree remove
+    - type: command
+      command: "echo after remove"
 ```
+
+`pre_remove` and `post_remove` run before and after `git worktree remove`.
+`pre_remove` resolves `from` relative to the target worktree and `to` relative
+to the repository root. Command hooks in `pre_remove` default to running inside
+the worktree (unless `work_dir` is set).
+`post_remove` defaults `work_dir` to the repository root, and any relative
+`work_dir` is resolved from the repository root because the worktree is gone.
 
 ### Copy Hooks: Main Worktree Reference
 

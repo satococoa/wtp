@@ -113,13 +113,19 @@ hooks:
     - type: command
       command: "npm install"
       work_dir: "."
+  pre_remove:
+    - type: command
+      command: "echo before remove"
+  post_remove:
+    - type: command
+      command: "echo after remove"
 ```
 
 ## Hook System
 
 ### Design Philosophy
 
-Post-create hooks support:
+Hooks support:
 - File copying (for .env files, etc.)
 - Command execution
 

@@ -99,6 +99,16 @@ hooks:
     #   command: npm install
     # - type: command
     #   command: echo "Created new worktree!"
+
+  # Hooks that run before removing a worktree
+  pre_remove:
+    # - type: command
+    #   command: echo "Removing worktree..."
+
+  # Hooks that run after removing a worktree
+  post_remove:
+    # - type: command
+    #   command: echo "Removed worktree!"
 `
 
 	if err := ensureWritableDirectory(repo.Path()); err != nil {

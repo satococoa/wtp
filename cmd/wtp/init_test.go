@@ -141,6 +141,8 @@ func TestInitCommand_Success(t *testing.T) {
 	assert.Contains(t, contentStr, "base_dir: ../worktrees")
 	assert.Contains(t, contentStr, "hooks:")
 	assert.Contains(t, contentStr, "post_create:")
+	assert.Contains(t, contentStr, "pre_remove:")
+	assert.Contains(t, contentStr, "post_remove:")
 
 	// Check for example hooks
 	assert.Contains(t, contentStr, "type: copy")
@@ -154,6 +156,8 @@ func TestInitCommand_Success(t *testing.T) {
 	assert.Contains(t, contentStr, "# Worktree Plus Configuration")
 	assert.Contains(t, contentStr, "# Default settings for worktrees")
 	assert.Contains(t, contentStr, "# Hooks that run after creating a worktree")
+	assert.Contains(t, contentStr, "# Hooks that run before removing a worktree")
+	assert.Contains(t, contentStr, "# Hooks that run after removing a worktree")
 }
 
 func TestInitCommand_DirectoryAccessError(t *testing.T) {
