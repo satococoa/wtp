@@ -55,6 +55,25 @@ func TestExecutePreRemoveHooks_NoHooks(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestExecutePostRemoveHooks_NilConfig(t *testing.T) {
+	executor := NewExecutor(nil, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePostRemoveHooks(&buf, "/test/worktree")
+	assert.NoError(t, err)
+}
+
+func TestExecutePostRemoveHooks_NoHooks(t *testing.T) {
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostRemove: []config.Hook{},
+		},
+	}
+	executor := NewExecutor(cfg, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePostRemoveHooks(&buf, "/test/worktree")
+	assert.NoError(t, err)
+}
+
 func TestExecutePreRemoveHooks_ResolveRelativePathsFromWorktree(t *testing.T) {
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")

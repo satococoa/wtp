@@ -160,6 +160,10 @@ func removeCommandWithCommandExecutor(
 		return err
 	}
 
+	if err := executePostRemoveHooks(w, cfg, mainRepoPath, absTargetPath); err != nil {
+		return err
+	}
+
 	// Remove branch if requested
 	if withBranch && targetWorktree.Branch != "" {
 		if err := removeBranchWithCommandExecutor(w, executor, targetWorktree.Branch, forceBranch); err != nil {
@@ -181,6 +185,39 @@ func executePreRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreePa
 
 	executor := hooks.NewExecutor(cfg, repoPath)
 	if err := executor.ExecutePreRemoveHooks(w, worktreePath); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintln(w, "✓ All hooks executed successfully"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func executePostRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreePath string) error {
+	if !cfg.HasPostRemoveHooks() {
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(w, "\nExecuting post-remove hooks..."); err != nil {
+		return err
+	}
+
+	postRemoveCfg := *cfg
+	postRemoveHooks := make([]config.Hook, len(cfg.Hooks.PostRemove))
+	for i, hook := range cfg.Hooks.PostRemove {
+		if hook.WorkDir == "" {
+			hook.WorkDir = repoPath
+		} else if !filepath.IsAbs(hook.WorkDir) {
+			hook.WorkDir = filepath.Join(repoPath, hook.WorkDir)
+		}
+		postRemoveHooks[i] = hook
+	}
+	postRemoveCfg.Hooks.PostRemove = postRemoveHooks
+
+	executor := hooks.NewExecutor(&postRemoveCfg, repoPath)
+	if err := executor.ExecutePostRemoveHooks(w, worktreePath); err != nil {
 		return err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -343,6 +344,89 @@ hooks:
 	assert.Contains(t, output, "Executing pre-remove hooks")
 	assert.Contains(t, output, "before remove")
 	assert.Contains(t, output, "Removed worktree")
+}
+
+func TestRemoveCommand_ExecutePostRemoveHooks(t *testing.T) {
+	tempDir := t.TempDir()
+	mainRepoPath := filepath.Join(tempDir, "repo")
+	worktreePath := filepath.Join(tempDir, "worktrees", "feature-hook")
+
+	err := os.MkdirAll(mainRepoPath, 0o755)
+	assert.NoError(t, err)
+	err = os.MkdirAll(worktreePath, 0o755)
+	assert.NoError(t, err)
+
+	configPath := filepath.Join(mainRepoPath, ".wtp.yml")
+	configContent := `version: "1.0"
+defaults:
+  base_dir: "../worktrees"
+hooks:
+  post_remove:
+    - type: command
+      command: "echo after remove"
+`
+	err = os.WriteFile(configPath, []byte(configContent), 0o644)
+	assert.NoError(t, err)
+
+	mockExec := &mockRemoveCommandExecutor{
+		results: []command.Result{
+			{
+				Output: fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/main\n\nworktree %s\nHEAD def456\nbranch refs/heads/feature-hook\n\n", mainRepoPath, worktreePath),
+				Error:  nil,
+			},
+			{
+				Output: "success",
+				Error:  nil,
+			},
+		},
+	}
+
+	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature-hook"})
+	var buf bytes.Buffer
+
+	err = removeCommandWithCommandExecutor(cmd, &buf, mockExec, mainRepoPath, "feature-hook", false, false, false)
+
+	assert.NoError(t, err)
+	output := buf.String()
+	assert.Contains(t, output, "Executing post-remove hooks")
+	assert.Contains(t, output, "after remove")
+	assert.Contains(t, output, "Removed worktree")
+}
+
+func TestExecutePostRemoveHooks_DefaultWorkDir(t *testing.T) {
+	tempDir := t.TempDir()
+	repoPath := filepath.Join(tempDir, "repo")
+	err := os.MkdirAll(repoPath, 0o755)
+	assert.NoError(t, err)
+	err = os.MkdirAll(filepath.Join(repoPath, "scripts"), 0o755)
+	assert.NoError(t, err)
+
+	command := "pwd"
+	if runtime.GOOS == "windows" {
+		command = "cd"
+	}
+
+	cfg := &config.Config{
+		Defaults: config.Defaults{
+			BaseDir: "../worktrees",
+		},
+		Hooks: config.Hooks{
+			PostRemove: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: command,
+					WorkDir: "scripts",
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	err = executePostRemoveHooks(&buf, cfg, repoPath, filepath.Join(tempDir, "worktrees", "missing"))
+
+	assert.NoError(t, err)
+	assert.Contains(t, buf.String(), "Executing post-remove hooks")
+	assert.Contains(t, buf.String(), filepath.Join(repoPath, "scripts"))
 }
 
 // ===== Error Handling Tests =====

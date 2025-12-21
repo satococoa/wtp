@@ -40,6 +40,9 @@ hooks:
   pre_remove:
     - type: command
       command: "echo before remove"
+  post_remove:
+    - type: command
+      command: "echo after remove"
 `
 
 	err := os.WriteFile(configPath, []byte(configContent), 0644)
@@ -65,6 +68,9 @@ hooks:
 	}
 	if len(config.Hooks.PreRemove) != 1 {
 		t.Errorf("Expected 1 pre-remove hook, got %d", len(config.Hooks.PreRemove))
+	}
+	if len(config.Hooks.PostRemove) != 1 {
+		t.Errorf("Expected 1 post-remove hook, got %d", len(config.Hooks.PostRemove))
 	}
 
 	if config.Hooks.PostCreate[0].Type != HookTypeCopy {
@@ -171,6 +177,12 @@ func TestConfigValidate(t *testing.T) {
 						{
 							Type:    HookTypeCommand,
 							Command: "echo before remove",
+						},
+					},
+					PostRemove: []Hook{
+						{
+							Type:    HookTypeCommand,
+							Command: "echo after remove",
 						},
 					},
 				},
@@ -461,6 +473,40 @@ func TestHasPreRemoveHooks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.config.HasPreRemoveHooks()
+			if result != tt.expected {
+				t.Errorf("Expected %v, got %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestHasPostRemoveHooks(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   *Config
+		expected bool
+	}{
+		{
+			name: "config with post-remove hooks",
+			config: &Config{
+				Hooks: Hooks{
+					PostRemove: []Hook{
+						{Type: HookTypeCommand, Command: "echo after remove"},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name:     "config without post-remove hooks",
+			config:   &Config{Hooks: Hooks{}},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.config.HasPostRemoveHooks()
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}

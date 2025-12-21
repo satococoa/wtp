@@ -25,6 +25,7 @@ type Defaults struct {
 type Hooks struct {
 	PostCreate []Hook `yaml:"post_create,omitempty"`
 	PreRemove  []Hook `yaml:"pre_remove,omitempty"`
+	PostRemove []Hook `yaml:"post_remove,omitempty"`
 }
 
 // Hook represents a single hook configuration
@@ -132,6 +133,9 @@ func (c *Config) Validate() error {
 	if err := validateHooks("pre_remove", c.Hooks.PreRemove); err != nil {
 		return err
 	}
+	if err := validateHooks("post_remove", c.Hooks.PostRemove); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -177,6 +181,11 @@ func (c *Config) HasPostCreateHooks() bool {
 // HasPreRemoveHooks returns true if the configuration has any pre-remove hooks
 func (c *Config) HasPreRemoveHooks() bool {
 	return len(c.Hooks.PreRemove) > 0
+}
+
+// HasPostRemoveHooks returns true if the configuration has any post-remove hooks
+func (c *Config) HasPostRemoveHooks() bool {
+	return len(c.Hooks.PostRemove) > 0
 }
 
 // ResolveWorktreePath resolves the full path for a worktree given a name

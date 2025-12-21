@@ -64,6 +64,21 @@ func (e *Executor) ExecutePreRemoveHooks(w io.Writer, worktreePath string) error
 	)
 }
 
+// ExecutePostRemoveHooks executes all post-remove hooks and streams output to writer.
+// Relative paths are resolved from the worktree path unless configured otherwise.
+func (e *Executor) ExecutePostRemoveHooks(w io.Writer, worktreePath string) error {
+	if e.config == nil || !e.config.HasPostRemoveHooks() {
+		return nil
+	}
+	return e.executeHooksWithWriter(
+		w,
+		e.config.Hooks.PostRemove,
+		e.repoRoot,   // copy source base path
+		worktreePath, // copy destination base path
+		worktreePath, // command base path
+	)
+}
+
 func (e *Executor) executeHooksWithWriter(
 	w io.Writer,
 	hooks []config.Hook,
