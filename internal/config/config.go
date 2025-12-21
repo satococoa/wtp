@@ -158,8 +158,8 @@ func (h *Hook) Validate() error {
 	return nil
 }
 
-// HasHooks returns true if the configuration has any post-create hooks
-func (c *Config) HasHooks() bool {
+// HasPostCreateHooks returns true if the configuration has any post-create hooks
+func (c *Config) HasPostCreateHooks() bool {
 	return len(c.Hooks.PostCreate) > 0
 }
 

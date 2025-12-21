@@ -35,7 +35,7 @@ func NewExecutor(cfg *config.Config, repoRoot string) *Executor {
 
 // ExecutePostCreateHooks executes all post-create hooks and streams output to writer
 func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) error {
-	if e.config == nil || !e.config.HasHooks() {
+	if e.config == nil || !e.config.HasPostCreateHooks() {
 		return nil
 	}
 

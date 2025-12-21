@@ -377,7 +377,7 @@ func TestResolveWorktreePath(t *testing.T) {
 	}
 }
 
-func TestHasHooks(t *testing.T) {
+func TestHasPostCreateHooks(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   *Config
@@ -414,7 +414,7 @@ func TestHasHooks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.config.HasHooks()
+			result := tt.config.HasPostCreateHooks()
 			if result != tt.expected {
 				t.Errorf("Expected %v, got %v", tt.expected, result)
 			}
