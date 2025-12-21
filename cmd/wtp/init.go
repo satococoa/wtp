@@ -30,6 +30,10 @@ func NewInitCommand() *cli.Command {
 	}
 }
 
+// initCommand initializes a Worktree Plus configuration file in the repository root.
+// It creates a default `.wtp.yml` with example defaults and hook groups (including pre_remove and post_remove).
+// The command fails if the current directory is not a git repository, if a configuration file already exists,
+// if repository or target directory access or permissions prevent creation, or if writing/printing the file fails.
 func initCommand(_ context.Context, cmd *cli.Command) error {
 	// Get current working directory (should be a git repository)
 	cwd, err := osGetwd()
@@ -99,6 +103,16 @@ hooks:
     #   command: npm install
     # - type: command
     #   command: echo "Created new worktree!"
+
+  # Hooks that run before removing a worktree
+  pre_remove:
+    # - type: command
+    #   command: echo "Removing worktree..."
+
+  # Hooks that run after removing a worktree
+  post_remove:
+    # - type: command
+    #   command: echo "Removed worktree!"
 `
 
 	if err := ensureWritableDirectory(repo.Path()); err != nil {
