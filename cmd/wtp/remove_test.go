@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/satococoa/wtp/v2/internal/command"
+	"github.com/satococoa/wtp/v2/internal/config"
 )
 
 // ===== Command Structure Tests =====
@@ -297,6 +298,53 @@ func TestRemoveCommand_SuccessMessage(t *testing.T) {
 	}
 }
 
+func TestRemoveCommand_ExecutePreRemoveHooks(t *testing.T) {
+	tempDir := t.TempDir()
+	mainRepoPath := filepath.Join(tempDir, "repo")
+	worktreePath := filepath.Join(tempDir, "worktrees", "feature-hook")
+
+	err := os.MkdirAll(mainRepoPath, 0o755)
+	assert.NoError(t, err)
+	err = os.MkdirAll(worktreePath, 0o755)
+	assert.NoError(t, err)
+
+	configPath := filepath.Join(mainRepoPath, ".wtp.yml")
+	configContent := `version: "1.0"
+defaults:
+  base_dir: "../worktrees"
+hooks:
+  pre_remove:
+    - type: command
+      command: "echo before remove"
+`
+	err = os.WriteFile(configPath, []byte(configContent), 0o644)
+	assert.NoError(t, err)
+
+	mockExec := &mockRemoveCommandExecutor{
+		results: []command.Result{
+			{
+				Output: fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/main\n\nworktree %s\nHEAD def456\nbranch refs/heads/feature-hook\n\n", mainRepoPath, worktreePath),
+				Error:  nil,
+			},
+			{
+				Output: "success",
+				Error:  nil,
+			},
+		},
+	}
+
+	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature-hook"})
+	var buf bytes.Buffer
+
+	err = removeCommandWithCommandExecutor(cmd, &buf, mockExec, mainRepoPath, "feature-hook", false, false, false)
+
+	assert.NoError(t, err)
+	output := buf.String()
+	assert.Contains(t, output, "Executing pre-remove hooks")
+	assert.Contains(t, output, "before remove")
+	assert.Contains(t, output, "Removed worktree")
+}
+
 // ===== Error Handling Tests =====
 
 func TestRemoveCommand_ValidationErrors(t *testing.T) {
@@ -389,6 +437,34 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 	assert.Contains(t, err.Error(), "worktree 'nonexistent' not found")
 	// Should show "No worktrees found" since the only non-main worktree is unmanaged
 	assert.Contains(t, err.Error(), "No worktrees found")
+}
+
+func TestRemoveCommand_ConfigLoadFailure(t *testing.T) {
+	tempDir := t.TempDir()
+	mainRepoPath := filepath.Join(tempDir, "repo")
+	worktreePath := filepath.Join(tempDir, "worktrees", "feature-bad-config")
+
+	err := os.MkdirAll(mainRepoPath, 0o755)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(mainRepoPath, ".wtp.yml"), []byte("hooks:\n  post_create:\n    - type: command\n      command: \"oops\"\n    invalid"), 0o644)
+	assert.NoError(t, err)
+
+	mockExec := &mockRemoveCommandExecutor{
+		results: []command.Result{
+			{
+				Output: fmt.Sprintf("worktree %s\nHEAD abc123\nbranch refs/heads/main\n\nworktree %s\nHEAD def456\nbranch refs/heads/feature-bad-config\n\n", mainRepoPath, worktreePath),
+				Error:  nil,
+			},
+		},
+	}
+
+	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature-bad-config"})
+	var buf bytes.Buffer
+
+	err = removeCommandWithCommandExecutor(cmd, &buf, mockExec, mainRepoPath, "feature-bad-config", false, false, false)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to load configuration")
 }
 
 func TestRemoveCommand_FailsWhenRemovingCurrentWorktree(t *testing.T) {

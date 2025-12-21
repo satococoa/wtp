@@ -24,6 +24,13 @@ func TestExecutePostCreateHooks_NilConfig(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestExecutePreRemoveHooks_NilConfig(t *testing.T) {
+	executor := NewExecutor(nil, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePreRemoveHooks(&buf, "/test/worktree")
+	assert.NoError(t, err)
+}
+
 func TestExecutePostCreateHooks_NoHooks(t *testing.T) {
 	cfg := &config.Config{
 		Hooks: config.Hooks{
@@ -34,6 +41,69 @@ func TestExecutePostCreateHooks_NoHooks(t *testing.T) {
 	var buf bytes.Buffer
 	err := executor.ExecutePostCreateHooks(&buf, "/test/worktree")
 	assert.NoError(t, err)
+}
+
+func TestExecutePreRemoveHooks_NoHooks(t *testing.T) {
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PreRemove: []config.Hook{},
+		},
+	}
+	executor := NewExecutor(cfg, "/test/repo")
+	var buf bytes.Buffer
+	err := executor.ExecutePreRemoveHooks(&buf, "/test/worktree")
+	assert.NoError(t, err)
+}
+
+func TestExecutePreRemoveHooks_ResolveRelativePathsFromWorktree(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	scriptsDir := filepath.Join(worktreeDir, "scripts")
+
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(scriptsDir, directoryPermissions)
+	require.NoError(t, err)
+
+	srcFile := filepath.Join(worktreeDir, "original.file")
+	err = os.WriteFile(srcFile, []byte("test"), 0644)
+	require.NoError(t, err)
+
+	command := "pwd"
+	if runtime.GOOS == windowsOS {
+		command = "cd"
+	}
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PreRemove: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: "original.file",
+					To:   "backup.file",
+				},
+				{
+					Type:    config.HookTypeCommand,
+					Command: command,
+					WorkDir: "scripts",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePreRemoveHooks(&buf, worktreeDir)
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(repoRoot, "backup.file"))
+	require.NoError(t, err)
+
+	expectedWorkDir := filepath.Join(worktreeDir, "scripts")
+	assert.Contains(t, buf.String(), expectedWorkDir)
 }
 
 func TestExecutePostCreateHooks_InvalidHookType(t *testing.T) {

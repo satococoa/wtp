@@ -16,6 +16,7 @@ import (
 	"github.com/satococoa/wtp/v2/internal/config"
 	"github.com/satococoa/wtp/v2/internal/errors"
 	"github.com/satococoa/wtp/v2/internal/git"
+	"github.com/satococoa/wtp/v2/internal/hooks"
 )
 
 // Variable to allow mocking in tests
@@ -130,6 +131,17 @@ func removeCommandWithCommandExecutor(
 		return errors.CannotRemoveCurrentWorktree(worktreeName, absTargetPath)
 	}
 
+	mainRepoPath := findMainWorktreePath(worktrees)
+	cfg, err := config.LoadConfig(mainRepoPath)
+	if err != nil {
+		configPath := mainRepoPath + "/" + config.ConfigFileName
+		return errors.ConfigLoadFailed(configPath, err)
+	}
+
+	if err := executePreRemoveHooks(w, cfg, mainRepoPath, absTargetPath); err != nil {
+		return err
+	}
+
 	// Remove worktree using CommandExecutor
 	removeCmd := command.GitWorktreeRemove(targetWorktree.Path, force)
 	result, err = executor.Execute([]command.Command{removeCmd})
@@ -153,6 +165,27 @@ func removeCommandWithCommandExecutor(
 		if err := removeBranchWithCommandExecutor(w, executor, targetWorktree.Branch, forceBranch); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func executePreRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreePath string) error {
+	if !cfg.HasPreRemoveHooks() {
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(w, "\nExecuting pre-remove hooks..."); err != nil {
+		return err
+	}
+
+	executor := hooks.NewExecutor(cfg, repoPath)
+	if err := executor.ExecutePreRemoveHooks(w, worktreePath); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintln(w, "✓ All hooks executed successfully"); err != nil {
+		return err
 	}
 
 	return nil

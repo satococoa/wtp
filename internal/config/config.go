@@ -21,9 +21,10 @@ type Defaults struct {
 	BaseDir string `yaml:"base_dir,omitempty"`
 }
 
-// Hooks represents the post-create hooks configuration
+// Hooks represents the hooks configuration
 type Hooks struct {
 	PostCreate []Hook `yaml:"post_create,omitempty"`
+	PreRemove  []Hook `yaml:"pre_remove,omitempty"`
 }
 
 // Hook represents a single hook configuration
@@ -125,12 +126,22 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate hooks
-	for i, hook := range c.Hooks.PostCreate {
-		if err := hook.Validate(); err != nil {
-			return fmt.Errorf("invalid hook %d: %w", i+1, err)
-		}
+	if err := validateHooks("post_create", c.Hooks.PostCreate); err != nil {
+		return err
+	}
+	if err := validateHooks("pre_remove", c.Hooks.PreRemove); err != nil {
+		return err
 	}
 
+	return nil
+}
+
+func validateHooks(name string, hooks []Hook) error {
+	for i, hook := range hooks {
+		if err := hook.Validate(); err != nil {
+			return fmt.Errorf("invalid %s hook %d: %w", name, i+1, err)
+		}
+	}
 	return nil
 }
 
@@ -161,6 +172,11 @@ func (h *Hook) Validate() error {
 // HasPostCreateHooks returns true if the configuration has any post-create hooks
 func (c *Config) HasPostCreateHooks() bool {
 	return len(c.Hooks.PostCreate) > 0
+}
+
+// HasPreRemoveHooks returns true if the configuration has any pre-remove hooks
+func (c *Config) HasPreRemoveHooks() bool {
+	return len(c.Hooks.PreRemove) > 0
 }
 
 // ResolveWorktreePath resolves the full path for a worktree given a name

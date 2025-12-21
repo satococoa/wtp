@@ -48,6 +48,22 @@ func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) erro
 	)
 }
 
+// ExecutePreRemoveHooks executes all pre-remove hooks and streams output to writer.
+// Relative "from" paths resolve from the target worktree, while "to" paths resolve
+// from the repository root.
+func (e *Executor) ExecutePreRemoveHooks(w io.Writer, worktreePath string) error {
+	if e.config == nil || !e.config.HasPreRemoveHooks() {
+		return nil
+	}
+	return e.executeHooksWithWriter(
+		w,
+		e.config.Hooks.PreRemove,
+		worktreePath, // copy source base path
+		e.repoRoot,   // copy destination base path (dest)
+		worktreePath, // command base path (execute in worktree)
+	)
+}
+
 func (e *Executor) executeHooksWithWriter(
 	w io.Writer,
 	hooks []config.Hook,
