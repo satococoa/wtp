@@ -332,8 +332,12 @@ Use the --track flag to specify which remote to use:
 Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.GitError)
 }
 
+// executePostCreateHooks executes any post-create hooks configured in cfg for the
+// new worktree at workTreePath and writes progress messages to w. If no post-
+// create hooks are configured this is a no-op. Returns an error if writing to w
+// fails or if hook execution fails.
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
-	if cfg.HasHooks() {
+	if cfg.HasPostCreateHooks() {
 		if _, err := fmt.Fprintln(w, "\nExecuting post-create hooks..."); err != nil {
 			return err
 		}
