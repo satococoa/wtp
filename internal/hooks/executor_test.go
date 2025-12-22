@@ -58,7 +58,7 @@ func TestExecutePreRemoveHooks_NoHooks(t *testing.T) {
 func TestExecutePostRemoveHooks_NilConfig(t *testing.T) {
 	executor := NewExecutor(nil, "/test/repo")
 	var buf bytes.Buffer
-	err := executor.ExecutePostRemoveHooks(&buf, "/test/worktree")
+	err := executor.ExecutePostRemoveHooks(&buf)
 	assert.NoError(t, err)
 }
 
@@ -70,7 +70,7 @@ func TestExecutePostRemoveHooks_NoHooks(t *testing.T) {
 	}
 	executor := NewExecutor(cfg, "/test/repo")
 	var buf bytes.Buffer
-	err := executor.ExecutePostRemoveHooks(&buf, "/test/worktree")
+	err := executor.ExecutePostRemoveHooks(&buf)
 	assert.NoError(t, err)
 }
 

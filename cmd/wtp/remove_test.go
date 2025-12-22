@@ -422,7 +422,7 @@ func TestExecutePostRemoveHooks_DefaultWorkDir(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = executePostRemoveHooks(&buf, cfg, repoPath, filepath.Join(tempDir, "worktrees", "missing"))
+	err = executePostRemoveHooks(&buf, cfg, repoPath)
 
 	assert.NoError(t, err)
 	assert.Contains(t, buf.String(), "Executing post-remove hooks")
@@ -450,7 +450,7 @@ func TestExecutePostRemoveHooks_WorkDirTraversalRejected(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := executePostRemoveHooks(&buf, cfg, repoPath, filepath.Join(tempDir, "worktrees", "missing"))
+	err := executePostRemoveHooks(&buf, cfg, repoPath)
 
 	assert.Error(t, err)
 	assert.EqualError(t, err, fmt.Sprintf("post-remove hook work_dir '%s' escapes repository root", filepath.Join("..", "..")))

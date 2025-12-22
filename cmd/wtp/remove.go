@@ -160,7 +160,7 @@ func removeCommandWithCommandExecutor(
 		return err
 	}
 
-	if err := executePostRemoveHooks(w, cfg, mainRepoPath, absTargetPath); err != nil {
+	if err := executePostRemoveHooks(w, cfg, mainRepoPath); err != nil {
 		return err
 	}
 
@@ -195,7 +195,7 @@ func executePreRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreePa
 	return nil
 }
 
-func executePostRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreePath string) error {
+func executePostRemoveHooks(w io.Writer, cfg *config.Config, repoPath string) error {
 	if !cfg.HasPostRemoveHooks() {
 		return nil
 	}
@@ -205,7 +205,7 @@ func executePostRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreeP
 	}
 
 	executor := hooks.NewExecutor(cfg, repoPath)
-	if err := executor.ExecutePostRemoveHooks(w, worktreePath); err != nil {
+	if err := executor.ExecutePostRemoveHooks(w); err != nil {
 		return err
 	}
 
