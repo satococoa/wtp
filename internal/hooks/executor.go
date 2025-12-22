@@ -70,9 +70,30 @@ func (e *Executor) ExecutePostRemoveHooks(w io.Writer, worktreePath string) erro
 	if e.config == nil || !e.config.HasPostRemoveHooks() {
 		return nil
 	}
+
+	postRemoveHooks := make([]config.Hook, len(e.config.Hooks.PostRemove))
+	for i, hook := range e.config.Hooks.PostRemove {
+		postRemoveHooks[i] = hook
+		if hook.WorkDir == "" {
+			postRemoveHooks[i].WorkDir = e.repoRoot
+			continue
+		}
+		if filepath.IsAbs(hook.WorkDir) {
+			continue
+		}
+
+		resolvedWorkDir := filepath.Join(e.repoRoot, hook.WorkDir)
+		cleanWorkDir := filepath.Clean(resolvedWorkDir)
+		if err := ensureWithinBase(e.repoRoot, cleanWorkDir); err != nil {
+			return fmt.Errorf("post-remove hook work_dir '%s' escapes repository root", hook.WorkDir)
+		}
+
+		postRemoveHooks[i].WorkDir = cleanWorkDir
+	}
+
 	return e.executeHooksWithWriter(
 		w,
-		e.config.Hooks.PostRemove,
+		postRemoveHooks,
 		e.repoRoot,   // copy source base path
 		worktreePath, // copy destination base path
 		worktreePath, // command base path

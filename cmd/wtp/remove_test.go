@@ -429,6 +429,35 @@ func TestExecutePostRemoveHooks_DefaultWorkDir(t *testing.T) {
 	assert.Contains(t, buf.String(), filepath.Join(repoPath, "scripts"))
 }
 
+func TestExecutePostRemoveHooks_WorkDirTraversalRejected(t *testing.T) {
+	tempDir := t.TempDir()
+	repoPath := filepath.Join(tempDir, "repo")
+
+	cfg := &config.Config{
+		Defaults: config.Defaults{
+			BaseDir: "../worktrees",
+		},
+		Hooks: config.Hooks{
+			PostRemove: []config.Hook{
+				{
+					Type:    config.HookTypeCommand,
+					Command: "echo should-not-run",
+					WorkDir: filepath.Join("..", ".."),
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+
+	err := executePostRemoveHooks(&buf, cfg, repoPath, filepath.Join(tempDir, "worktrees", "missing"))
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, fmt.Sprintf("post-remove hook work_dir '%s' escapes repository root", filepath.Join("..", "..")))
+	assert.Contains(t, buf.String(), "Executing post-remove hooks")
+	assert.NotContains(t, buf.String(), "should-not-run")
+}
+
 // ===== Error Handling Tests =====
 
 func TestRemoveCommand_ValidationErrors(t *testing.T) {

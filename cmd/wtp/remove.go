@@ -204,19 +204,7 @@ func executePostRemoveHooks(w io.Writer, cfg *config.Config, repoPath, worktreeP
 		return err
 	}
 
-	postRemoveCfg := *cfg
-	postRemoveHooks := make([]config.Hook, len(cfg.Hooks.PostRemove))
-	for i, hook := range cfg.Hooks.PostRemove {
-		if hook.WorkDir == "" {
-			hook.WorkDir = repoPath
-		} else if !filepath.IsAbs(hook.WorkDir) {
-			hook.WorkDir = filepath.Join(repoPath, hook.WorkDir)
-		}
-		postRemoveHooks[i] = hook
-	}
-	postRemoveCfg.Hooks.PostRemove = postRemoveHooks
-
-	executor := hooks.NewExecutor(&postRemoveCfg, repoPath)
+	executor := hooks.NewExecutor(cfg, repoPath)
 	if err := executor.ExecutePostRemoveHooks(w, worktreePath); err != nil {
 		return err
 	}
