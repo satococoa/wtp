@@ -401,9 +401,9 @@ func TestExecutePostRemoveHooks_DefaultWorkDir(t *testing.T) {
 	err = os.MkdirAll(filepath.Join(repoPath, "scripts"), 0o755)
 	assert.NoError(t, err)
 
-	command := "pwd"
+	cmdStr := "pwd"
 	if runtime.GOOS == "windows" {
-		command = "cd"
+		cmdStr = "cd"
 	}
 
 	cfg := &config.Config{
@@ -414,7 +414,7 @@ func TestExecutePostRemoveHooks_DefaultWorkDir(t *testing.T) {
 			PostRemove: []config.Hook{
 				{
 					Type:    config.HookTypeCommand,
-					Command: command,
+					Command: cmdStr,
 					WorkDir: "scripts",
 				},
 			},

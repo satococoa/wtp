@@ -88,7 +88,7 @@ func TestExecutePreRemoveHooks_ResolveRelativePathsFromWorktree(t *testing.T) {
 	require.NoError(t, err)
 
 	srcFile := filepath.Join(worktreeDir, "original.file")
-	err = os.WriteFile(srcFile, []byte("test"), 0644)
+	err = os.WriteFile(srcFile, []byte("test"), 0o644)
 	require.NoError(t, err)
 
 	command := "pwd"
