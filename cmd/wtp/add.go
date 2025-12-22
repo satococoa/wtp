@@ -333,7 +333,7 @@ Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.B
 }
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
-	if cfg.HasHooks() {
+	if cfg.HasPostCreateHooks() {
 		if _, err := fmt.Fprintln(w, "\nExecuting post-create hooks..."); err != nil {
 			return err
 		}

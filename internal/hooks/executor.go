@@ -1,4 +1,4 @@
-// Package hooks handles executing post-create hooks for worktrees.
+// Package hooks handles executing hooks for worktrees.
 package hooks
 
 import (
@@ -33,20 +33,88 @@ func NewExecutor(cfg *config.Config, repoRoot string) *Executor {
 	}
 }
 
-// ExecutePostCreateHooks executes all post-create hooks and streams output to writer
+// ExecutePostCreateHooks executes all post-create hooks and streams output to writer.
+// Relative paths are resolved from the worktree path.
 func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) error {
-	if e.config == nil || !e.config.HasHooks() {
+	if e.config == nil || !e.config.HasPostCreateHooks() {
+		return nil
+	}
+	return e.executeHooksWithWriter(
+		w,
+		e.config.Hooks.PostCreate,
+		e.repoRoot,   // copy source base path
+		worktreePath, // copy destination base path
+		worktreePath, // command base path
+	)
+}
+
+// ExecutePreRemoveHooks executes all pre-remove hooks and streams output to writer.
+// Relative "from" paths resolve from the target worktree, while "to" paths resolve
+// from the repository root.
+func (e *Executor) ExecutePreRemoveHooks(w io.Writer, worktreePath string) error {
+	if e.config == nil || !e.config.HasPreRemoveHooks() {
+		return nil
+	}
+	return e.executeHooksWithWriter(
+		w,
+		e.config.Hooks.PreRemove,
+		worktreePath, // copy source base path
+		e.repoRoot,   // copy destination base path (dest)
+		worktreePath, // command base path (execute in worktree)
+	)
+}
+
+// ExecutePostRemoveHooks executes all post-remove hooks and streams output to writer.
+// Relative paths are resolved from the repository root unless configured otherwise.
+func (e *Executor) ExecutePostRemoveHooks(w io.Writer) error {
+	if e.config == nil || !e.config.HasPostRemoveHooks() {
 		return nil
 	}
 
-	totalHooks := len(e.config.Hooks.PostCreate)
-	for i, hook := range e.config.Hooks.PostCreate {
+	postRemoveHooks := make([]config.Hook, len(e.config.Hooks.PostRemove))
+	for i, hook := range e.config.Hooks.PostRemove {
+		postRemoveHooks[i] = hook
+		if hook.WorkDir == "" {
+			postRemoveHooks[i].WorkDir = e.repoRoot
+			continue
+		}
+		if filepath.IsAbs(hook.WorkDir) {
+			continue
+		}
+
+		resolvedWorkDir := filepath.Join(e.repoRoot, hook.WorkDir)
+		cleanWorkDir := filepath.Clean(resolvedWorkDir)
+		if err := ensureWithinBase(e.repoRoot, cleanWorkDir); err != nil {
+			return fmt.Errorf("post-remove hook work_dir '%s' escapes repository root", hook.WorkDir)
+		}
+
+		postRemoveHooks[i].WorkDir = cleanWorkDir
+	}
+
+	return e.executeHooksWithWriter(
+		w,
+		postRemoveHooks,
+		e.repoRoot,   // copy source base path
+		e.repoRoot,   // copy destination base path
+		e.repoRoot,   // command base path
+	)
+}
+
+func (e *Executor) executeHooksWithWriter(
+	w io.Writer,
+	hooks []config.Hook,
+	copySourceBasePath string,
+	copyDestinationBasePath string,
+	commandBasePath string,
+) error {
+	totalHooks := len(hooks)
+	for i, hook := range hooks {
 		// Log which hook is starting
 		if _, err := fmt.Fprintf(w, "\n→ Running hook %d of %d...\n", i+1, totalHooks); err != nil {
 			return err
 		}
 
-		if err := e.executeHookWithWriter(w, &hook, worktreePath); err != nil {
+		if err := e.executeHookWithWriter(w, &hook, copySourceBasePath, copyDestinationBasePath, commandBasePath); err != nil {
 			return fmt.Errorf("failed to execute hook %d: %w", i+1, err)
 		}
 
@@ -60,39 +128,45 @@ func (e *Executor) ExecutePostCreateHooks(w io.Writer, worktreePath string) erro
 }
 
 // executeHookWithWriter executes a single hook with output directed to writer
-func (e *Executor) executeHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
+func (e *Executor) executeHookWithWriter(
+	w io.Writer,
+	hook *config.Hook,
+	copySourceBasePath string,
+	copyDestinationBasePath string,
+	commandBasePath string,
+) error {
 	switch hook.Type {
 	case config.HookTypeCopy:
-		return e.executeCopyHookWithWriter(w, hook, worktreePath)
+		return e.executeCopyHookWithWriter(w, hook, copySourceBasePath, copyDestinationBasePath)
 	case config.HookTypeCommand:
-		return e.executeCommandHookWithWriter(w, hook, worktreePath)
+		return e.executeCommandHookWithWriter(w, hook, commandBasePath)
 	default:
 		return fmt.Errorf("unknown hook type: %s", hook.Type)
 	}
 }
 
 // executeCopyHookWithWriter executes a copy hook with output directed to writer
-func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
-	// Resolve source path (relative to repo root)
+func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, sourceBasePath, destinationBasePath string) error {
+	// Resolve source path (relative to source base path)
 	srcPath := hook.From
 	if !filepath.IsAbs(srcPath) {
-		srcPath = filepath.Join(e.repoRoot, srcPath)
+		srcPath = filepath.Join(sourceBasePath, srcPath)
 	}
 	srcPath = filepath.Clean(srcPath)
 	if !filepath.IsAbs(hook.From) {
-		if err := ensureWithinBase(e.repoRoot, srcPath); err != nil {
+		if err := ensureWithinBase(sourceBasePath, srcPath); err != nil {
 			return err
 		}
 	}
 
-	// Resolve destination path (relative to worktree)
+	// Resolve destination path (relative to destination base path)
 	dstPath := hook.To
 	if !filepath.IsAbs(dstPath) {
-		dstPath = filepath.Join(worktreePath, dstPath)
+		dstPath = filepath.Join(destinationBasePath, dstPath)
 	}
 	dstPath = filepath.Clean(dstPath)
 	if !filepath.IsAbs(hook.To) {
-		if err := ensureWithinBase(worktreePath, dstPath); err != nil {
+		if err := ensureWithinBase(destinationBasePath, dstPath); err != nil {
 			return err
 		}
 	}
@@ -110,8 +184,8 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 	}
 
 	// Log the copy operation to writer
-	relSrc, _ := filepath.Rel(e.repoRoot, srcPath)
-	relDst, _ := filepath.Rel(worktreePath, dstPath)
+	relSrc, _ := filepath.Rel(sourceBasePath, srcPath)
+	relDst, _ := filepath.Rel(destinationBasePath, dstPath)
 	if _, err := fmt.Fprintf(w, "  Copying: %s → %s\n", relSrc, relDst); err != nil {
 		return err
 	}
@@ -136,7 +210,7 @@ func ensureWithinBase(base, target string) error {
 }
 
 // executeCommandHookWithWriter executes a command hook with output directed to writer
-func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
+func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, basePath string) error {
 	// Execute command using shell for unified command format
 	var cmd *exec.Cmd
 	if runtime.GOOS == windowsOS {
@@ -150,9 +224,9 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 	// Set working directory
 	workDir := hook.WorkDir
 	if workDir == "" {
-		workDir = worktreePath
+		workDir = basePath
 	} else if !filepath.IsAbs(workDir) {
-		workDir = filepath.Join(worktreePath, workDir)
+		workDir = filepath.Join(basePath, workDir)
 	}
 	cmd.Dir = workDir
 
@@ -171,7 +245,7 @@ func (e *Executor) executeCommandHookWithWriter(w io.Writer, hook *config.Hook, 
 
 	// Add worktree-specific environment variables
 	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("GIT_WTP_WORKTREE_PATH=%s", worktreePath),
+		fmt.Sprintf("GIT_WTP_WORKTREE_PATH=%s", basePath),
 		fmt.Sprintf("GIT_WTP_REPO_ROOT=%s", e.repoRoot))
 
 	// Log the command execution to writer
