@@ -39,6 +39,11 @@ hooks:
       from: ".env" # Allowed even if gitignored. 'from' is always relative to the MAIN worktree
       to: ".env" # Destination is relative to the NEW worktree
 
+    # Share directories between the MAIN and NEW worktree
+    - type: symlink
+      from: ".bin"
+      to: ".bin"
+
     # Prefer explicit, single-step setup commands
     - type: command
       command: "npm ci" # Example for Node.js (replace with your build/deps tool)
@@ -202,6 +207,11 @@ hooks:
       from: ".claude" # Copy AI context file (gitignored)
       to: ".claude"
 
+    # Share directories between the main and new worktree
+    - type: symlink
+      from: ".bin"
+      to: ".bin"
+
     # Execute commands in the new worktree
     - type: command
       command: "npm install"
@@ -245,6 +255,24 @@ hooks:
 
 This behavior applies regardless of where you run `wtp add` from (main worktree
 or any other worktree).
+
+### Symlink Hooks: Shared Assets
+
+Symlink hooks are useful for sharing large or mutable directories from the main
+worktree (e.g. `.bin`, `.cache`, `node_modules`).
+
+- `from`: path is resolved relative to the main worktree (or absolute).
+- `to`: path is resolved relative to the newly created worktree (or absolute).
+
+Example:
+
+```yaml
+hooks:
+  post_create:
+    - type: symlink
+      from: ".bin"
+      to: ".bin"
+```
 
 ## Shell Integration
 
