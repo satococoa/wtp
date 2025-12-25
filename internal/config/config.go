@@ -28,7 +28,7 @@ type Hooks struct {
 
 // Hook represents a single hook configuration
 type Hook struct {
-	Type    string            `yaml:"type"` // "copy" or "command"
+	Type    string            `yaml:"type"` // "copy", "command", or "symlink"
 	From    string            `yaml:"from,omitempty"`
 	To      string            `yaml:"to,omitempty"`
 	Command string            `yaml:"command,omitempty"`
@@ -46,7 +46,9 @@ const (
 	// HookTypeCopy identifies a hook that copies files.
 	HookTypeCopy = "copy"
 	// HookTypeCommand identifies a hook that executes a command.
-	HookTypeCommand       = "command"
+	HookTypeCommand = "command"
+	// HookTypeSymlink identifies a hook that creates symlinks.
+	HookTypeSymlink       = "symlink"
 	configFilePermissions = 0o600
 )
 
@@ -151,8 +153,15 @@ func (h *Hook) Validate() error {
 		if h.From != "" || h.To != "" {
 			return fmt.Errorf("command hook should not have 'from' or 'to' fields")
 		}
+	case HookTypeSymlink:
+		if h.From == "" || h.To == "" {
+			return fmt.Errorf("symlink hook requires both 'from' and 'to' fields")
+		}
+		if h.Command != "" {
+			return fmt.Errorf("symlink hook should not have 'command' field")
+		}
 	default:
-		return fmt.Errorf("invalid hook type '%s', must be 'copy' or 'command'", h.Type)
+		return fmt.Errorf("invalid hook type '%s', must be 'copy', 'command', or 'symlink'", h.Type)
 	}
 
 	return nil

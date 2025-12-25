@@ -37,6 +37,9 @@ hooks:
       to: ".env"
     - type: command
       command: "echo test"
+    - type: symlink
+      from: ".bin"
+      to: ".bin"
 `
 
 	err := os.WriteFile(configPath, []byte(configContent), 0644)
@@ -57,8 +60,8 @@ hooks:
 		t.Errorf("Expected base_dir '../my-worktrees', got %s", config.Defaults.BaseDir)
 	}
 
-	if len(config.Hooks.PostCreate) != 2 {
-		t.Errorf("Expected 2 hooks, got %d", len(config.Hooks.PostCreate))
+	if len(config.Hooks.PostCreate) != 3 {
+		t.Errorf("Expected 3 hooks, got %d", len(config.Hooks.PostCreate))
 	}
 
 	if config.Hooks.PostCreate[0].Type != HookTypeCopy {
@@ -67,6 +70,10 @@ hooks:
 
 	if config.Hooks.PostCreate[1].Type != HookTypeCommand {
 		t.Errorf("Expected second hook type 'command', got %s", config.Hooks.PostCreate[1].Type)
+	}
+
+	if config.Hooks.PostCreate[2].Type != HookTypeSymlink {
+		t.Errorf("Expected third hook type 'symlink', got %s", config.Hooks.PostCreate[2].Type)
 	}
 }
 
@@ -260,6 +267,15 @@ func TestHookValidate(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "valid symlink hook",
+			hook: Hook{
+				Type: HookTypeSymlink,
+				From: ".bin",
+				To:   ".bin",
+			},
+			expectError: false,
+		},
+		{
 			name: "copy hook missing from",
 			hook: Hook{
 				Type: HookTypeCopy,
@@ -289,6 +305,32 @@ func TestHookValidate(t *testing.T) {
 			name: "command hook missing command",
 			hook: Hook{
 				Type: HookTypeCommand,
+			},
+			expectError: true,
+		},
+		{
+			name: "symlink hook missing from",
+			hook: Hook{
+				Type: HookTypeSymlink,
+				To:   ".bin",
+			},
+			expectError: true,
+		},
+		{
+			name: "symlink hook missing to",
+			hook: Hook{
+				Type: HookTypeSymlink,
+				From: ".bin",
+			},
+			expectError: true,
+		},
+		{
+			name: "symlink hook with command field",
+			hook: Hook{
+				Type:    HookTypeSymlink,
+				From:    ".bin",
+				To:      ".bin",
+				Command: "echo", // Should not have command
 			},
 			expectError: true,
 		},

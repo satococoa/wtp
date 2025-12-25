@@ -36,6 +36,21 @@ func TestExecutePostCreateHooks_NoHooks(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func requireSymlinkSupport(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		return
+	}
+
+	tempDir := t.TempDir()
+	srcPath := filepath.Join(tempDir, "src")
+	dstPath := filepath.Join(tempDir, "dst")
+	require.NoError(t, os.WriteFile(srcPath, []byte("ok"), 0644))
+	if err := os.Symlink(srcPath, dstPath); err != nil {
+		t.Skipf("symlink not supported on this system: %v", err)
+	}
+}
+
 func TestExecutePostCreateHooks_InvalidHookType(t *testing.T) {
 	cfg := &config.Config{
 		Hooks: config.Hooks{
@@ -97,6 +112,58 @@ func TestExecutePostCreateHooks_CopyFile(t *testing.T) {
 	// Verify output contains progress messages
 	output := buf.String()
 	assert.Contains(t, output, "Running hook 1 of 1")
+	assert.Contains(t, output, "✓ Hook 1 completed")
+}
+
+func TestExecutePostCreateHooks_Symlink(t *testing.T) {
+	requireSymlinkSupport(t)
+
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	srcDir := filepath.Join(repoRoot, ".bin")
+	require.NoError(t, os.MkdirAll(srcDir, directoryPermissions))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "tool"), []byte("bin"), 0644))
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeSymlink,
+					From: ".bin",
+					To:   ".bin",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.NoError(t, err)
+
+	dstPath := filepath.Join(worktreeDir, ".bin")
+	info, err := os.Lstat(dstPath)
+	require.NoError(t, err)
+	assert.NotZero(t, info.Mode()&os.ModeSymlink)
+
+	linkTarget, err := os.Readlink(dstPath)
+	require.NoError(t, err)
+
+	resolvedTarget := linkTarget
+	if !filepath.IsAbs(resolvedTarget) {
+		resolvedTarget = filepath.Join(filepath.Dir(dstPath), resolvedTarget)
+	}
+	assert.Equal(t, filepath.Clean(srcDir), filepath.Clean(resolvedTarget))
+
+	output := buf.String()
+	assert.Contains(t, output, "Symlinking: .bin → .bin")
 	assert.Contains(t, output, "✓ Hook 1 completed")
 }
 

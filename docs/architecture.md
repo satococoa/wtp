@@ -113,6 +113,9 @@ hooks:
     - type: command
       command: "npm install"
       work_dir: "."
+    - type: symlink
+      from: ".bin"
+      to: ".bin"
 ```
 
 ## Hook System
@@ -122,6 +125,7 @@ hooks:
 Post-create hooks support:
 - File copying (for .env files, etc.)
 - Command execution
+- Symlink creation (for shared binaries, caches, etc.)
 
 This covers 90% of use cases without over-engineering.
 
