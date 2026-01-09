@@ -12,12 +12,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]  # windows-latest temporarily disabled due to CI test failures
+        os: [ubuntu-latest, macos-latest, windows-latest]
         go-version: ['1.24']
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Configure Git (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        git config --global core.autocrlf false
+        git config --global core.eol lf
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -85,7 +91,7 @@ jobs:
       run: |
         CGO_ENABLED=0 GOOS=linux go build -o wtp-linux ./cmd/wtp
         CGO_ENABLED=0 GOOS=darwin go build -o wtp-darwin ./cmd/wtp
-        # CGO_ENABLED=0 GOOS=windows go build -o wtp-windows.exe ./cmd/wtp  # Temporarily disabled
+        CGO_ENABLED=0 GOOS=windows go build -o wtp-windows.exe ./cmd/wtp
 
     - name: Test binary
       run: |

@@ -56,6 +56,8 @@ func patchCompletionScript(shell, script string) string {
 		return patchBashCompletionScript(script)
 	case "zsh":
 		return patchZshCompletionScript(script)
+	case "pwsh":
+		return patchPowerShellCompletionScript(script)
 	default:
 		return script
 	}
@@ -244,4 +246,16 @@ func inShellCompletionContext() bool {
 		return true
 	}
 	return false
+}
+
+func patchPowerShellCompletionScript(script string) string {
+	// Replace the dynamic command name detection with hardcoded "wtp"
+	// The original script tries to get the name from $MyInvocation.MyCommand.Name
+	// which doesn't work when invoked via Invoke-Expression
+	target := "$fn = $($MyInvocation.MyCommand.Name)\n$name = $fn -replace \"(.*)\\.ps1$\", '$1'\nRegister-ArgumentCompleter -Native -CommandName $name -ScriptBlock {"
+	replacement := "Register-ArgumentCompleter -Native -CommandName 'wtp' -ScriptBlock {"
+
+	script = strings.Replace(script, target, replacement, 1)
+
+	return script
 }
