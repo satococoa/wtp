@@ -66,6 +66,8 @@ func (e *Executor) executeHookWithWriter(w io.Writer, hook *config.Hook, worktre
 		return e.executeCopyHookWithWriter(w, hook, worktreePath)
 	case config.HookTypeCommand:
 		return e.executeCommandHookWithWriter(w, hook, worktreePath)
+	case config.HookTypeSymlink:
+		return e.executeSymlinkHookWithWriter(w, hook, worktreePath)
 	default:
 		return fmt.Errorf("unknown hook type: %s", hook.Type)
 	}
@@ -120,6 +122,65 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 		return e.copyDir(srcPath, dstPath)
 	}
 	return e.copyFile(srcPath, dstPath)
+}
+
+// executeSymlinkHookWithWriter executes a symlink hook with output directed to writer
+func (e *Executor) executeSymlinkHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
+	// Resolve source path (relative to repo root)
+	srcPath := hook.From
+	if !filepath.IsAbs(srcPath) {
+		srcPath = filepath.Join(e.repoRoot, srcPath)
+	}
+	srcPath = filepath.Clean(srcPath)
+	if !filepath.IsAbs(hook.From) {
+		if err := ensureWithinBase(e.repoRoot, srcPath); err != nil {
+			return err
+		}
+	}
+
+	// Resolve destination path (relative to worktree)
+	dstPath := hook.To
+	if !filepath.IsAbs(dstPath) {
+		dstPath = filepath.Join(worktreePath, dstPath)
+	}
+	dstPath = filepath.Clean(dstPath)
+	if !filepath.IsAbs(hook.To) {
+		if err := ensureWithinBase(worktreePath, dstPath); err != nil {
+			return err
+		}
+	}
+
+	// Check if source exists
+	if _, err := os.Stat(srcPath); err != nil {
+		return fmt.Errorf("source path does not exist: %s", srcPath)
+	}
+
+	// Create destination directory if needed
+	dstDir := filepath.Dir(dstPath)
+	if err := os.MkdirAll(dstDir, directoryPermissions); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Prevent clobbering existing paths
+	if _, err := os.Lstat(dstPath); err == nil {
+		return fmt.Errorf("destination path already exists: %s", dstPath)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to inspect destination path: %w", err)
+	}
+
+	// Log the symlink operation to writer
+	relSrc, _ := filepath.Rel(e.repoRoot, srcPath)
+	relDst, _ := filepath.Rel(worktreePath, dstPath)
+	if _, err := fmt.Fprintf(w, "  Symlinking: %s → %s\n", relSrc, relDst); err != nil {
+		return err
+	}
+
+	// Use absolute path to avoid ambiguity and match copy hook behavior.
+	if err := os.Symlink(srcPath, dstPath); err != nil {
+		return fmt.Errorf("failed to create symlink: %w", err)
+	}
+
+	return nil
 }
 
 func ensureWithinBase(base, target string) error {

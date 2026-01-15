@@ -93,6 +93,11 @@ hooks:
     # - type: copy
     #   from: .cursor/    # Cursor IDE settings
     #   to: .cursor/
+
+    # Share directories with symlinks:
+    # - type: symlink
+    #   from: .bin        # Shared tool cache
+    #   to: .bin
     
     # Run setup commands:
     # - type: command
