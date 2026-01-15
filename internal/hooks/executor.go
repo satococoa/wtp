@@ -104,6 +104,9 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 	if err != nil {
 		return fmt.Errorf("source path does not exist: %s", srcPath)
 	}
+	if err := ensureDistinctPaths(srcPath, dstPath, srcInfo); err != nil {
+		return err
+	}
 
 	// Create destination directory if needed
 	dstDir := filepath.Dir(dstPath)
@@ -151,8 +154,12 @@ func (e *Executor) executeSymlinkHookWithWriter(w io.Writer, hook *config.Hook, 
 	}
 
 	// Check if source exists
-	if _, err := os.Stat(srcPath); err != nil {
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
 		return fmt.Errorf("source path does not exist: %s", srcPath)
+	}
+	if err := ensureDistinctPaths(srcPath, dstPath, srcInfo); err != nil {
+		return err
 	}
 
 	// Create destination directory if needed
@@ -191,6 +198,26 @@ func ensureWithinBase(base, target string) error {
 
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return fmt.Errorf("path %s escapes base directory %s", target, base)
+	}
+
+	return nil
+}
+
+func ensureDistinctPaths(srcPath, dstPath string, srcInfo os.FileInfo) error {
+	if srcPath == dstPath {
+		return fmt.Errorf("source and destination paths must be different: %s -> %s", srcPath, dstPath)
+	}
+
+	dstInfo, err := os.Stat(dstPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to inspect destination path: %w", err)
+	}
+
+	if os.SameFile(srcInfo, dstInfo) {
+		return fmt.Errorf("source and destination paths must be different: %s -> %s", srcPath, dstPath)
 	}
 
 	return nil

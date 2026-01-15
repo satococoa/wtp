@@ -366,7 +366,7 @@ func TestHookValidate(t *testing.T) {
 	}
 }
 
-func TestHookValidate_CopyFromOnlySetsTo(t *testing.T) {
+func TestHookValidate_CopyToDefaultsToFrom(t *testing.T) {
 	hook := Hook{
 		Type: HookTypeCopy,
 		From: ".env",
@@ -381,7 +381,7 @@ func TestHookValidate_CopyFromOnlySetsTo(t *testing.T) {
 	}
 }
 
-func TestConfigValidate_CopyFromOnlySetsTo(t *testing.T) {
+func TestConfigValidate_CopyToDefaultsToFrom(t *testing.T) {
 	config := &Config{
 		Version: "1.0",
 		Hooks: Hooks{

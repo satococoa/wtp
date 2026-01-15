@@ -126,7 +126,8 @@ func (c *Config) Validate() error {
 		c.Defaults.BaseDir = DefaultBaseDir
 	}
 
-	// Validate hooks
+	// Validate hooks.
+	// Note: hook validation may mutate hook fields in-place (e.g., apply defaults).
 	for i := range c.Hooks.PostCreate {
 		if err := c.Hooks.PostCreate[i].Validate(); err != nil {
 			return fmt.Errorf("invalid hook %d: %w", i+1, err)
