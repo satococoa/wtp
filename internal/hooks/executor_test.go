@@ -156,15 +156,128 @@ func TestExecutePostCreateHooks_Symlink(t *testing.T) {
 	linkTarget, err := os.Readlink(dstPath)
 	require.NoError(t, err)
 
-	resolvedTarget := linkTarget
-	if !filepath.IsAbs(resolvedTarget) {
-		resolvedTarget = filepath.Join(filepath.Dir(dstPath), resolvedTarget)
-	}
-	assert.Equal(t, filepath.Clean(srcDir), filepath.Clean(resolvedTarget))
+	assert.True(t, filepath.IsAbs(linkTarget))
+	assert.Equal(t, filepath.Clean(srcDir), filepath.Clean(linkTarget))
 
 	output := buf.String()
 	assert.Contains(t, output, "Symlinking: .bin → .bin")
 	assert.Contains(t, output, "✓ Hook 1 completed")
+}
+
+func TestExecutePostCreateHooks_Symlink_SourceMissing(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeSymlink,
+					From: ".bin",
+					To:   ".bin",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "source path does not exist")
+}
+
+func TestExecutePostCreateHooks_Symlink_DestinationExists(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	srcDir := filepath.Join(repoRoot, ".bin")
+	require.NoError(t, os.MkdirAll(srcDir, directoryPermissions))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "tool"), []byte("bin"), 0644))
+
+	dstPath := filepath.Join(worktreeDir, ".bin")
+	require.NoError(t, os.MkdirAll(dstPath, directoryPermissions))
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeSymlink,
+					From: ".bin",
+					To:   ".bin",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "destination path already exists")
+}
+
+func TestExecutePostCreateHooks_Symlink_PathTraversal(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	err := os.MkdirAll(repoRoot, directoryPermissions)
+	require.NoError(t, err)
+	err = os.MkdirAll(worktreeDir, directoryPermissions)
+	require.NoError(t, err)
+
+	t.Run("from escapes repo root", func(t *testing.T) {
+		cfg := &config.Config{
+			Hooks: config.Hooks{
+				PostCreate: []config.Hook{
+					{
+						Type: config.HookTypeSymlink,
+						From: "../outside",
+						To:   ".bin",
+					},
+				},
+			},
+		}
+
+		executor := NewExecutor(cfg, repoRoot)
+		var buf bytes.Buffer
+		err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "escapes base directory")
+	})
+
+	t.Run("to escapes worktree root", func(t *testing.T) {
+		cfg := &config.Config{
+			Hooks: config.Hooks{
+				PostCreate: []config.Hook{
+					{
+						Type: config.HookTypeSymlink,
+						From: ".bin",
+						To:   "../outside",
+					},
+				},
+			},
+		}
+
+		executor := NewExecutor(cfg, repoRoot)
+		var buf bytes.Buffer
+		err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "escapes base directory")
+	})
 }
 
 func TestExecutePostCreateHooks_Command(t *testing.T) {

@@ -175,12 +175,8 @@ func (e *Executor) executeSymlinkHookWithWriter(w io.Writer, hook *config.Hook, 
 		return err
 	}
 
-	linkTarget := srcPath
-	if relTarget, err := filepath.Rel(dstDir, srcPath); err == nil {
-		linkTarget = relTarget
-	}
-
-	if err := os.Symlink(linkTarget, dstPath); err != nil {
+	// Use absolute path to avoid ambiguity and match copy hook behavior.
+	if err := os.Symlink(srcPath, dstPath); err != nil {
 		return fmt.Errorf("failed to create symlink: %w", err)
 	}
 
