@@ -12,8 +12,8 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 solution:** `wtp add feature/auth`
 
 wtp automatically generates sensible paths based on branch names. Your
-`feature/auth` branch goes to `../worktrees/feature/auth` - no redundant typing,
-no path errors.
+`feature/auth` branch goes to `.git/wtp/worktrees/feature/auth` - no redundant
+typing, no path errors.
 
 ### 🧹 Clean Branch Management
 
@@ -59,8 +59,8 @@ requirements.
 
 ### 📍 Instant Worktree Navigation
 
-**git-worktree pain:** `cd ../../../worktrees/feature/auth` (if you remember the
-path) **wtp solution:** `wtp cd feature/auth` with tab completion
+**git-worktree pain:** `cd .git/wtp/worktrees/feature/auth` (if you remember
+the path) **wtp solution:** `wtp cd feature/auth` with tab completion
 
 Jump between worktrees instantly. Use `wtp cd @` to return to your main
 worktree (or just `wtp cd`). No more terminal tab confusion.
@@ -132,20 +132,20 @@ sudo mv wtp /usr/local/bin/  # or add to PATH
 
 ```bash
 # Create worktree from existing branch (local or remote)
-# → Creates worktree at ../worktrees/feature/auth
+# → Creates worktree at .git/wtp/worktrees/feature/auth
 # Automatically tracks remote branch if not found locally
 wtp add feature/auth
 
 # Create worktree with new branch
-# → Creates worktree at ../worktrees/feature/new-feature
+# → Creates worktree at .git/wtp/worktrees/feature/new-feature
 wtp add -b feature/new-feature
 
 # Create new branch from specific commit
-# → Creates worktree at ../worktrees/hotfix/urgent
+# → Creates worktree at .git/wtp/worktrees/hotfix/urgent
 wtp add -b hotfix/urgent abc1234
 
 # Create new branch tracking a different remote branch
-# → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
+# → Creates worktree at .git/wtp/worktrees/feature/test with branch tracking origin/main
 wtp add -b feature/test origin/main
 
 # Remote branch handling examples:
@@ -193,7 +193,7 @@ wtp uses `.wtp.yml` for project-specific configuration:
 version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
-  base_dir: "../worktrees"
+  base_dir: ".git/wtp/worktrees"
 
 hooks:
   post_create:
@@ -360,21 +360,21 @@ evaluates `wtp shell-init <shell>` once for your session—tab completion and
 
 ## Worktree Structure
 
-With the default configuration (`base_dir: "../worktrees"`):
+With the default configuration (`base_dir: ".git/wtp/worktrees"`):
 
 ```
 <project-root>/
 ├── .git/
+│   └── wtp/
+│       └── worktrees/
+│           ├── main/
+│           ├── feature/
+│           │   ├── auth/          # wtp add feature/auth
+│           │   └── payment/       # wtp add feature/payment
+│           └── hotfix/
+│               └── bug-123/       # wtp add hotfix/bug-123
 ├── .wtp.yml
 └── src/
-
-../worktrees/
-├── main/
-├── feature/
-│   ├── auth/          # wtp add feature/auth
-│   └── payment/       # wtp add feature/payment
-└── hotfix/
-    └── bug-123/       # wtp add hotfix/bug-123
 ```
 
 Branch names with slashes are preserved as directory structure, automatically
