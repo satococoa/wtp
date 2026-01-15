@@ -127,8 +127,8 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate hooks
-	for i, hook := range c.Hooks.PostCreate {
-		if err := hook.Validate(); err != nil {
+	for i := range c.Hooks.PostCreate {
+		if err := c.Hooks.PostCreate[i].Validate(); err != nil {
 			return fmt.Errorf("invalid hook %d: %w", i+1, err)
 		}
 	}
@@ -140,8 +140,11 @@ func (c *Config) Validate() error {
 func (h *Hook) Validate() error {
 	switch h.Type {
 	case HookTypeCopy:
-		if h.From == "" || h.To == "" {
-			return fmt.Errorf("copy hook requires both 'from' and 'to' fields")
+		if h.From == "" {
+			return fmt.Errorf("copy hook requires 'from' field")
+		}
+		if h.To == "" {
+			h.To = h.From
 		}
 		if h.Command != "" {
 			return fmt.Errorf("copy hook should not have 'command' field")

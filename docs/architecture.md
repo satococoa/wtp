@@ -118,6 +118,8 @@ hooks:
       to: ".bin"
 ```
 
+Note: for copy hooks, `to` defaults to the same value as `from` when omitted.
+
 ## Hook System
 
 ### Design Philosophy

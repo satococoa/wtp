@@ -289,7 +289,7 @@ func TestHookValidate(t *testing.T) {
 				Type: HookTypeCopy,
 				From: ".env.example",
 			},
-			expectError: true,
+			expectError: false,
 		},
 		{
 			name: "copy hook with command field",
@@ -363,6 +363,43 @@ func TestHookValidate(t *testing.T) {
 				t.Errorf("Expected no error but got: %v", err)
 			}
 		})
+	}
+}
+
+func TestHookValidate_CopyFromOnlySetsTo(t *testing.T) {
+	hook := Hook{
+		Type: HookTypeCopy,
+		From: ".env",
+	}
+
+	if err := hook.Validate(); err != nil {
+		t.Fatalf("Expected no error but got: %v", err)
+	}
+
+	if hook.To != hook.From {
+		t.Errorf("Expected hook.To to default to %q, got %q", hook.From, hook.To)
+	}
+}
+
+func TestConfigValidate_CopyFromOnlySetsTo(t *testing.T) {
+	config := &Config{
+		Version: "1.0",
+		Hooks: Hooks{
+			PostCreate: []Hook{
+				{
+					Type: HookTypeCopy,
+					From: ".env",
+				},
+			},
+		},
+	}
+
+	if err := config.Validate(); err != nil {
+		t.Fatalf("Expected no error but got: %v", err)
+	}
+
+	if got := config.Hooks.PostCreate[0].To; got != ".env" {
+		t.Errorf("Expected hook.To to default to %q, got %q", ".env", got)
 	}
 }
 
