@@ -144,6 +144,9 @@ func (h *Hook) Validate() error {
 		if h.From == "" {
 			return fmt.Errorf("copy hook requires 'from' field")
 		}
+		if h.To == "" && filepath.IsAbs(h.From) {
+			return fmt.Errorf("copy hook with absolute 'from' requires 'to' field")
+		}
 		if h.To == "" {
 			h.To = h.From
 		}

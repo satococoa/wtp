@@ -292,6 +292,14 @@ func TestHookValidate(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name: "copy hook missing to with absolute from",
+			hook: Hook{
+				Type: HookTypeCopy,
+				From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+			},
+			expectError: true,
+		},
+		{
 			name: "copy hook with command field",
 			hook: Hook{
 				Type:    HookTypeCopy,
@@ -400,6 +408,24 @@ func TestConfigValidate_CopyToDefaultsToFrom(t *testing.T) {
 
 	if got := config.Hooks.PostCreate[0].To; got != ".env" {
 		t.Errorf("Expected hook.To to default to %q, got %q", ".env", got)
+	}
+}
+
+func TestConfigValidate_CopyAbsoluteFromRequiresTo(t *testing.T) {
+	config := &Config{
+		Version: "1.0",
+		Hooks: Hooks{
+			PostCreate: []Hook{
+				{
+					Type: HookTypeCopy,
+					From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+				},
+			},
+		},
+	}
+
+	if err := config.Validate(); err == nil {
+		t.Fatalf("Expected error but got nil")
 	}
 }
 
