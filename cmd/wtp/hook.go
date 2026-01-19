@@ -19,7 +19,8 @@ func NewHookCommand() *cli.Command {
 			"To enable the hook, add the following to your shell config:\n" +
 			"  Bash (~/.bashrc):         eval \"$(wtp hook bash)\"\n" +
 			"  Zsh (~/.zshrc):           eval \"$(wtp hook zsh)\"\n" +
-			"  Fish (~/.config/fish/config.fish): wtp hook fish | source",
+			"  Fish (~/.config/fish/config.fish): wtp hook fish | source\n" +
+			"  PowerShell ($PROFILE):    Invoke-Expression -Command (& wtp hook pwsh | Out-String)",
 		Commands: []*cli.Command{
 			{
 				Name:        "bash",
@@ -38,6 +39,12 @@ func NewHookCommand() *cli.Command {
 				Usage:       "Generate fish hook script",
 				Description: "Generate fish hook script for cd functionality",
 				Action:      hookFish,
+			},
+			{
+				Name:        "pwsh",
+				Usage:       "Generate PowerShell hook script",
+				Description: "Generate PowerShell hook script for cd functionality",
+				Action:      hookPowerShell,
 			},
 		},
 	}
@@ -65,6 +72,14 @@ func hookFish(_ context.Context, cmd *cli.Command) error {
 		w = os.Stdout
 	}
 	return printFishHook(w)
+}
+
+func hookPowerShell(_ context.Context, cmd *cli.Command) error {
+	w := cmd.Root().Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	return printPowerShellHook(w)
 }
 
 func printBashHook(w io.Writer) error {
@@ -162,6 +177,64 @@ function wtp
         command wtp $argv
     end
 end`)
+
+	return err
+}
+
+func printPowerShellHook(w io.Writer) error {
+	_, err := fmt.Fprintln(w, `# wtp cd command hook for PowerShell
+# Store reference to the actual wtp executable
+$__wtpPath = $null
+
+# Try to find wtp in PATH first
+$__wtpCmd = Get-Command wtp.exe -CommandType Application -ErrorAction SilentlyContinue
+if ($__wtpCmd) {
+    $__wtpPath = $__wtpCmd.Source
+} else {
+    $__wtpCmd = Get-Command wtp -CommandType Application -ErrorAction SilentlyContinue
+    if ($__wtpCmd) {
+        $__wtpPath = $__wtpCmd.Source
+    }
+}
+
+# If not in PATH, check current directory (for development/testing)
+if (-not $__wtpPath) {
+    if (Test-Path ".\wtp.exe") {
+        $__wtpPath = (Resolve-Path ".\wtp.exe").Path
+    } elseif (Test-Path ".\wtp") {
+        $__wtpPath = (Resolve-Path ".\wtp").Path
+    }
+}
+
+function wtp {
+    if (-not $__wtpPath) {
+        Write-Error "wtp executable not found. Please ensure wtp is in your PATH or current directory."
+        return 1
+    }
+
+    # Check for completion flag
+    foreach ($arg in $args) {
+        if ($arg -eq "--generate-shell-completion") {
+            & $__wtpPath @args
+            return $LASTEXITCODE
+        }
+    }
+
+    if ($args[0] -eq "cd") {
+        if (-not $args[1]) {
+            Write-Error "Usage: wtp cd <worktree>"
+            return 1
+        }
+        $targetDir = & $__wtpPath cd $args[1] 2>$null
+        if ($LASTEXITCODE -eq 0 -and $targetDir) {
+            Set-Location $targetDir
+        } else {
+            & $__wtpPath cd $args[1]
+        }
+    } else {
+        & $__wtpPath @args
+    }
+}`)
 
 	return err
 }

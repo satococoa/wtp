@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -677,6 +678,10 @@ func (e *mockError) Error() string {
 }
 
 func TestListCommand_RelativePathDisplay(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
+	}
+
 	tests := []struct {
 		name             string
 		mockOutput       string
@@ -1167,6 +1172,10 @@ func TestListCommand_QuietMode_SingleWorktree(t *testing.T) {
 }
 
 func TestListCommand_QuietMode_MultipleWorktrees(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
+	}
+
 	mockOutput := `worktree /test/repo
 HEAD abc123
 branch refs/heads/main
