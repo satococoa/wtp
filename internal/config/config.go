@@ -87,7 +87,8 @@ func LoadConfig(repoRoot string) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Validate configuration
+	// Apply defaults, then validate configuration.
+	config.ApplyDefaults()
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
@@ -97,6 +98,7 @@ func LoadConfig(repoRoot string) (*Config, error) {
 
 // SaveConfig saves configuration to .git-worktree-plus.yml in the repository root
 func SaveConfig(repoRoot string, config *Config) error {
+	config.ApplyDefaults()
 	if err := config.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
@@ -115,20 +117,25 @@ func SaveConfig(repoRoot string, config *Config) error {
 	return nil
 }
 
-// Validate validates the configuration
-func (c *Config) Validate() error {
+// ApplyDefaults applies default values to the configuration in-place.
+func (c *Config) ApplyDefaults() {
 	if c.Version == "" {
 		c.Version = CurrentVersion
 	}
 
-	// Set default base_dir if not specified
 	if c.Defaults.BaseDir == "" {
 		c.Defaults.BaseDir = DefaultBaseDir
 	}
 
-	// Validate hooks
-	for i, hook := range c.Hooks.PostCreate {
-		if err := hook.Validate(); err != nil {
+	for i := range c.Hooks.PostCreate {
+		c.Hooks.PostCreate[i].ApplyDefaults()
+	}
+}
+
+// Validate validates the configuration without mutating it.
+func (c *Config) Validate() error {
+	for i := range c.Hooks.PostCreate {
+		if err := c.Hooks.PostCreate[i].Validate(); err != nil {
 			return fmt.Errorf("invalid hook %d: %w", i+1, err)
 		}
 	}
@@ -136,12 +143,30 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// Validate validates a single hook configuration
+// ApplyDefaults applies default values to a single hook in-place.
+func (h *Hook) ApplyDefaults() {
+	if h.Type != HookTypeCopy {
+		return
+	}
+	if h.To != "" || h.From == "" {
+		return
+	}
+	// Only default to=from for relative paths. Absolute paths must be explicit.
+	if filepath.IsAbs(h.From) {
+		return
+	}
+	h.To = h.From
+}
+
+// Validate validates a single hook configuration without mutating it.
 func (h *Hook) Validate() error {
 	switch h.Type {
 	case HookTypeCopy:
-		if h.From == "" || h.To == "" {
-			return fmt.Errorf("copy hook requires both 'from' and 'to' fields")
+		if h.From == "" {
+			return fmt.Errorf("copy hook requires 'from' field")
+		}
+		if h.To == "" && filepath.IsAbs(h.From) {
+			return fmt.Errorf("copy hook with absolute 'from' requires 'to' field")
 		}
 		if h.Command != "" {
 			return fmt.Errorf("copy hook should not have 'command' field")

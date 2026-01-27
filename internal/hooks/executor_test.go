@@ -51,6 +51,45 @@ func requireSymlinkSupport(t *testing.T) {
 	}
 }
 
+func assertPostCreateHookRejectsSelfPath(t *testing.T, hookType string) {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	externalDir := filepath.Join(tempDir, "external")
+
+	require.NoError(t, os.MkdirAll(repoRoot, directoryPermissions))
+	require.NoError(t, os.MkdirAll(worktreeDir, directoryPermissions))
+	require.NoError(t, os.MkdirAll(externalDir, directoryPermissions))
+
+	srcFile := filepath.Join(externalDir, "same.txt")
+	srcContent := "keep content"
+	require.NoError(t, os.WriteFile(srcFile, []byte(srcContent), 0644))
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: hookType,
+					From: srcFile,
+					To:   srcFile,
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "source and destination paths must be different")
+
+	contents, err := os.ReadFile(srcFile)
+	require.NoError(t, err)
+	assert.Equal(t, srcContent, string(contents))
+}
+
 func TestExecutePostCreateHooks_InvalidHookType(t *testing.T) {
 	cfg := &config.Config{
 		Hooks: config.Hooks{
@@ -191,6 +230,10 @@ func TestExecutePostCreateHooks_Symlink_SourceMissing(t *testing.T) {
 	err = executor.ExecutePostCreateHooks(&buf, worktreeDir)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "source path does not exist")
+}
+
+func TestExecutePostCreateHooks_Symlink_RejectsSelfPath(t *testing.T) {
+	assertPostCreateHookRejectsSelfPath(t, config.HookTypeSymlink)
 }
 
 func TestExecutePostCreateHooks_Symlink_DestinationExists(t *testing.T) {
@@ -956,6 +999,52 @@ func TestExecutePostCreateHooks_CopyWithAbsolutePaths(t *testing.T) {
 	dstContent, err := os.ReadFile(dstFile)
 	require.NoError(t, err)
 	assert.Equal(t, srcContent, string(dstContent))
+}
+
+func TestExecutePostCreateHooks_CopyRejectsSelfPath(t *testing.T) {
+	assertPostCreateHookRejectsSelfPath(t, config.HookTypeCopy)
+}
+
+func TestExecutePostCreateHooks_CopyRejectsSymlinkToSource(t *testing.T) {
+	requireSymlinkSupport(t)
+
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+	externalDir := filepath.Join(tempDir, "external")
+
+	require.NoError(t, os.MkdirAll(repoRoot, directoryPermissions))
+	require.NoError(t, os.MkdirAll(worktreeDir, directoryPermissions))
+	require.NoError(t, os.MkdirAll(externalDir, directoryPermissions))
+
+	srcFile := filepath.Join(externalDir, "source.txt")
+	srcContent := "original content"
+	require.NoError(t, os.WriteFile(srcFile, []byte(srcContent), 0644))
+
+	dstPath := filepath.Join(worktreeDir, "link.txt")
+	require.NoError(t, os.Symlink(srcFile, dstPath))
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type: config.HookTypeCopy,
+					From: srcFile,
+					To:   dstPath,
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "source and destination paths must be different")
+
+	contents, err := os.ReadFile(srcFile)
+	require.NoError(t, err)
+	assert.Equal(t, srcContent, string(contents))
 }
 
 // Error handling tests for copyFile function

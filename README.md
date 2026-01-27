@@ -199,13 +199,13 @@ hooks:
   post_create:
     # Copy gitignored files from main worktree to new worktree
     # Note: 'from' is relative to main worktree, 'to' is relative to new worktree
+    # If 'to' is omitted, it defaults to the same value as 'from'
     - type: copy
       from: ".env" # Copy actual .env file (gitignored)
       to: ".env"
 
     - type: copy
       from: ".claude" # Copy AI context file (gitignored)
-      to: ".claude"
 
     # Share directories between the main and new worktree
     - type: symlink
@@ -229,7 +229,7 @@ Copy hooks are designed to help you bootstrap new worktrees using files from
 your main worktree (even if they are gitignored):
 
 - `from`: path is always resolved relative to the main worktree.
-- `to`: path is resolved relative to the newly created worktree.
+- `to`: path is resolved relative to the newly created worktree (defaults to `from` if omitted).
 - Supports files and directories, including entries ignored by Git (e.g.,
   `.env`, `.claude`, `.cursor/`).
 
@@ -245,7 +245,6 @@ hooks:
 
     - type: copy
       from: ".claude"
-      to: ".claude"
 
     # Directory copy also works
     - type: copy
