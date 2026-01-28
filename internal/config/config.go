@@ -18,7 +18,8 @@ type Config struct {
 
 // Defaults represents default configuration values
 type Defaults struct {
-	BaseDir string `yaml:"base_dir,omitempty"`
+	BaseDir       string `yaml:"base_dir,omitempty"`
+	DefaultBranch string `yaml:"default_branch,omitempty"`
 }
 
 // Hooks represents the post-create hooks configuration
