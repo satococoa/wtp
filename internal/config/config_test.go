@@ -30,6 +30,7 @@ func TestLoadConfig_ValidFile(t *testing.T) {
 	configContent := `version: "1.0"
 defaults:
   base_dir: "../my-worktrees"
+  default_branch: "develop"
 hooks:
   post_create:
     - type: copy
@@ -58,6 +59,10 @@ hooks:
 
 	if config.Defaults.BaseDir != "../my-worktrees" {
 		t.Errorf("Expected base_dir '../my-worktrees', got %s", config.Defaults.BaseDir)
+	}
+
+	if config.Defaults.DefaultBranch != "develop" {
+		t.Errorf("Expected default_branch 'develop', got %s", config.Defaults.DefaultBranch)
 	}
 
 	if len(config.Hooks.PostCreate) != 3 {
@@ -109,6 +114,7 @@ func TestSaveConfig(t *testing.T) {
 		Version: "1.0",
 		Defaults: Defaults{
 			BaseDir: "../test-worktrees",
+			DefaultBranch: "develop",
 		},
 		Hooks: Hooks{
 			PostCreate: []Hook{
@@ -144,6 +150,10 @@ func TestSaveConfig(t *testing.T) {
 
 	if loadedConfig.Defaults.BaseDir != config.Defaults.BaseDir {
 		t.Errorf("Expected base_dir %s, got %s", config.Defaults.BaseDir, loadedConfig.Defaults.BaseDir)
+	}
+
+	if loadedConfig.Defaults.DefaultBranch != config.Defaults.DefaultBranch {
+		t.Errorf("Expected default_branch %s, got %s", config.Defaults.DefaultBranch, loadedConfig.Defaults.DefaultBranch)
 	}
 }
 
