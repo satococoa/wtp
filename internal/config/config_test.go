@@ -77,6 +77,36 @@ hooks:
 	}
 }
 
+func TestLoadConfig_CopyHookDefaultsToFrom(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, ConfigFileName)
+
+	configContent := `version: "1.0"
+hooks:
+  post_create:
+    - type: copy
+      from: ".env"
+`
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	config, err := LoadConfig(tempDir)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(config.Hooks.PostCreate) != 1 {
+		t.Fatalf("Expected 1 hook, got %d", len(config.Hooks.PostCreate))
+	}
+
+	if got := config.Hooks.PostCreate[0].To; got != ".env" {
+		t.Errorf("Expected hook.To to default to %q, got %q", ".env", got)
+	}
+}
+
 func TestLoadConfig_InvalidYAML(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, ConfigFileName)
