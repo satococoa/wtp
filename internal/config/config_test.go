@@ -77,6 +77,36 @@ hooks:
 	}
 }
 
+func TestLoadConfig_CopyHookDefaultsToFrom(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, ConfigFileName)
+
+	configContent := `version: "1.0"
+hooks:
+  post_create:
+    - type: copy
+      from: ".env"
+`
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	config, err := LoadConfig(tempDir)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(config.Hooks.PostCreate) != 1 {
+		t.Fatalf("Expected 1 hook, got %d", len(config.Hooks.PostCreate))
+	}
+
+	if got := config.Hooks.PostCreate[0].To; got != ".env" {
+		t.Errorf("Expected hook.To to default to %q, got %q", ".env", got)
+	}
+}
+
 func TestLoadConfig_InvalidYAML(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, ConfigFileName)
@@ -222,6 +252,7 @@ func TestConfigValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.config.ApplyDefaults()
 			err := tt.config.Validate()
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got nil")
@@ -288,6 +319,14 @@ func TestHookValidate(t *testing.T) {
 			hook: Hook{
 				Type: HookTypeCopy,
 				From: ".env.example",
+			},
+			expectError: false,
+		},
+		{
+			name: "copy hook missing to with absolute from",
+			hook: Hook{
+				Type: HookTypeCopy,
+				From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
 			},
 			expectError: true,
 		},
@@ -363,6 +402,82 @@ func TestHookValidate(t *testing.T) {
 				t.Errorf("Expected no error but got: %v", err)
 			}
 		})
+	}
+}
+
+func TestHookValidate_DoesNotMutateTo(t *testing.T) {
+	hook := Hook{
+		Type: HookTypeCopy,
+		From: ".env",
+	}
+
+	if err := hook.Validate(); err != nil {
+		t.Fatalf("Expected no error but got: %v", err)
+	}
+
+	if hook.To != "" {
+		t.Errorf("Expected hook.To to remain empty, got %q", hook.To)
+	}
+}
+
+func TestHookApplyDefaults_CopyToDefaultsToFrom(t *testing.T) {
+	hook := Hook{
+		Type: HookTypeCopy,
+		From: ".env",
+	}
+
+	hook.ApplyDefaults()
+
+	if hook.To != hook.From {
+		t.Errorf("Expected hook.To to default to %q, got %q", hook.From, hook.To)
+	}
+
+	if err := hook.Validate(); err != nil {
+		t.Fatalf("Expected no error but got: %v", err)
+	}
+}
+
+func TestConfigApplyDefaults_CopyToDefaultsToFrom(t *testing.T) {
+	config := &Config{
+		Version: "1.0",
+		Hooks: Hooks{
+			PostCreate: []Hook{
+				{
+					Type: HookTypeCopy,
+					From: ".env",
+				},
+			},
+		},
+	}
+
+	config.ApplyDefaults()
+
+	if err := config.Validate(); err != nil {
+		t.Fatalf("Expected no error but got: %v", err)
+	}
+
+	if got := config.Hooks.PostCreate[0].To; got != ".env" {
+		t.Errorf("Expected hook.To to default to %q, got %q", ".env", got)
+	}
+}
+
+func TestConfigValidate_CopyAbsoluteFromRequiresTo(t *testing.T) {
+	config := &Config{
+		Version: "1.0",
+		Hooks: Hooks{
+			PostCreate: []Hook{
+				{
+					Type: HookTypeCopy,
+					From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+				},
+			},
+		},
+	}
+
+	config.ApplyDefaults()
+
+	if err := config.Validate(); err == nil {
+		t.Fatalf("Expected error but got nil")
 	}
 }
 
