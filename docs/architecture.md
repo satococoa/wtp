@@ -102,7 +102,7 @@ We chose YAML for configuration because:
 
 ```yaml
 defaults:
-  base_dir: "../worktrees"
+  base_dir: ".git/wtp/worktrees"
   cd: true
 
 hooks:
@@ -174,10 +174,10 @@ wtp cd feature/auth
 command wtp cd feature/auth
 
 # Go command returns path:
-/path/to/worktrees/feature/auth
+/path/to/repo/.git/wtp/worktrees/feature/auth
 
 # Shell function performs:
-cd /path/to/worktrees/feature/auth
+cd /path/to/repo/.git/wtp/worktrees/feature/auth
 ```
 
 ### Key Design Decisions
@@ -218,7 +218,7 @@ This ensures all team members use the same tool versions defined in go.mod.
 
 ## Path Handling
 
-Branch names with slashes become directory structure (e.g., `feature/auth` → `../worktrees/feature/auth/`)
+Branch names with slashes become directory structure (e.g., `feature/auth` → `.git/wtp/worktrees/feature/auth/`)
 
 ## Error Handling
 

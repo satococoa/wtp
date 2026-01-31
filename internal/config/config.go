@@ -42,7 +42,7 @@ const (
 	// CurrentVersion represents the current configuration version written to disk.
 	CurrentVersion = "1.0"
 	// DefaultBaseDir is the default directory for new worktrees relative to a repository.
-	DefaultBaseDir = "../worktrees"
+	DefaultBaseDir = ".git/wtp/worktrees"
 	// HookTypeCopy identifies a hook that copies files.
 	HookTypeCopy = "copy"
 	// HookTypeCommand identifies a hook that executes a command.
@@ -70,7 +70,7 @@ func LoadConfig(repoRoot string) (*Config, error) {
 		return &Config{
 			Version: CurrentVersion,
 			Defaults: Defaults{
-				BaseDir: "../worktrees",
+				BaseDir: DefaultBaseDir,
 			},
 			Hooks: Hooks{},
 		}, nil
@@ -204,4 +204,20 @@ func (c *Config) ResolveWorktreePath(repoRoot, worktreeName string) string {
 		baseDir = filepath.Join(repoRoot, baseDir)
 	}
 	return filepath.Join(baseDir, worktreeName)
+}
+
+// FileExists reports whether the config file exists in the given repository root.
+func FileExists(repoRoot string) bool {
+	cleanedRoot := filepath.Clean(repoRoot)
+	if !filepath.IsAbs(cleanedRoot) {
+		absRoot, err := filepath.Abs(cleanedRoot)
+		if err != nil {
+			return false
+		}
+		cleanedRoot = absRoot
+	}
+
+	configPath := filepath.Join(cleanedRoot, ConfigFileName)
+	_, err := os.Stat(configPath)
+	return err == nil
 }
