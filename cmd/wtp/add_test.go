@@ -328,12 +328,13 @@ func TestResolveWorktreePath(t *testing.T) {
 
 func TestAddCommand_CommandConstruction(t *testing.T) {
 	tests := []struct {
-		name             string
-		flags            map[string]any
-		args             []string
-		expectedCommands []command.Command
-		expectError      bool
-	}{
+			name             string
+			flags            map[string]any
+			args             []string
+			defaultBranch    string
+			expectedCommands []command.Command
+			expectError      bool
+		}{
 		{
 			name: "basic worktree creation",
 			flags: map[string]any{
@@ -358,6 +359,31 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 			}},
 			expectError: false,
 		},
+		{
+			name: "new branch uses configured default branch",
+			flags: map[string]any{
+				"branch": "new-feature",
+			},
+			args: []string{},
+			defaultBranch: "develop",
+			expectedCommands: []command.Command{{
+				Name: "git",
+				Args: []string{"worktree", "add", "-b", "new-feature", "/test/worktrees/new-feature", "develop"},
+			}},
+			expectError: false,
+		},
+		{
+			name: "new branch without default branch keeps git HEAD",
+			flags: map[string]any{
+				"branch": "new-feature",
+			},
+			args: []string{},
+			expectedCommands: []command.Command{{
+				Name: "git",
+				Args: []string{"worktree", "add", "-b", "new-feature", "/test/worktrees/new-feature"},
+			}},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -369,6 +395,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{
 					BaseDir: "/test/worktrees",
+					DefaultBranch: tt.defaultBranch,
 				},
 			}
 
