@@ -5,7 +5,7 @@
 - Consolidates design decisions, workflow expectations, and coding standards previously split across `AGENTS.md` and `CLAUDE.md`.
 
 ## Project Structure & Modules
-- Root module: `github.com/satococoa/wtp/v2` (Go 1.24.4).
+- Root module: `github.com/satococoa/wtp/v2` (Go 1.24).
 - CLI entrypoint: `cmd/wtp`.
 - Internal packages: `internal/{git,config,hooks,command,errors,io,testutil}`.
 - Tests: unit tests alongside packages (`*_test.go`), end-to-end tests in `test/e2e`.
