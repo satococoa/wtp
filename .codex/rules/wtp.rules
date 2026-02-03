@@ -1,0 +1,20 @@
+prefix_rule(
+  decision="allow",
+  pattern=["go","tool","task","dev"]
+)
+prefix_rule(
+  decision="allow",
+  pattern=["go","tool","task","fmt"]
+)
+prefix_rule(
+  decision="allow",
+  pattern=["go","tool","task","lint"]
+)
+prefix_rule(
+  decision="allow",
+  pattern=["go","tool","task","test"]
+)
+prefix_rule(
+  decision="allow",
+  pattern=["go","tool","task","build"]
+)
