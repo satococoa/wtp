@@ -5,9 +5,9 @@
 - Consolidates design decisions, workflow expectations, and coding standards previously split across `AGENTS.md` and `CLAUDE.md`.
 
 ## Project Structure & Modules
-- Root module: `github.com/satococoa/wtp/v2` (Go 1.24).
+- Root module: `github.com/satococoa/wtp/v2` (Go 1.24.4).
 - CLI entrypoint: `cmd/wtp`.
-- Internal packages: `internal/{git,config,hooks,command,errors,io}`.
+- Internal packages: `internal/{git,config,hooks,command,errors,io,testutil}`.
 - Tests: unit tests alongside packages (`*_test.go`), end-to-end tests in `test/e2e`.
 - Tooling/config: `.golangci.yml`, `.goreleaser.yml`, `Taskfile.yml`, `.wtp.yml` (project hooks), `docs/`.
 
@@ -53,7 +53,7 @@
 ### Quick Testing Tips
 - Use `go run ./cmd/wtp <args>` for rapid feedback instead of building binaries.
 - Run commands from inside a worktree to mimic real usage (e.g., `go run ../cmd/wtp add feature/new-feature`).
-- Toggle shell integration paths with `WTP_SHELL_INTEGRATION=1` when testing cd behavior.
+- `WTP_SHELL_INTEGRATION` はレガシーな環境変数で、現在の `wtp cd` の挙動には不要。
 
 ### Testing Strategy
 - Unit tests target 70% of coverage: fast feedback, mocked git interactions, table-driven cases.
