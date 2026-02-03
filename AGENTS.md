@@ -53,7 +53,6 @@
 ### Quick Testing Tips
 - Use `go run ./cmd/wtp <args>` for rapid feedback instead of building binaries.
 - Run commands from inside a worktree to mimic real usage (e.g., `go run ../cmd/wtp add feature/new-feature`).
-- `WTP_SHELL_INTEGRATION` is legacy and no longer required for current `wtp cd` behavior.
 
 ### Testing Strategy
 - Unit tests target 70% of coverage: fast feedback, mocked git interactions, table-driven cases.
