@@ -65,6 +65,12 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	errWriter := cmd.Root().ErrWriter
+	if errWriter == nil {
+		errWriter = os.Stderr
+	}
+	warnLegacyBaseDir(errWriter, mainRepoPath)
+
 	// Create command executor
 	executor := command.NewRealExecutor()
 

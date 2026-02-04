@@ -18,8 +18,8 @@ func TestLoadConfig_NonExistentFile(t *testing.T) {
 		t.Errorf("Expected version %s, got %s", CurrentVersion, config.Version)
 	}
 
-	if config.Defaults.BaseDir != "../worktrees" {
-		t.Errorf("Expected default base_dir '../worktrees', got %s", config.Defaults.BaseDir)
+	if config.Defaults.BaseDir != DefaultBaseDir {
+		t.Errorf("Expected default base_dir '%s', got %s", DefaultBaseDir, config.Defaults.BaseDir)
 	}
 }
 
@@ -132,6 +132,23 @@ hooks:
 	}
 }
 
+func TestFileExists(t *testing.T) {
+	tempDir := t.TempDir()
+
+	if FileExists(tempDir) {
+		t.Fatal("Expected config file to be missing")
+	}
+
+	configPath := filepath.Join(tempDir, ConfigFileName)
+	if err := os.WriteFile(configPath, []byte("version: 1.0\n"), 0o644); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+
+	if !FileExists(tempDir) {
+		t.Fatal("Expected config file to exist")
+	}
+}
+
 func TestSaveConfig(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -188,7 +205,7 @@ func TestConfigValidate(t *testing.T) {
 			config: &Config{
 				Version: "1.0",
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 				Hooks: Hooks{
 					PostCreate: []Hook{
@@ -206,7 +223,7 @@ func TestConfigValidate(t *testing.T) {
 			name: "empty version gets default",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 			},
 			expectError: false,
@@ -493,12 +510,12 @@ func TestResolveWorktreePath(t *testing.T) {
 			name: "relative base_dir",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 			},
 			repoRoot:     "/home/user/project",
 			worktreeName: "feature/auth",
-			expected:     "/home/user/worktrees/feature/auth",
+			expected:     "/home/user/project/.git/wtp/worktrees/feature/auth",
 		},
 		{
 			name: "absolute base_dir",
@@ -515,12 +532,12 @@ func TestResolveWorktreePath(t *testing.T) {
 			name: "simple worktree name",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "../worktrees",
+					BaseDir: DefaultBaseDir,
 				},
 			},
 			repoRoot:     "/home/user/project",
 			worktreeName: "main",
-			expected:     "/home/user/worktrees/main",
+			expected:     "/home/user/project/.git/wtp/worktrees/main",
 		},
 	}
 

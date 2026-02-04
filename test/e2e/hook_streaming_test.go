@@ -46,7 +46,7 @@ func TestHookOutputStreaming(t *testing.T) {
 	framework.AssertOutputContains(t, output, "Completed!")
 	framework.AssertOutputContains(t, output, "✓ All hooks executed successfully")
 
-	// Verify worktree was created (default location is ../worktrees/branch-name)
-	worktreePath := filepath.Join(repo.Path(), "..", "worktrees", "test-branch")
+	// Verify worktree was created (default location is .git/wtp/worktrees/<branch-name>)
+	worktreePath := filepath.Join(repo.Path(), ".git", "wtp", "worktrees", "test-branch")
 	framework.AssertWorktreeExists(t, repo, worktreePath)
 }
