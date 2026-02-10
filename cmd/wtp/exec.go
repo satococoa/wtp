@@ -21,7 +21,7 @@ func NewExecCommand() *cli.Command {
 		Usage:         "Execute a command in a specified worktree",
 		UsageText:     "wtp exec <worktree> -- <command> [args...]",
 		ArgsUsage:     "<worktree> -- <command> [args...]",
-		ShellComplete: completeWorktreesForCd,
+		ShellComplete: completeWorktreesForExec,
 		Action:        execCommand,
 	}
 }
@@ -57,7 +57,20 @@ func execCommandWithCommandExecutor(cmd *cli.Command, w io.Writer, executor comm
 		return errors.GitCommandFailed("git worktree list", err.Error())
 	}
 
-	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
+	if len(result.Results) == 0 {
+		return errors.GitCommandFailed("git worktree list", "no command results")
+	}
+
+	gitResult := result.Results[0]
+	if gitResult.Error != nil {
+		msg := gitResult.Error.Error()
+		if gitResult.Output != "" {
+			msg = msg + ": " + gitResult.Output
+		}
+		return errors.GitCommandFailed("git worktree list", msg)
+	}
+
+	worktrees := parseWorktreesFromOutput(gitResult.Output)
 	mainWorktreePath := findMainWorktreePath(worktrees)
 	targetPath := resolveWorktreePathByName(worktreeName, worktrees, mainWorktreePath)
 	if targetPath == "" {
@@ -91,31 +104,56 @@ func execCommandWithCommandExecutor(cmd *cli.Command, w io.Writer, executor comm
 	return nil
 }
 
-func parseExecInput(args []string) (string, string, []string, error) {
+func parseExecInput(args []string) (worktreeName, commandName string, commandArgs []string, err error) {
+	const (
+		worktreeIndex   = 0
+		dashIndex       = 1
+		firstCmdIndex   = 2
+		minArgsWithDash = 3
+	)
 	const usage = "Usage: wtp exec <worktree> -- <command> [args...]"
 	if len(args) == 0 {
 		return "", "", nil, fmt.Errorf("worktree name is required\n\n%s", usage)
 	}
 
-	worktreeName := strings.TrimSpace(args[0])
+	worktreeName = strings.TrimSpace(args[worktreeIndex])
 	if worktreeName == "" {
 		return "", "", nil, fmt.Errorf("worktree name is required\n\n%s", usage)
 	}
 
-	if len(args) == 1 {
+	if len(args) == dashIndex {
 		return "", "", nil, fmt.Errorf("command is required\n\n%s", usage)
 	}
 
-	if args[1] == "--" {
-		if len(args) < 3 {
+	if args[dashIndex] == "--" {
+		if len(args) < minArgsWithDash {
 			return "", "", nil, fmt.Errorf("command is required\n\n%s", usage)
 		}
-		return worktreeName, args[2], args[3:], nil
+		return worktreeName, args[firstCmdIndex], args[firstCmdIndex+1:], nil
 	}
 
-	if len(args) < 2 {
-		return "", "", nil, fmt.Errorf("command is required\n\n%s", usage)
+	return worktreeName, args[dashIndex], args[firstCmdIndex:], nil
+}
+
+func completeWorktreesForExec(ctx context.Context, cmd *cli.Command) {
+	current, previous := completionArgsFromCommand(cmd)
+	if maybeCompleteFlagSuggestions(cmd, current, previous) {
+		return
 	}
 
-	return worktreeName, args[1], args[2:], nil
+	for _, arg := range previous {
+		if arg == "--" {
+			return
+		}
+	}
+
+	if current == "--" {
+		return
+	}
+
+	if len(previous) > 0 {
+		return
+	}
+
+	completeWorktreesForCd(ctx, cmd)
 }

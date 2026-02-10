@@ -21,7 +21,14 @@ func resolveWorktreePathByName(worktreeName string, worktrees []git.Worktree, ma
 	worktreeName = strings.TrimSuffix(worktreeName, "*")
 
 	// Load config for unified naming
-	cfg, _ := config.LoadConfig(mainWorktreePath)
+	cfg, err := config.LoadConfig(mainWorktreePath)
+	if err != nil {
+		cfg = &config.Config{
+			Defaults: config.Defaults{
+				BaseDir: config.DefaultBaseDir,
+			},
+		}
+	}
 
 	// The order matters: more specific matches come first
 	for i := range worktrees {

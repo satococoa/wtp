@@ -41,6 +41,12 @@ func TestParseExecInput(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "command is required")
 	})
+
+	t.Run("missing worktree", func(t *testing.T) {
+		_, _, _, err := parseExecInput([]string{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "worktree name is required")
+	})
 }
 
 func TestExecCommandWithCommandExecutor(t *testing.T) {
@@ -99,6 +105,50 @@ branch refs/heads/feature/auth
 		err := execCommandWithCommandExecutor(cmd, &bytes.Buffer{}, mock)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "command failed in worktree")
+	})
+
+	t.Run("git worktree list with empty result returns git error", func(t *testing.T) {
+		cmd := createExecTestCLICommand([]string{"@", "--", "pwd"})
+		mock := &mockExecCommandExecutor{
+			results: []*command.ExecutionResult{{}},
+		}
+
+		err := execCommandWithCommandExecutor(cmd, &bytes.Buffer{}, mock)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "git command failed: git worktree list")
+		assert.Contains(t, err.Error(), "no command results")
+	})
+
+	t.Run("git worktree list result error returns git error", func(t *testing.T) {
+		cmd := createExecTestCLICommand([]string{"@", "--", "pwd"})
+		mock := &mockExecCommandExecutor{
+			results: []*command.ExecutionResult{
+				{
+					Results: []command.Result{{
+						Output: "fatal output",
+						Error:  assert.AnError,
+					}},
+				},
+			},
+		}
+
+		err := execCommandWithCommandExecutor(cmd, &bytes.Buffer{}, mock)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "git command failed: git worktree list")
+		assert.Contains(t, err.Error(), "fatal output")
+	})
+}
+
+func TestCompleteWorktreesForExec(t *testing.T) {
+	t.Run("should not panic when command args already started", func(t *testing.T) {
+		cmd := createExecTestCLICommand([]string{"feature/auth", "go"})
+
+		assert.NotPanics(t, func() {
+			restore := silenceStdout(t)
+			defer restore()
+
+			completeWorktreesForExec(context.Background(), cmd)
+		})
 	})
 }
 
