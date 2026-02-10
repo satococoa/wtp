@@ -27,7 +27,7 @@ func TestMain(t *testing.T) {
 			commandNames[cmd.Name] = true
 		}
 
-		expectedCommands := []string{"add", "list", "remove", "init", "cd"}
+		expectedCommands := []string{"add", "list", "remove", "init", "cd", "exec"}
 		for _, expected := range expectedCommands {
 			assert.True(t, commandNames[expected], "Command %s should exist", expected)
 		}
@@ -84,7 +84,7 @@ func TestAppRun_Help(t *testing.T) {
 
 	// Check that all expected commands are present in the output
 	// Don't check for specific section headers as they may vary by CLI version
-	expectedCommands := []string{"add", "list", "remove", "init", "cd"}
+	expectedCommands := []string{"add", "list", "remove", "init", "cd", "exec"}
 	for _, cmd := range expectedCommands {
 		assert.Contains(t, output, cmd, "Command '%s' should be present in help output", cmd)
 	}
@@ -143,6 +143,7 @@ func createApp() *cli.Command {
 			NewRemoveCommand(),
 			NewInitCommand(),
 			NewCdCommand(),
+			NewExecCommand(),
 			// NewCompletionCommand(), // Using built-in completion
 		},
 	}

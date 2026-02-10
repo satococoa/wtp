@@ -2,9 +2,10 @@ package command
 
 // Command represents a shell command to be executed
 type Command struct {
-	Name    string   // Command name (e.g., "git")
-	Args    []string // Command arguments
-	WorkDir string   // Optional working directory
+	Name        string // Command name (e.g., "git")
+	Args        []string
+	WorkDir     string // Optional working directory
+	Interactive bool   // Prefer direct stdio wiring for interactive commands
 }
 
 // Result represents the result of a single command execution
@@ -21,7 +22,7 @@ type ExecutionResult struct {
 
 // ShellExecutor interface abstracts the actual command execution
 type ShellExecutor interface {
-	Execute(name string, args []string, workDir string) (string, error)
+	Execute(name string, args []string, workDir string, interactive bool) (string, error)
 }
 
 // Executor interface defines how commands are executed

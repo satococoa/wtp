@@ -23,6 +23,7 @@ func newApp() *cli.Command {
 			NewRemoveCommand(),
 			NewInitCommand(),
 			NewCdCommand(),
+			NewExecCommand(),
 			// Built-in completion is automatically provided by urfave/cli
 			NewHookCommand(),
 			NewShellInitCommand(),

@@ -88,6 +88,21 @@ func TestCommandExecutor_Interface(t *testing.T) {
 		assert.Equal(t, "/path/to/repo", mockShell.lastWorkDir)
 	})
 
+	t.Run("should pass interactive mode to shell executor", func(t *testing.T) {
+		mockShell := &mockShellExecutor{}
+		executor := NewExecutor(mockShell)
+
+		cmd := Command{
+			Name:        "fzf",
+			Interactive: true,
+		}
+		result, err := executor.Execute([]Command{cmd})
+
+		assert.NoError(t, err)
+		assert.Len(t, result.Results, 1)
+		assert.True(t, mockShell.lastInteractive)
+	})
+
 	t.Run("should handle empty command list", func(t *testing.T) {
 		// Given: a command executor
 		mockShell := &mockShellExecutor{}
@@ -294,7 +309,7 @@ func TestRealShellExecutor(t *testing.T) {
 		shell := NewRealShellExecutor()
 
 		// When: executing a simple command
-		output, err := shell.Execute("echo", []string{"test output"}, "")
+		output, err := shell.Execute("echo", []string{"test output"}, "", false)
 
 		// Then: should return correct output
 		assert.NoError(t, err)
@@ -306,7 +321,7 @@ func TestRealShellExecutor(t *testing.T) {
 		shell := NewRealShellExecutor()
 
 		// When: executing pwd command in /tmp directory
-		output, err := shell.Execute("pwd", []string{}, "/tmp")
+		output, err := shell.Execute("pwd", []string{}, "/tmp", false)
 
 		// Then: should return /tmp as output
 		assert.NoError(t, err)
@@ -318,7 +333,7 @@ func TestRealShellExecutor(t *testing.T) {
 		shell := NewRealShellExecutor()
 
 		// When: executing a command that doesn't exist
-		_, err := shell.Execute("nonexistent-command-xyz", []string{}, "")
+		_, err := shell.Execute("nonexistent-command-xyz", []string{}, "", false)
 
 		// Then: should return error
 		assert.Error(t, err)
@@ -330,7 +345,7 @@ func TestRealShellExecutor(t *testing.T) {
 		shell := NewRealShellExecutor()
 
 		// When: executing command that produces output with trailing newline
-		output, err := shell.Execute("printf", []string{"test\n"}, "")
+		output, err := shell.Execute("printf", []string{"test\n"}, "", false)
 
 		// Then: output should be trimmed (strings.TrimSpace removes leading/trailing whitespace)
 		assert.NoError(t, err)
@@ -344,21 +359,25 @@ type mockShellExecutor struct {
 	shouldFail       bool
 	failOutput       string
 	lastWorkDir      string
+	lastInteractive  bool
 }
 
 type executedCommand struct {
-	name    string
-	args    []string
-	workDir string
+	name        string
+	args        []string
+	workDir     string
+	interactive bool
 }
 
-func (m *mockShellExecutor) Execute(name string, args []string, workDir string) (string, error) {
+func (m *mockShellExecutor) Execute(name string, args []string, workDir string, interactive bool) (string, error) {
 	m.executedCommands = append(m.executedCommands, executedCommand{
-		name:    name,
-		args:    args,
-		workDir: workDir,
+		name:        name,
+		args:        args,
+		workDir:     workDir,
+		interactive: interactive,
 	})
 	m.lastWorkDir = workDir
+	m.lastInteractive = interactive
 
 	if m.shouldFail {
 		return m.failOutput, &mockError{msg: "command failed"}

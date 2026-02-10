@@ -26,7 +26,7 @@ func (e *executor) Execute(commands []Command) (*ExecutionResult, error) {
 	}
 
 	for _, cmd := range commands {
-		output, err := e.shell.Execute(cmd.Name, cmd.Args, cmd.WorkDir)
+		output, err := e.shell.Execute(cmd.Name, cmd.Args, cmd.WorkDir, cmd.Interactive)
 
 		commandResult := Result{
 			Command: cmd,
