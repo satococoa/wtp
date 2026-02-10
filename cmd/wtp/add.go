@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/urfave/cli/v3"
@@ -33,13 +34,18 @@ func NewAddCommand() *cli.Command {
 			"Examples:\n" +
 			"  wtp add feature/auth                    # Create worktree from existing branch\n" +
 			"  wtp add -b new-feature                  # Create new branch and worktree\n" +
-			"  wtp add -b hotfix/urgent main           # Create new branch from main commit",
+			"  wtp add -b hotfix/urgent main           # Create new branch from main commit\n" +
+			"  wtp add -b feature/x --exec \"npm test\" # Execute command in the new worktree",
 		ShellComplete: completeBranches,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "branch",
 				Usage:   "Create new branch",
 				Aliases: []string{"b"},
+			},
+			&cli.StringFlag{
+				Name:  "exec",
+				Usage: "Execute command in newly created worktree after hooks",
 			},
 		},
 		Action: addCommand,
@@ -111,6 +117,10 @@ func addCommandWithCommandExecutor(
 		if _, warnErr := fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err); warnErr != nil {
 			return warnErr
 		}
+	}
+
+	if err := executePostCreateCommand(w, cmdExec, cmd.String("exec"), workTreePath); err != nil {
+		return fmt.Errorf("worktree was created at '%s', but --exec command failed: %w", workTreePath, err)
 	}
 
 	if err := displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath); err != nil {
@@ -347,6 +357,53 @@ func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreeP
 			return err
 		}
 	}
+	return nil
+}
+
+func executePostCreateCommand(w io.Writer, cmdExec command.Executor, execCommand, workTreePath string) error {
+	if strings.TrimSpace(execCommand) == "" {
+		return nil
+	}
+
+	if _, err := fmt.Fprintf(w, "\nExecuting --exec command: %s\n", execCommand); err != nil {
+		return err
+	}
+
+	commandToRun := command.Command{
+		WorkDir:     workTreePath,
+		Interactive: true,
+	}
+	if runtime.GOOS == "windows" {
+		commandToRun.Name = "cmd"
+		commandToRun.Args = []string{"/c", execCommand}
+	} else {
+		commandToRun.Name = "sh"
+		commandToRun.Args = []string{"-c", execCommand}
+	}
+
+	result, err := cmdExec.Execute([]command.Command{commandToRun})
+	if err != nil {
+		return err
+	}
+
+	if len(result.Results) == 0 {
+		return fmt.Errorf("empty execution result")
+	}
+
+	commandResult := result.Results[0]
+	if commandResult.Output != "" {
+		if _, writeErr := fmt.Fprintln(w, commandResult.Output); writeErr != nil {
+			return writeErr
+		}
+	}
+	if commandResult.Error != nil {
+		return commandResult.Error
+	}
+
+	if _, err := fmt.Fprintln(w, "✓ --exec command completed"); err != nil {
+		return err
+	}
+
 	return nil
 }
 

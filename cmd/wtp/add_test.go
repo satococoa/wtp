@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,8 +26,8 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotNil(t, cmd.Action)
 	assert.NotNil(t, cmd.ShellComplete)
 
-	// Check simplified flags exist (only -b/--branch remains)
-	flagNames := []string{"branch"}
+	// Check simplified flags exist
+	flagNames := []string{"branch", "exec"}
 	for _, name := range flagNames {
 		found := false
 		for _, flag := range cmd.Flags {
@@ -462,6 +463,29 @@ func TestAddCommand_ExecutionError(t *testing.T) {
 	assert.Len(t, mockExec.executedCommands, 1)
 }
 
+func TestAddCommand_ExecFailureKeepsCreationContext(t *testing.T) {
+	cmd := createTestCLICommand(map[string]any{
+		"branch": "feature/auth",
+		"exec":   "false",
+	}, []string{})
+	var buf bytes.Buffer
+	exec := &sequencedCommandExecutor{
+		results: []command.Result{
+			{Output: "worktree created"},
+			{Error: assert.AnError},
+		},
+	}
+	cfg := &config.Config{
+		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+	}
+
+	err := addCommandWithCommandExecutor(cmd, &buf, exec, cfg, "/test/repo")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "worktree was created")
+	assert.Len(t, exec.executedCommands, 2)
+}
+
 // ===== Edge Cases Tests =====
 
 func TestAddCommand_InternationalCharacters(t *testing.T) {
@@ -519,6 +543,7 @@ func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
 					&cli.BoolFlag{Name: "detach"},
 					&cli.StringFlag{Name: "branch"},
 					&cli.StringFlag{Name: "track"},
+					&cli.StringFlag{Name: "exec"},
 					&cli.BoolFlag{Name: "cd"},
 					&cli.BoolFlag{Name: "no-cd"},
 				},
@@ -657,6 +682,7 @@ func TestAddCommand_Integration(t *testing.T) {
 						&cli.BoolFlag{Name: "detach"},
 						&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
 						&cli.StringFlag{Name: "track", Aliases: []string{"t"}},
+						&cli.StringFlag{Name: "exec"},
 						&cli.BoolFlag{Name: "cd"},
 						&cli.BoolFlag{Name: "no-cd"},
 					},
@@ -687,6 +713,7 @@ func TestAddCommand_Integration(t *testing.T) {
 						&cli.BoolFlag{Name: "detach"},
 						&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
 						&cli.StringFlag{Name: "track", Aliases: []string{"t"}},
+						&cli.StringFlag{Name: "exec"},
 						&cli.BoolFlag{Name: "cd"},
 						&cli.BoolFlag{Name: "no-cd"},
 					},
@@ -738,6 +765,37 @@ func TestExecutePostCreateHooks_Integration(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to execute hook")
 		assert.Contains(t, buf.String(), "Executing post-create hooks")
+	})
+}
+
+func TestExecutePostCreateCommand(t *testing.T) {
+	t.Run("no exec command should do nothing", func(t *testing.T) {
+		var buf bytes.Buffer
+		mockExec := &mockCommandExecutor{}
+
+		err := executePostCreateCommand(&buf, mockExec, "", "/test/worktree")
+		require.NoError(t, err)
+		assert.Empty(t, buf.String())
+		assert.Empty(t, mockExec.executedCommands)
+	})
+
+	t.Run("should execute command in worktree", func(t *testing.T) {
+		var buf bytes.Buffer
+		mockExec := &mockCommandExecutor{}
+
+		err := executePostCreateCommand(&buf, mockExec, "echo hello", "/test/worktree")
+		require.NoError(t, err)
+		require.Len(t, mockExec.executedCommands, 1)
+		assert.Equal(t, "/test/worktree", mockExec.executedCommands[0].WorkDir)
+		assert.True(t, mockExec.executedCommands[0].Interactive)
+
+		if runtime.GOOS == "windows" {
+			assert.Equal(t, "cmd", mockExec.executedCommands[0].Name)
+			assert.Equal(t, []string{"/c", "echo hello"}, mockExec.executedCommands[0].Args)
+		} else {
+			assert.Equal(t, "sh", mockExec.executedCommands[0].Name)
+			assert.Equal(t, []string{"-c", "echo hello"}, mockExec.executedCommands[0].Args)
+		}
 	})
 }
 
@@ -848,6 +906,30 @@ type mockCommandExecutor struct {
 	executedCommands []command.Command
 	shouldFail       bool
 	errorMsg         string
+}
+
+type sequencedCommandExecutor struct {
+	executedCommands []command.Command
+	results          []command.Result
+	call             int
+}
+
+func (s *sequencedCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	s.executedCommands = append(s.executedCommands, commands...)
+
+	if s.call < len(s.results) {
+		result := s.results[s.call]
+		s.call++
+		return &command.ExecutionResult{Results: []command.Result{{
+			Command: commands[0],
+			Output:  result.Output,
+			Error:   result.Error,
+		}}}, nil
+	}
+
+	return &command.ExecutionResult{Results: []command.Result{{
+		Command: commands[0],
+	}}}, nil
 }
 
 func (m *mockCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
