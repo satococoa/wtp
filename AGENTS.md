@@ -17,5 +17,3 @@
 ## Docs
 - [Dev commands](docs/agents/dev-commands.md)
 - [Code and tests](docs/agents/code-and-tests.md)
-- [Workflow](docs/agents/workflow.md)
-- [Architecture](docs/architecture.md)
