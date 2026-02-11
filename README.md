@@ -8,7 +8,7 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 ### 🚀 No More Path Gymnastics
 
 **git-worktree pain:**
-`git worktree add ../project-worktrees/feature/auth feature/auth`
+`git worktree add ../project-worktrees/feature/auth feature/auth`<br>
 **wtp solution:** `wtp add feature/auth`
 
 wtp automatically generates sensible paths based on branch names. Your
@@ -18,7 +18,7 @@ no path errors.
 ### 🧹 Clean Branch Management
 
 **git-worktree pain:** Remove worktree, then manually delete the branch. Forget
-the second step? Orphaned branches accumulate.
+the second step? Orphaned branches accumulate.<br>
 **wtp solution:**
 `wtp remove --with-branch feature/done` - One command removes both
 
@@ -29,7 +29,7 @@ cluttering your repo.
 ### 🛠️ Zero-Setup Development Environments
 
 **git-worktree pain:** Create worktree → Copy .env → Install deps → Run
-migrations → Finally start coding
+migrations → Finally start coding<br>
 **wtp solution:** Configure once in
 `.wtp.yml`, then every `wtp add` runs your setup automatically
 
@@ -62,7 +62,7 @@ requirements.
 ### 📍 Instant Worktree Navigation
 
 **git-worktree pain:** `cd ../../../worktrees/feature/auth` (if you remember the
-path)
+path)<br>
 **wtp solution:** `wtp cd feature/auth` with tab completion
 
 Jump between worktrees instantly. Use `wtp cd @` to return to your main
