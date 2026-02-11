@@ -8,8 +8,8 @@ functionality with automated setup, branch tracking, and project-specific hooks.
 ### 🚀 No More Path Gymnastics
 
 **git-worktree pain:**
-`git worktree add ../project-worktrees/feature/auth feature/auth` **wtp
-solution:** `wtp add feature/auth`
+`git worktree add ../project-worktrees/feature/auth feature/auth`
+**wtp solution:** `wtp add feature/auth`
 
 wtp automatically generates sensible paths based on branch names. Your
 `feature/auth` branch goes to `../worktrees/feature/auth` - no redundant typing,
@@ -18,7 +18,8 @@ no path errors.
 ### 🧹 Clean Branch Management
 
 **git-worktree pain:** Remove worktree, then manually delete the branch. Forget
-the second step? Orphaned branches accumulate. **wtp solution:**
+the second step? Orphaned branches accumulate.
+**wtp solution:**
 `wtp remove --with-branch feature/done` - One command removes both
 
 Keep your repository clean. When a feature is truly done, remove both the
@@ -28,7 +29,8 @@ cluttering your repo.
 ### 🛠️ Zero-Setup Development Environments
 
 **git-worktree pain:** Create worktree → Copy .env → Install deps → Run
-migrations → Finally start coding **wtp solution:** Configure once in
+migrations → Finally start coding
+**wtp solution:** Configure once in
 `.wtp.yml`, then every `wtp add` runs your setup automatically
 
 ```yaml
@@ -60,7 +62,8 @@ requirements.
 ### 📍 Instant Worktree Navigation
 
 **git-worktree pain:** `cd ../../../worktrees/feature/auth` (if you remember the
-path) **wtp solution:** `wtp cd feature/auth` with tab completion
+path)
+**wtp solution:** `wtp cd feature/auth` with tab completion
 
 Jump between worktrees instantly. Use `wtp cd @` to return to your main
 worktree (or just `wtp cd`). No more terminal tab confusion.
