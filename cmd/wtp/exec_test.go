@@ -51,7 +51,7 @@ func TestParseExecInput(t *testing.T) {
 
 func TestExecCommandWithCommandExecutor(t *testing.T) {
 	t.Run("execute command in resolved worktree", func(t *testing.T) {
-		cmd := createExecTestCLICommand([]string{"feature/auth", "--", "pwd"})
+		cmd := createExecTestCLICommand(t, []string{"feature/auth", "--", "pwd"})
 		var buf bytes.Buffer
 		mock := &mockExecCommandExecutor{
 			results: []*command.ExecutionResult{
@@ -86,7 +86,7 @@ branch refs/heads/feature/auth
 	})
 
 	t.Run("command failure returns error", func(t *testing.T) {
-		cmd := createExecTestCLICommand([]string{"@", "--", "false"})
+		cmd := createExecTestCLICommand(t, []string{"@", "--", "false"})
 		mock := &mockExecCommandExecutor{
 			results: []*command.ExecutionResult{
 				{
@@ -108,7 +108,7 @@ branch refs/heads/feature/auth
 	})
 
 	t.Run("git worktree list with empty result returns git error", func(t *testing.T) {
-		cmd := createExecTestCLICommand([]string{"@", "--", "pwd"})
+		cmd := createExecTestCLICommand(t, []string{"@", "--", "pwd"})
 		mock := &mockExecCommandExecutor{
 			results: []*command.ExecutionResult{{}},
 		}
@@ -120,7 +120,7 @@ branch refs/heads/feature/auth
 	})
 
 	t.Run("git worktree list result error returns git error", func(t *testing.T) {
-		cmd := createExecTestCLICommand([]string{"@", "--", "pwd"})
+		cmd := createExecTestCLICommand(t, []string{"@", "--", "pwd"})
 		mock := &mockExecCommandExecutor{
 			results: []*command.ExecutionResult{
 				{
@@ -141,7 +141,7 @@ branch refs/heads/feature/auth
 
 func TestCompleteWorktreesForExec(t *testing.T) {
 	t.Run("should not panic when command args already started", func(t *testing.T) {
-		cmd := createExecTestCLICommand([]string{"feature/auth", "go"})
+		cmd := createExecTestCLICommand(t, []string{"feature/auth", "go"})
 
 		assert.NotPanics(t, func() {
 			restore := silenceStdout(t)
@@ -152,7 +152,9 @@ func TestCompleteWorktreesForExec(t *testing.T) {
 	})
 }
 
-func createExecTestCLICommand(args []string) *cli.Command {
+func createExecTestCLICommand(t *testing.T, args []string) *cli.Command {
+	t.Helper()
+
 	app := &cli.Command{
 		Name: "test",
 		Commands: []*cli.Command{
@@ -164,7 +166,7 @@ func createExecTestCLICommand(args []string) *cli.Command {
 	}
 
 	cmdArgs := append([]string{"test", "exec"}, args...)
-	_ = app.Run(context.Background(), cmdArgs)
+	require.NoError(t, app.Run(context.Background(), cmdArgs))
 	return app.Commands[0]
 }
 
