@@ -62,7 +62,7 @@ branch refs/heads/feature/auth
 			worktrees := parseWorktreesFromOutput(worktreeList)
 			mainPath := findMainWorktreePath(worktrees)
 
-			resolvedPath := resolveCdWorktreePath(tt.worktreeName, worktrees, mainPath)
+			resolvedPath := resolveWorktreePathByName(tt.worktreeName, worktrees, mainPath)
 
 			if tt.shouldSucceed {
 				assert.Equal(t, tt.expectedPath, resolvedPath,
@@ -115,7 +115,7 @@ func TestCdCommand_NoEnvironmentVariableDependency(t *testing.T) {
 			worktrees := parseWorktreesFromOutput(worktreeList)
 			mainPath := findMainWorktreePath(worktrees)
 
-			resolvedPath := resolveCdWorktreePath("@", worktrees, mainPath)
+			resolvedPath := resolveWorktreePathByName("@", worktrees, mainPath)
 			assert.Equal(t, "/test/main", resolvedPath,
 				"Path resolution must not depend on environment variables")
 		})
@@ -159,7 +159,7 @@ func TestCdCommand_EdgeCases(t *testing.T) {
 			worktrees := parseWorktreesFromOutput(tt.worktreeList)
 			mainPath := findMainWorktreePath(worktrees)
 
-			result := resolveCdWorktreePath(tt.worktreeName, worktrees, mainPath)
+			result := resolveWorktreePathByName(tt.worktreeName, worktrees, mainPath)
 
 			if tt.shouldFind {
 				assert.Equal(t, tt.expected, result)

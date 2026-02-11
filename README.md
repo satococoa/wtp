@@ -144,6 +144,10 @@ wtp add -b feature/new-feature
 # → Creates worktree at ../worktrees/hotfix/urgent
 wtp add -b hotfix/urgent abc1234
 
+# Create worktree and run a command inside it after hooks
+# → Useful for bootstrap steps (supports interactive commands when TTY is available)
+wtp add -b feature/new-feature --exec "npm test"
+
 # Create new branch tracking a different remote branch
 # → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
 wtp add -b feature/test origin/main
@@ -183,6 +187,10 @@ wtp remove --force feature/auth  # Force removal even if dirty
 # Remove worktree and its branch
 wtp remove --with-branch feature/auth              # Only if branch is merged
 wtp remove --with-branch --force-branch feature/auth  # Force branch deletion
+
+# Execute a command in an existing worktree (uses same target resolution as `wtp cd`)
+wtp exec feature/auth -- go test ./...
+wtp exec @ -- pwd
 ```
 
 ## Configuration
