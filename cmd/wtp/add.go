@@ -96,7 +96,7 @@ func addCommandWithCommandExecutor(
 	}
 
 	// Build git worktree command using the new command builder
-	worktreeCmd := buildWorktreeCommand(cmd, workTreePath, branchName, resolvedTrack)
+	worktreeCmd := buildWorktreeCommand(cmd, workTreePath, branchName, resolvedTrack, cfg)
 
 	// Execute the command
 	result, err := cmdExec.Execute([]command.Command{worktreeCmd})
@@ -132,7 +132,7 @@ func addCommandWithCommandExecutor(
 
 // buildWorktreeCommand builds a git worktree command using the new command package
 func buildWorktreeCommand(
-	cmd *cli.Command, workTreePath, _, resolvedTrack string,
+	cmd *cli.Command, workTreePath, _, resolvedTrack string, cfg *config.Config,
 ) command.Command {
 	opts := command.GitWorktreeAddOptions{
 		Branch: cmd.String("branch"),
@@ -161,6 +161,8 @@ func buildWorktreeCommand(
 		if opts.Branch != "" && cmd.Args().Len() > 1 {
 			commitish = cmd.Args().Get(1)
 		}
+	} else if opts.Branch != "" && cfg != nil && cfg.Defaults.DefaultBranch != "" {
+		commitish = cfg.Defaults.DefaultBranch
 	}
 
 	return command.GitWorktreeAdd(workTreePath, commitish, opts)

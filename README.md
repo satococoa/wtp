@@ -136,8 +136,11 @@ sudo mv wtp /usr/local/bin/  # or add to PATH
 # Automatically tracks remote branch if not found locally
 wtp add feature/auth
 
-# Create worktree with new branch
+# Create worktree with new branch from HEAD
 # → Creates worktree at ../worktrees/feature/new-feature
+wtp add -b feature/new-feature
+
+# Create worktree from default_branch specified in .wtp.yml
 wtp add -b feature/new-feature
 
 # Create new branch from specific commit
@@ -202,6 +205,9 @@ version: "1.0"
 defaults:
   # Base directory for worktrees (relative to project root)
   base_dir: "../worktrees"
+  # Optional default branch for new worktrees created with -b
+  # If omitted, git uses the current HEAD
+  default_branch: "main"
 
 hooks:
   post_create:
