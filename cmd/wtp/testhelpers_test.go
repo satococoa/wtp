@@ -55,7 +55,8 @@ func RunNameFromPathTests(
 	t.Run(label+": non-main returns relative path", func(t *testing.T) {
 		cfg := &config.Config{Defaults: config.Defaults{BaseDir: ".worktrees"}}
 		name := fn("/path/to/repo/.worktrees/feature/test", cfg, "/path/to/repo", false)
-		assert.Equal(t, "feature/test", name)
+		expected := filepath.Join("feature", "test")
+		assert.Equal(t, expected, name)
 	})
 
 	t.Run(label+": outside base_dir returns relative-to-base", func(t *testing.T) {
@@ -63,6 +64,7 @@ func RunNameFromPathTests(
 		// When worktree is outside base_dir, filepath.Rel returns a relative path
 		// with .. segments; this should be surfaced as-is.
 		name := fn("/completely/different/path", cfg, "/path/to/repo", false)
-		assert.Equal(t, "../../../../completely/different/path", name)
+		expected := filepath.Join("..", "..", "..", "..", "completely", "different", "path")
+		assert.Equal(t, expected, name)
 	})
 }

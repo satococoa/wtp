@@ -71,10 +71,12 @@ worktree (or just `wtp cd`). No more terminal tab confusion.
 - One of the following operating systems:
   - Linux (x86_64 or ARM64)
   - macOS (Apple Silicon M1/M2/M3)
+  - Windows (x86_64) with Git Bash or PowerShell
 - One of the following shells (for completion support):
   - Bash (4+/5.x) with bash-completion v2
   - Zsh
   - Fish
+  - PowerShell (5.1+ or 7+) on Windows
 
 ## Releases
 
@@ -115,6 +117,29 @@ sudo mv wtp /usr/local/bin/
 # Linux (ARM64)
 curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Linux_arm64.tar.gz | tar xz
 sudo mv wtp /usr/local/bin/
+```
+
+### Windows Installation
+
+Download the latest Windows binary from [GitHub Releases](https://github.com/satococoa/wtp/releases):
+
+**PowerShell:**
+```powershell
+# Download the zip file
+Invoke-WebRequest -Uri "https://github.com/satococoa/wtp/releases/latest/download/wtp_Windows_x86_64.zip" -OutFile "wtp.zip"
+
+# Extract the archive
+Expand-Archive -Path "wtp.zip" -DestinationPath "$env:LOCALAPPDATA\wtp"
+
+# Add to PATH (add this line to your PowerShell profile for persistence)
+$env:PATH += ";$env:LOCALAPPDATA\wtp"
+```
+
+**Git Bash:**
+```bash
+# Download and extract
+curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Windows_x86_64.zip -o wtp.zip
+unzip wtp.zip -d ~/bin
 ```
 
 ### From Source
@@ -312,11 +337,40 @@ wtp shell-init fish | source
 ```
 
 > **Note:** Bash completion requires bash-completion v2. On macOS, install
-> Homebrew’s Bash 5.x and `bash-completion@2`, then
+> Homebrew's Bash 5.x and `bash-completion@2`, then
 > `source /opt/homebrew/etc/profile.d/bash_completion.sh` (or the path shown
 > after installation) before enabling the one-liner above.
 
 After reloading your shell you get the same experience as Homebrew users.
+
+#### Windows Setup
+
+**PowerShell:**
+
+Add to your PowerShell profile (`$PROFILE` - typically `~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1` or `~\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1`):
+
+```powershell
+# Add wtp shell integration (completion + cd functionality)
+$WarningPreference = 'SilentlyContinue'
+Invoke-Expression -Command (& wtp shell-init pwsh | Out-String)
+$WarningPreference = 'Continue'
+```
+
+To find your profile location, run `echo $PROFILE` in PowerShell. If the file doesn't exist, create it first:
+```powershell
+New-Item -Path $PROFILE -Type File -Force
+```
+
+**Git Bash:**
+
+Add to `~/.bashrc`:
+
+```bash
+# Add wtp shell integration (completion + cd functionality)
+eval "$(wtp shell-init bash)"
+```
+
+Git Bash on Windows uses the same Bash configuration as Linux, so the standard Bash setup works as-is.
 
 ### Navigation with wtp cd
 
