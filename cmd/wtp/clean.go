@@ -123,6 +123,9 @@ func getWorktreesForClean(executor command.Executor) ([]git.Worktree, string, er
 	if err != nil {
 		return nil, "", errors.GitCommandFailed("git worktree list", err.Error())
 	}
+	if result == nil || len(result.Results) == 0 {
+		return nil, "", errors.GitCommandFailed("git worktree list", "no output")
+	}
 
 	worktrees := parseWorktreesFromOutput(result.Results[0].Output)
 
@@ -294,8 +297,8 @@ func (s *worktreeCleanStatus) checkMergeStatus(
 		Name: "git",
 		Args: []string{"merge-base", "--is-ancestor", wt.Branch, mainBranch},
 	}
-	result, _ := executor.Execute([]command.Command{mergeBaseCmd})
-	if len(result.Results) > 0 && result.Results[0].Error != nil {
+	result, err := executor.Execute([]command.Command{mergeBaseCmd})
+	if err != nil || result == nil || len(result.Results) == 0 || result.Results[0].Error != nil {
 		s.isMerged = false
 		s.isSafe = false
 		s.reasons = append(s.reasons, "unmerged")
@@ -308,8 +311,8 @@ func (s *worktreeCleanStatus) checkCleanStatus(wt git.Worktree, executor command
 		Args:    []string{"status", "--porcelain"},
 		WorkDir: wt.Path,
 	}
-	result, _ := executor.Execute([]command.Command{statusCmd})
-	if len(result.Results) == 0 {
+	result, err := executor.Execute([]command.Command{statusCmd})
+	if err != nil || result == nil || len(result.Results) == 0 {
 		return
 	}
 
@@ -334,8 +337,8 @@ func (s *worktreeCleanStatus) checkPushStatus(
 		Name: "git",
 		Args: []string{"rev-list", "--count", fmt.Sprintf("origin/%s..%s", wt.Branch, wt.Branch)},
 	}
-	result, _ := executor.Execute([]command.Command{pushCheckCmd})
-	if len(result.Results) == 0 {
+	result, err := executor.Execute([]command.Command{pushCheckCmd})
+	if err != nil || result == nil || len(result.Results) == 0 {
 		return
 	}
 
@@ -351,10 +354,10 @@ func (s *worktreeCleanStatus) checkPushStatus(
 		Name: "git",
 		Args: []string{"rev-list", "--count", fmt.Sprintf("%s..%s", mainBranch, wt.Branch)},
 	}
-	result, _ = executor.Execute([]command.Command{aheadCmd})
+	result, err = executor.Execute([]command.Command{aheadCmd})
 
 	aheadCount := ""
-	if len(result.Results) > 0 {
+	if err == nil && result != nil && len(result.Results) > 0 {
 		aheadCount = strings.TrimSpace(result.Results[0].Output)
 	}
 
