@@ -405,7 +405,7 @@ func buildCleanOptions(statuses []worktreeCleanStatus, cfg *config.Config, mainR
 		options = append(options, option)
 	}
 
-	columnHeader := fmt.Sprintf("%-*s  %-6s  %s", maxNameLen, "WORKTREE", "STATUS", "NOTE")
+	columnHeader := fmt.Sprintf("    %-*s  %-6s  %s", maxNameLen, "WORKTREE", "STATUS", "NOTE")
 	return cleanOptions{
 		options:      options,
 		columnHeader: columnHeader,
