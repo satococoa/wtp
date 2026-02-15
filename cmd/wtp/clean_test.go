@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -775,7 +776,12 @@ func (m *mockCleanCommandExecutor) matchCommand(cmd command.Command) command.Exe
 		return m.results["status"]
 	}
 	if arg0 == "rev-list" {
-		return m.results["rev-list"]
+		for _, a := range cmd.Args {
+			if strings.HasPrefix(a, "origin/") {
+				return m.results["rev-list"]
+			}
+		}
+		return m.results["ahead-cmd"]
 	}
 	if arg0 == "rev-parse" {
 		for _, a := range cmd.Args {
