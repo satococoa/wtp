@@ -87,6 +87,22 @@ func GitWorktreeList() Command {
 	}
 }
 
+// GitStatusPorcelain builds a git status command to check for uncommitted changes
+func GitStatusPorcelain(path string) Command {
+	return Command{
+		Name: "git",
+		Args: []string{"-C", path, "status", "--porcelain"},
+	}
+}
+
+// GitLogNotPushed builds a git log command to check for unpushed commits
+func GitLogNotPushed(branch string) Command {
+	return Command{
+		Name: "git",
+		Args: []string{"log", branch, "--not", "--remotes", "--oneline"},
+	}
+}
+
 // extractBranchName extracts branch name from a remote reference
 // e.g., "origin/feature" -> "feature"
 func extractBranchName(ref string) string {
