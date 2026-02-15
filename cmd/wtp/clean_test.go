@@ -329,12 +329,12 @@ func TestBuildCleanOptions(t *testing.T) {
 				Defaults: config.Defaults{BaseDir: ".worktrees"},
 			}
 
-			options := buildCleanOptions(tt.statuses, cfg, "/test/repo")
+			opts := buildCleanOptions(tt.statuses, cfg, "/test/repo")
 
-			assert.Equal(t, tt.expectedOptions, len(options))
+			assert.Equal(t, tt.expectedOptions, len(opts.options))
 
 			// Verify options were created
-			for _, opt := range options {
+			for _, opt := range opts.options {
 				assert.NotEmpty(t, opt.Key)
 			}
 		})
@@ -917,12 +917,15 @@ func TestWorktreeCleanStatus_BuildReason(t *testing.T) {
 func TestRunCleanForm(t *testing.T) {
 	t.Skip("Skipping interactive form test - requires user input")
 
-	options := []huh.Option[string]{
-		huh.NewOption("feature [safe]", "feature"),
-		huh.NewOption("bugfix [unsafe: unmerged]", "bugfix"),
+	opts := cleanOptions{
+		options: []huh.Option[string]{
+			huh.NewOption("feature  safe    merged, clean, pushed", "feature"),
+			huh.NewOption("bugfix   unsafe  unmerged", "bugfix"),
+		},
+		columnHeader: "WORKTREE  STATUS  NOTE",
 	}
 
-	_, err := runCleanForm(options)
+	_, err := runCleanForm(opts)
 	// This will fail in tests due to no TTY, but we're just checking the function exists
 	assert.Error(t, err)
 }

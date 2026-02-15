@@ -96,9 +96,9 @@ func cleanCommandWithExecutor(
 	}
 
 	statuses := validateWorktrees(managedWorktrees, executor)
-	options := buildCleanOptions(statuses, cfg, mainWorktreePath)
+	opts := buildCleanOptions(statuses, cfg, mainWorktreePath)
 
-	selected, err := runCleanForm(options)
+	selected, err := runCleanForm(opts)
 	if err != nil {
 		return err
 	}
@@ -186,13 +186,14 @@ func validateWorktrees(
 	return statuses
 }
 
-func runCleanForm(options []huh.Option[string]) ([]string, error) {
+func runCleanForm(opts cleanOptions) ([]string, error) {
 	var selected []string
 	form := huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
-				Title("Select worktrees to remove (↑/↓/j/k navigate, space toggle, enter confirm):").
-				Options(options...).
+				Title("Select worktrees to remove:").
+				Description(opts.columnHeader).
+				Options(opts.options...).
 				Value(&selected),
 		),
 	)
@@ -372,21 +373,43 @@ func (s *worktreeCleanStatus) buildReason() {
 	}
 }
 
-func buildCleanOptions(statuses []worktreeCleanStatus, cfg *config.Config, mainRepoPath string) []huh.Option[string] {
+type cleanOptions struct {
+	options      []huh.Option[string]
+	columnHeader string
+}
+
+func buildCleanOptions(statuses []worktreeCleanStatus, cfg *config.Config, mainRepoPath string) cleanOptions {
+	maxNameLen := len("WORKTREE")
+	names := make([]string, len(statuses))
+	for i, status := range statuses {
+		names[i] = getWorktreeNameFromPath(status.worktree.Path, cfg, mainRepoPath, status.worktree.IsMain)
+		if len(names[i]) > maxNameLen {
+			maxNameLen = len(names[i])
+		}
+	}
+
 	options := make([]huh.Option[string], 0, len(statuses))
+	for i, status := range statuses {
+		statusText := "safe"
+		note := "merged, clean, pushed"
+		if !status.isSafe {
+			statusText = "unsafe"
+			note = strings.Join(status.reasons, ", ")
+		}
 
-	for _, status := range statuses {
-		displayName := getWorktreeNameFromPath(status.worktree.Path, cfg, mainRepoPath, status.worktree.IsMain)
-		label := fmt.Sprintf("%-25s [%s]", displayName, status.reason)
-
-		option := huh.NewOption(label, displayName)
+		label := fmt.Sprintf("%-*s  %-6s  %s", maxNameLen, names[i], statusText, note)
+		option := huh.NewOption(label, names[i])
 		if status.isSafe {
 			option = option.Selected(true)
 		}
 		options = append(options, option)
 	}
 
-	return options
+	columnHeader := fmt.Sprintf("%-*s  %-6s  %s", maxNameLen, "WORKTREE", "STATUS", "NOTE")
+	return cleanOptions{
+		options:      options,
+		columnHeader: columnHeader,
+	}
 }
 
 func findWorktreeByName(
