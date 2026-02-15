@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/huh"
 	"github.com/urfave/cli/v3"
@@ -170,11 +171,18 @@ func validateWorktrees(
 	worktrees []git.Worktree,
 	executor command.Executor,
 ) []worktreeCleanStatus {
-	statuses := make([]worktreeCleanStatus, 0, len(worktrees))
-	for _, wt := range worktrees {
-		status := validateWorktree(wt, executor)
-		statuses = append(statuses, status)
+	mainBranch := detectMainBranch(executor)
+
+	statuses := make([]worktreeCleanStatus, len(worktrees))
+	var wg sync.WaitGroup
+	for i, wt := range worktrees {
+		wg.Add(1)
+		go func(idx int, w git.Worktree) {
+			defer wg.Done()
+			statuses[idx] = validateWorktree(w, executor, mainBranch)
+		}(i, wt)
 	}
+	wg.Wait()
 	return statuses
 }
 
@@ -227,7 +235,7 @@ func removeSelectedWorktrees(
 	}
 }
 
-func validateWorktree(wt git.Worktree, executor command.Executor) worktreeCleanStatus {
+func validateWorktree(wt git.Worktree, executor command.Executor, mainBranch string) worktreeCleanStatus {
 	status := worktreeCleanStatus{
 		worktree: wt,
 		isMerged: true,
@@ -236,7 +244,6 @@ func validateWorktree(wt git.Worktree, executor command.Executor) worktreeCleanS
 		isSafe:   true,
 	}
 
-	mainBranch := detectMainBranch(executor)
 	status.checkMergeStatus(wt, mainBranch, executor)
 	status.checkCleanStatus(wt, executor)
 	status.checkPushStatus(wt, mainBranch, executor)

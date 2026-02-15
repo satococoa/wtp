@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/charmbracelet/huh"
@@ -51,8 +52,6 @@ func TestValidateWorktree(t *testing.T) {
 		statusOutput      command.ExecutionResult
 		revListOutput     command.ExecutionResult
 		aheadCmdOutput    command.ExecutionResult
-		mainBranchOutput  command.ExecutionResult
-		masterCmdOutput   command.ExecutionResult
 		expectedIsSafe    bool
 		expectedIsMerged  bool
 		expectedIsClean   bool
@@ -74,12 +73,6 @@ func TestValidateWorktree(t *testing.T) {
 			aheadCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "0", Error: nil}},
 			},
-			mainBranchOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
-			},
-			masterCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "", Error: nil}},
-			},
 			expectedIsSafe:   true,
 			expectedIsMerged: true,
 			expectedIsClean:  true,
@@ -99,12 +92,6 @@ func TestValidateWorktree(t *testing.T) {
 			},
 			aheadCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "0", Error: nil}},
-			},
-			mainBranchOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
-			},
-			masterCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "", Error: nil}},
 			},
 			expectedIsSafe:    false,
 			expectedIsMerged:  false,
@@ -127,12 +114,6 @@ func TestValidateWorktree(t *testing.T) {
 			aheadCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "0", Error: nil}},
 			},
-			mainBranchOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
-			},
-			masterCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "", Error: nil}},
-			},
 			expectedIsSafe:    false,
 			expectedIsMerged:  true,
 			expectedIsClean:   false,
@@ -153,12 +134,6 @@ func TestValidateWorktree(t *testing.T) {
 			},
 			aheadCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "3", Error: nil}},
-			},
-			mainBranchOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
-			},
-			masterCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "", Error: nil}},
 			},
 			expectedIsSafe:    false,
 			expectedIsMerged:  true,
@@ -181,12 +156,6 @@ func TestValidateWorktree(t *testing.T) {
 			aheadCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "0", Error: nil}},
 			},
-			mainBranchOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
-			},
-			masterCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "", Error: nil}},
-			},
 			expectedIsSafe:    false,
 			expectedIsMerged:  false,
 			expectedIsClean:   true,
@@ -208,12 +177,6 @@ func TestValidateWorktree(t *testing.T) {
 			aheadCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "0", Error: nil}},
 			},
-			mainBranchOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
-			},
-			masterCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "", Error: nil}},
-			},
 			expectedIsSafe:    false,
 			expectedIsMerged:  false,
 			expectedIsClean:   true,
@@ -230,12 +193,10 @@ func TestValidateWorktree(t *testing.T) {
 					"status":     tt.statusOutput,
 					"rev-list":   tt.revListOutput,
 					"ahead-cmd":  tt.aheadCmdOutput,
-					"main":       tt.mainBranchOutput,
-					"master":     tt.masterCmdOutput,
 				},
 			}
 
-			status := validateWorktree(tt.worktree, mockExec)
+			status := validateWorktree(tt.worktree, mockExec, "main")
 
 			assert.Equal(t, tt.expectedIsSafe, status.isSafe, "isSafe mismatch")
 			assert.Equal(t, tt.expectedIsMerged, status.isMerged, "isMerged mismatch")
@@ -762,6 +723,7 @@ func TestCleanCommand_NoManagedWorktrees(t *testing.T) {
 // ===== Mock Implementations =====
 
 type mockCleanCommandExecutor struct {
+	mu               sync.Mutex
 	executedCommands []command.Command
 	results          map[string]command.ExecutionResult
 	shouldFail       bool
@@ -770,6 +732,9 @@ type mockCleanCommandExecutor struct {
 }
 
 func (m *mockCleanCommandExecutor) Execute(commands []command.Command) (*command.ExecutionResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	m.executedCommands = append(m.executedCommands, commands...)
 
 	if m.shouldFail {
