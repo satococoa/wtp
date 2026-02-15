@@ -259,14 +259,11 @@ func validateWorktree(wt git.Worktree, executor command.Executor, mainBranch str
 func detectMainBranch(executor command.Executor) string {
 	mainCmd := command.Command{
 		Name: "git",
-		Args: []string{"rev-parse", "--abbrev-ref", "main"},
+		Args: []string{"rev-parse", "--verify", "--quiet", "main"},
 	}
 	result, err := executor.Execute([]command.Command{mainCmd})
-	if err == nil && len(result.Results) > 0 {
-		branch := strings.TrimSpace(result.Results[0].Output)
-		if branch != "" && branch != "main" {
-			return branch
-		}
+	if err == nil && result != nil && len(result.Results) > 0 && result.Results[0].Error == nil {
+		return "main"
 	}
 
 	masterCmd := command.Command{
@@ -274,7 +271,7 @@ func detectMainBranch(executor command.Executor) string {
 		Args: []string{"rev-parse", "--verify", "--quiet", "master"},
 	}
 	result, err = executor.Execute([]command.Command{masterCmd})
-	if err == nil && len(result.Results) > 0 && result.Results[0].Error == nil {
+	if err == nil && result != nil && len(result.Results) > 0 && result.Results[0].Error == nil {
 		return "master"
 	}
 

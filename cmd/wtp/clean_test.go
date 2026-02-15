@@ -349,19 +349,19 @@ func TestDetectMainBranch(t *testing.T) {
 		expectedBranch  string
 	}{
 		{
-			name: "custom main branch name",
+			name: "main branch exists",
 			mainCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "trunk", Error: nil}},
+				Results: []command.Result{{Output: "", Error: nil}},
 			},
 			masterCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "", Error: nil}},
 			},
-			expectedBranch: "trunk",
+			expectedBranch: "main",
 		},
 		{
-			name: "master branch exists when main returns main",
+			name: "only master exists",
 			mainCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
+				Results: []command.Result{{Output: "", Error: &mockCleanError{message: "not found"}}},
 			},
 			masterCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "", Error: nil}},
@@ -371,7 +371,7 @@ func TestDetectMainBranch(t *testing.T) {
 		{
 			name: "no main or master - defaults to main",
 			mainCmdOutput: command.ExecutionResult{
-				Results: []command.Result{{Output: "main", Error: nil}},
+				Results: []command.Result{{Output: "", Error: &mockCleanError{message: "not found"}}},
 			},
 			masterCmdOutput: command.ExecutionResult{
 				Results: []command.Result{{Output: "", Error: &mockCleanError{message: "not found"}}},
@@ -778,11 +778,13 @@ func (m *mockCleanCommandExecutor) matchCommand(cmd command.Command) command.Exe
 		return m.results["rev-list"]
 	}
 	if arg0 == "rev-parse" {
-		if len(cmd.Args) > 2 && cmd.Args[2] == "main" {
-			return m.results["main"]
-		}
-		if len(cmd.Args) > 3 && cmd.Args[3] == "master" {
-			return m.results["master"]
+		for _, a := range cmd.Args {
+			if a == "main" {
+				return m.results["main"]
+			}
+			if a == "master" {
+				return m.results["master"]
+			}
 		}
 	}
 
