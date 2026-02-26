@@ -3,6 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	stderrors "errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -79,6 +83,17 @@ func TestWorkTreeAlreadyExistsError(t *testing.T) {
 		assert.Contains(t, message, "worktree for branch ''")
 		assert.Contains(t, message, "test error")
 	})
+
+	t.Run("should not contain <nil> when GitError is nil", func(t *testing.T) {
+		err := &WorktreeAlreadyExistsError{
+			BranchName: "feature/awesome",
+			Path:       "/path/to/worktree",
+			GitError:   nil,
+		}
+		message := err.Error()
+		assert.Contains(t, message, "feature/awesome")
+		assert.NotContains(t, message, "<nil>")
+	})
 }
 
 func TestBranchAlreadyExistsError(t *testing.T) {
@@ -115,6 +130,16 @@ func TestBranchAlreadyExistsError(t *testing.T) {
 		assert.Contains(t, message, "branch '' already exists")
 		assert.Contains(t, message, "test error")
 	})
+
+	t.Run("should not contain <nil> when GitError is nil", func(t *testing.T) {
+		err := &BranchAlreadyExistsError{
+			BranchName: "feature/auth",
+			GitError:   nil,
+		}
+		message := err.Error()
+		assert.Contains(t, message, "feature/auth")
+		assert.NotContains(t, message, "<nil>")
+	})
 }
 
 func TestPathAlreadyExistsError(t *testing.T) {
@@ -131,10 +156,9 @@ func TestPathAlreadyExistsError(t *testing.T) {
 
 		// Then: should contain path, solutions, and original error
 		assert.Contains(t, message, "/existing/path")
-		assert.Contains(t, message, "already exists and is not empty")
+		assert.Contains(t, message, "destination path already exists")
 		assert.Contains(t, message, "--force flag")
 		assert.Contains(t, message, "Remove the existing directory")
-		assert.Contains(t, message, "directory not empty")
 	})
 
 	t.Run("should handle empty path", func(t *testing.T) {
@@ -150,6 +174,16 @@ func TestPathAlreadyExistsError(t *testing.T) {
 		// Then: should still provide valid message
 		assert.Contains(t, message, "destination path already exists:")
 		assert.Contains(t, message, "test error")
+	})
+
+	t.Run("should not contain <nil> when GitError is nil", func(t *testing.T) {
+		err := &PathAlreadyExistsError{
+			Path:     "/existing/path",
+			GitError: nil,
+		}
+		message := err.Error()
+		assert.Contains(t, message, "/existing/path")
+		assert.NotContains(t, message, "<nil>")
 	})
 }
 
@@ -187,6 +221,16 @@ func TestMultipleBranchesError(t *testing.T) {
 		assert.Contains(t, message, "feature/fix-bugs-#123")
 		assert.Contains(t, message, "--track origin/feature/fix-bugs-#123")
 		assert.Contains(t, message, "--track upstream/feature/fix-bugs-#123")
+	})
+
+	t.Run("should not contain <nil> when GitError is nil", func(t *testing.T) {
+		err := &MultipleBranchesError{
+			BranchName: "feature/shared",
+			GitError:   nil,
+		}
+		message := err.Error()
+		assert.Contains(t, message, "feature/shared")
+		assert.NotContains(t, message, "<nil>")
 	})
 }
 
@@ -469,7 +513,7 @@ func TestAddCommand_ExecFailureKeepsCreationContext(t *testing.T) {
 		"exec":   "false",
 	}, []string{})
 	var buf bytes.Buffer
-	exec := &sequencedCommandExecutor{
+	executor := &sequencedCommandExecutor{
 		results: []command.Result{
 			{Output: "worktree created"},
 			{Error: assert.AnError},
@@ -479,11 +523,11 @@ func TestAddCommand_ExecFailureKeepsCreationContext(t *testing.T) {
 		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 	}
 
-	err := addCommandWithCommandExecutor(cmd, &buf, exec, cfg, "/test/repo")
+	err := addCommandWithCommandExecutor(cmd, &buf, executor, cfg, "/test/repo")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree was created")
-	assert.Len(t, exec.executedCommands, 2)
+	assert.Len(t, executor.executedCommands, 2)
 }
 
 // ===== Edge Cases Tests =====
@@ -1019,12 +1063,12 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 			expectedType:  nil, // Returns a regular error
 		},
 		{
-			name:          "generic git error - fallback",
+			name:          "generic git error",
 			workTreePath:  "/path/to/worktree",
 			branchName:    "some-branch",
 			gitOutput:     "fatal: some unexpected git error",
-			expectedError: "unexpected git error",
-			expectedType:  nil, // Falls through to generic error
+			expectedError: "worktree creation failed for path",
+			expectedType:  nil, // Falls through to default error
 		},
 		{
 			name:          "case insensitive matching",
@@ -1039,7 +1083,7 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gitError := assert.AnError // Mock git error
-			result := analyzeGitWorktreeError(tt.workTreePath, tt.branchName, gitError, tt.gitOutput)
+			result := analyzeGitWorktreeError(tt.workTreePath, tt.branchName, gitError, tt.gitOutput, "", false)
 
 			assert.Error(t, result, "Should return an error")
 
@@ -1052,6 +1096,50 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAnalyzeGitWorktreeError_CollectsAllAlreadyExistsErrors(t *testing.T) {
+	// When git reports "path already exists" and the branch already exists in repo
+	// (e.g. after "wtp remove" without --with-branch), both PathAlreadyExistsError
+	// and BranchAlreadyExistsError should be returned (composite).
+	dir := t.TempDir()
+	// Create a git repo with a branch so BranchExists("somebranch") is true
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.name", "Test")
+	runGit(t, dir, "config", "user.email", "test@example.com")
+	runGit(t, dir, "config", "commit.gpgsign", "false")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "f"), []byte("x"), 0600))
+	runGit(t, dir, "add", ".")
+	runGit(t, dir, "commit", "-m", "init")
+	runGit(t, dir, "branch", "somebranch")
+
+	gitOutput := "fatal: destination path '" + filepath.Join(dir, "worktrees", "somebranch") + "' already exists"
+	result := analyzeGitWorktreeError(
+		filepath.Join(dir, "worktrees", "somebranch"),
+		"somebranch",
+		assert.AnError,
+		gitOutput,
+		dir,
+		true, // creatingNewBranch
+	)
+
+	require.Error(t, result)
+	var comp *CompositeWorktreeError
+	require.True(t, stderrors.As(result, &comp), "expected CompositeWorktreeError")
+	require.Len(t, comp.Errors, 2, "expected path + branch errors")
+
+	msg := result.Error()
+	assert.Contains(t, msg, "destination path already exists")
+	assert.Contains(t, msg, "branch 'somebranch' already exists")
+	assert.Contains(t, msg, "wtp add somebranch")
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "git %v: %s", args, out)
 }
 
 // ===== Branch Completion Tests =====

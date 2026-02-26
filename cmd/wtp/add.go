@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -108,9 +109,12 @@ func addCommandWithCommandExecutor(
 	if len(result.Results) > 0 && result.Results[0].Error != nil {
 		gitError := result.Results[0].Error
 		gitOutput := result.Results[0].Output
+		cmdLine := commandLineString(worktreeCmd)
+		gitError = formatWorktreeAddError(gitError, cmdLine)
 
 		// Analyze git error output for better error messages
-		return analyzeGitWorktreeError(workTreePath, branchName, gitError, gitOutput)
+		creatingNewBranch := cmd.String("branch") != ""
+		return analyzeGitWorktreeError(workTreePath, branchName, gitError, gitOutput, mainRepoPath, creatingNewBranch)
 	}
 
 	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
@@ -166,42 +170,117 @@ func buildWorktreeCommand(
 	return command.GitWorktreeAdd(workTreePath, commitish, opts)
 }
 
-// analyzeGitWorktreeError analyzes git worktree errors and provides specific error messages
-func analyzeGitWorktreeError(workTreePath, branchName string, gitError error, gitOutput string) error {
+// CompositeWorktreeError holds multiple worktree-related errors to report all applicable causes.
+type CompositeWorktreeError struct {
+	Errors []error
+}
+
+func (e *CompositeWorktreeError) Error() string {
+	var blocks []string
+	var solutions []string
+	var technical error
+	for _, err := range e.Errors {
+		var branchErr *BranchAlreadyExistsError
+		var pathErr *PathAlreadyExistsError
+		switch {
+		case stderrors.As(err, &branchErr):
+			blocks = append(blocks, fmt.Sprintf("branch '%s' already exists in this repository.", branchErr.BranchName))
+			if technical == nil && branchErr.GitError != nil {
+				technical = branchErr.GitError
+			}
+			solutions = appendSolution(solutions,
+				fmt.Sprintf("Run 'wtp add %s' to create a worktree for the existing branch", branchErr.BranchName))
+			solutions = appendSolution(solutions, "Choose a different branch name with '--branch'")
+			solutions = appendSolution(solutions, "Delete the existing branch if it's no longer needed")
+		case stderrors.As(err, &pathErr):
+			blocks = append(blocks, fmt.Sprintf("destination path already exists: %s", pathErr.Path))
+			if technical == nil && pathErr.GitError != nil {
+				technical = pathErr.GitError
+			}
+			solutions = appendSolution(solutions, "Use --force flag to overwrite existing directory")
+			solutions = appendSolution(solutions, "Remove the existing directory")
+			solutions = appendSolution(solutions, "Use a different branch name")
+		default:
+			blocks = append(blocks, err.Error())
+		}
+	}
+	var b strings.Builder
+	for i, block := range blocks {
+		if i > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString(block)
+	}
+	if len(solutions) > 0 {
+		b.WriteString("\n\nSolutions:\n")
+		for _, s := range solutions {
+			b.WriteString("  • ")
+			b.WriteString(s)
+			b.WriteString("\n")
+		}
+	}
+	if technical != nil {
+		b.WriteString("\n\n")
+		b.WriteString(fmt.Sprint(technical))
+	}
+	return b.String()
+}
+
+func appendSolution(list []string, s string) []string {
+	for _, existing := range list {
+		if existing == s {
+			return list
+		}
+	}
+	return append(list, s)
+}
+
+// commandLineString returns the full command line for display (e.g. "git worktree add -b test /path").
+func commandLineString(c command.Command) string {
+	if len(c.Args) == 0 {
+		return c.Name
+	}
+	return c.Name + " " + strings.Join(c.Args, " ")
+}
+
+// formatWorktreeAddError returns an error whose message is "Error command: <full command>\nExit status: <code>".
+func formatWorktreeAddError(err error, cmdLine string) error {
+	if err == nil {
+		return nil
+	}
+	if cmdLine == "" {
+		cmdLine = "git worktree add"
+	}
+	var exitErr *exec.ExitError
+	if stderrors.As(err, &exitErr) {
+		return fmt.Errorf("Error command: %s\nExit status: %d", cmdLine, exitErr.ExitCode())
+	}
+	return fmt.Errorf("Error command: %s\n%w", cmdLine, err)
+}
+
+// analyzeGitWorktreeError analyzes git worktree errors and provides specific error messages.
+// When git reports an "already exists" style error, it checks all overlapping conditions
+// (path, branch, worktree, multiple remotes) and returns all that apply (single or composite).
+func analyzeGitWorktreeError(
+	workTreePath, branchName string, gitError error, gitOutput, mainRepoPath string, creatingNewBranch bool,
+) error {
 	errorOutput := strings.ToLower(gitOutput)
 
-	// Check for specific error types
 	if isBranchNotFoundError(errorOutput) {
 		return errors.BranchNotFound(branchName)
 	}
 
-	if isWorktreeAlreadyExistsError(errorOutput) {
-		return &WorktreeAlreadyExistsError{
-			BranchName: branchName,
-			Path:       workTreePath,
-			GitError:   gitError,
+	// Collect all applicable "already exists" style errors instead of returning the first match
+	if isWorktreeAlreadyExistsError(errorOutput) ||
+		isBranchAlreadyExistsError(errorOutput) ||
+		isPathAlreadyExistsError(errorOutput) ||
+		isMultipleBranchesError(errorOutput) {
+		collected := collectAlreadyExistsErrors(
+			workTreePath, branchName, gitError, errorOutput, mainRepoPath, creatingNewBranch)
+		if len(collected) == 1 {
+			return collected[0]
 		}
-	}
-
-	if isBranchAlreadyExistsError(errorOutput) {
-		return &BranchAlreadyExistsError{
-			BranchName: branchName,
-			GitError:   gitError,
-		}
-	}
-
-	if isPathAlreadyExistsError(errorOutput) {
-		return &PathAlreadyExistsError{
-			Path:     workTreePath,
-			GitError: gitError,
-		}
-	}
-
-	if isMultipleBranchesError(errorOutput) {
-		return &MultipleBranchesError{
-			BranchName: branchName,
-			GitError:   gitError,
-		}
+		return &CompositeWorktreeError{Errors: collected}
 	}
 
 	if isInvalidPathError(errorOutput, workTreePath, gitOutput) {
@@ -219,7 +298,7 @@ Details: %s
 
 Tip: Check that the parent directory exists and you have write permissions.
 
-Original error: %w`, workTreePath, gitOutput, gitError)
+%w`, workTreePath, gitOutput, gitError)
 	}
 
 	// Default error with helpful context
@@ -231,7 +310,7 @@ Details: %s
 
 Tip: Run 'git worktree list' to see existing worktrees, or check git documentation for valid worktree paths.
 
-Original error: %w`, workTreePath, gitOutput, gitError)
+%w`, workTreePath, gitOutput, gitError)
 }
 
 // Helper functions to reduce cyclomatic complexity
@@ -252,20 +331,88 @@ func isBranchAlreadyExistsError(errorOutput string) bool {
 }
 
 func isPathAlreadyExistsError(errorOutput string) bool {
-	return strings.Contains(errorOutput, "already exists")
+	// Path/destination errors, not branch-named errors (avoid matching "branch X already exists")
+	if !strings.Contains(errorOutput, "already exists") {
+		return false
+	}
+	if strings.Contains(errorOutput, "destination path") {
+		return true
+	}
+	// Path-only message e.g. "fatal: '/path' already exists" (no "branch" in it)
+	return !strings.Contains(errorOutput, "branch")
 }
 
 func isMultipleBranchesError(errorOutput string) bool {
 	return strings.Contains(errorOutput, "more than one remote") || strings.Contains(errorOutput, "ambiguous")
 }
 
+// collectAlreadyExistsErrors gathers all applicable "already exists" errors from git output and repo state.
+func collectAlreadyExistsErrors(
+	workTreePath, branchName string, gitError error, errorOutput, mainRepoPath string, creatingNewBranch bool,
+) []error {
+	collected, hasBranch, hasPath := collectErrorsFromGitOutput(workTreePath, branchName, gitError, errorOutput)
+	collected = appendRepoStateErrors(
+		collected, workTreePath, branchName, gitError, mainRepoPath, creatingNewBranch, hasBranch, hasPath)
+	return collected
+}
+
+func collectErrorsFromGitOutput(
+	workTreePath, branchName string, gitError error, errorOutput string,
+) ([]error, bool, bool) {
+	var collected []error
+	hasBranchAlreadyExists := false
+	hasPathAlreadyExists := false
+	if isWorktreeAlreadyExistsError(errorOutput) {
+		collected = append(collected, &WorktreeAlreadyExistsError{
+			BranchName: branchName, Path: workTreePath, GitError: gitError,
+		})
+	}
+	if isBranchAlreadyExistsError(errorOutput) {
+		hasBranchAlreadyExists = true
+		collected = append(collected, &BranchAlreadyExistsError{BranchName: branchName, GitError: gitError})
+	}
+	if isPathAlreadyExistsError(errorOutput) {
+		hasPathAlreadyExists = true
+		collected = append(collected, &PathAlreadyExistsError{Path: workTreePath, GitError: gitError})
+	}
+	if isMultipleBranchesError(errorOutput) {
+		collected = append(collected, &MultipleBranchesError{BranchName: branchName, GitError: gitError})
+	}
+	return collected, hasBranchAlreadyExists, hasPathAlreadyExists
+}
+
+func appendRepoStateErrors(
+	collected []error, workTreePath, branchName string, gitError error, mainRepoPath string,
+	creatingNewBranch, hasBranchAlreadyExists, hasPathAlreadyExists bool,
+) []error {
+	if mainRepoPath != "" && creatingNewBranch && branchName != "" && !hasBranchAlreadyExists {
+		if repo, err := git.NewRepository(mainRepoPath); err == nil {
+			if exists, err := repo.BranchExists(branchName); err == nil && exists {
+				collected = append(collected, &BranchAlreadyExistsError{BranchName: branchName, GitError: gitError})
+			}
+		}
+	}
+	if workTreePath != "" && !hasPathAlreadyExists {
+		if fi, err := os.Stat(workTreePath); err == nil && fi.IsDir() {
+			collected = append(collected, &PathAlreadyExistsError{Path: workTreePath, GitError: gitError})
+		}
+	}
+	return collected
+}
+
 func isInvalidPathError(errorOutput, workTreePath, gitOutput string) bool {
 	return strings.Contains(errorOutput, "could not create directory") ||
 		strings.Contains(errorOutput, "unable to create") ||
 		strings.Contains(errorOutput, "is not a directory") ||
-		strings.Contains(errorOutput, "fatal:") ||
 		strings.Contains(workTreePath, "/dev/") ||
 		gitOutput == ""
+}
+
+func formatGitError(err error) string {
+	if err == nil {
+		return ""
+	}
+	return "\n\n" + err.Error()
 }
 
 // WorktreeAlreadyExistsError reports that a branch already has an attached worktree.
@@ -285,7 +432,7 @@ Solutions:
   • Choose a different branch
   • Remove the existing worktree first
 
-Original error: %v`, e.BranchName, e.BranchName, e.GitError)
+%s`, e.BranchName, e.BranchName, formatGitError(e.GitError))
 }
 
 // BranchAlreadyExistsError indicates that a branch creation request conflicts with an existing branch.
@@ -295,16 +442,14 @@ type BranchAlreadyExistsError struct {
 }
 
 func (e *BranchAlreadyExistsError) Error() string {
-	return fmt.Sprintf(`branch '%s' already exists
-
-The branch '%s' already exists in this repository.
+	return fmt.Sprintf(`branch '%s' already exists in this repository.
 
 Solutions:
   • Run 'wtp add %s' to create a worktree for the existing branch
   • Choose a different branch name with '--branch'
   • Delete the existing branch if it's no longer needed
 
-Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.GitError)
+%s`, e.BranchName, e.BranchName, formatGitError(e.GitError))
 }
 
 // PathAlreadyExistsError indicates that the destination directory already exists.
@@ -316,14 +461,12 @@ type PathAlreadyExistsError struct {
 func (e *PathAlreadyExistsError) Error() string {
 	return fmt.Sprintf(`destination path already exists: %s
 
-The target directory already exists and is not empty.
-
 Solutions:
   • Use --force flag to overwrite existing directory
   • Remove the existing directory
   • Use a different branch name
 
-Original error: %v`, e.Path, e.GitError)
+%s`, e.Path, formatGitError(e.GitError))
 }
 
 // MultipleBranchesError reports that a branch name resolves to multiple remotes and needs disambiguation.
@@ -339,7 +482,7 @@ Use the --track flag to specify which remote to use:
   • wtp add --track origin/%s %s
   • wtp add --track upstream/%s %s
 
-Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.GitError)
+%s`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.BranchName, formatGitError(e.GitError))
 }
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
