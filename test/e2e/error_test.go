@@ -111,6 +111,24 @@ func TestErrorMessages(t *testing.T) {
 				strings.Contains(output, "wtp add"),
 			"Should provide helpful guidance for multiple remotes")
 	})
+
+	t.Run("AddAfterRemoveShowsBranchAlreadyExists", func(t *testing.T) {
+		// After "wtp remove" (without --with-branch), "wtp add -b <same-branch>" fails
+		// with branch conflict. Error must show branch already exists and suggest "wtp add <branch>".
+		repo := env.CreateTestRepo("error-add-after-remove")
+		repo.CreateBranch("feature/same")
+
+		_, err := repo.RunWTP("add", "feature/same")
+		framework.AssertNoError(t, err)
+		output, err := repo.RunWTP("remove", "feature/same")
+		framework.AssertNoError(t, err)
+		framework.AssertOutputContains(t, output, "Removed worktree")
+
+		output, err = repo.RunWTP("add", "-b", "feature/same")
+		framework.AssertError(t, err)
+		framework.AssertOutputContains(t, output, "already exists")
+		framework.AssertOutputContains(t, output, "wtp add feature/same")
+	})
 }
 
 func TestErrorMessagesValidation(t *testing.T) {
