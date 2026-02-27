@@ -92,6 +92,19 @@ wtp() {
                 command wtp cd "$2"
             fi
         fi
+    elif [[ "$1" == "add" ]]; then
+        if [[ ! -t 1 ]]; then
+            command wtp "$@"
+            return $?
+        fi
+
+        local target_dir
+        target_dir=$(command wtp "$@" --quiet)
+        local status=$?
+        if [[ $status -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        fi
+        return $status
     else
         command wtp "$@"
     fi
@@ -125,6 +138,19 @@ wtp() {
                 command wtp cd "$2"
             fi
         fi
+    elif [[ "$1" == "add" ]]; then
+        if [[ ! -t 1 ]]; then
+            command wtp "$@"
+            return $?
+        fi
+
+        local target_dir
+        target_dir=$(command wtp "$@" --quiet)
+        local status=$?
+        if [[ $status -eq 0 && -n "$target_dir" ]]; then
+            cd "$target_dir"
+        fi
+        return $status
     else
         command wtp "$@"
     fi
@@ -158,6 +184,18 @@ function wtp
                 command wtp cd $argv[2]
             end
         end
+    else if test "$argv[1]" = "add"
+        if not isatty stdout
+            command wtp $argv
+            return $status
+        end
+
+        set -l target_dir (command wtp $argv --quiet)
+        set -l status $status
+        if test $status -eq 0 -a -n "$target_dir"
+            cd "$target_dir"
+        end
+        return $status
     else
         command wtp $argv
     end
