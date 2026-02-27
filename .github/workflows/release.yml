@@ -45,4 +45,34 @@ jobs:
         args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-homebrew-formula:
+    name: Sync Homebrew Formula Template
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Sync wtp.rb template to Homebrew tap
+      run: scripts/sync-homebrew-formula.sh
+      env:
         HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        TAP_REPO: satococoa/homebrew-tap
+        FORMULA_FILE: wtp.rb
+        TARGET_BRANCH: main
+
+  bump-homebrew-formula:
+    name: Bump Homebrew Formula
+    runs-on: ubuntu-latest
+    needs: sync-homebrew-formula
+    if: ${{ !contains(github.ref_name, '-') }}
+    steps:
+    - name: Bump Homebrew formula
+      uses: mislav/bump-homebrew-formula-action@v3
+      with:
+        homebrew-tap: satococoa/homebrew-tap
+        formula-name: wtp
+        formula-path: wtp.rb
+      env:
+        COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
