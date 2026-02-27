@@ -26,9 +26,11 @@ import (
 // NewAddCommand creates the add command definition
 func NewAddCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "add",
-		Usage:     "Create a new worktree",
-		UsageText: "wtp add <existing-branch>\n       wtp add -b <new-branch> [<commit>]\n       wtp add -b <new-branch> --quiet",
+		Name:  "add",
+		Usage: "Create a new worktree",
+		UsageText: "wtp add <existing-branch>\n" +
+			"       wtp add -b <new-branch> [<commit>]\n" +
+			"       wtp add -b <new-branch> --quiet",
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
@@ -78,14 +80,19 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	// Create command executor
 	executor := command.NewRealExecutor()
 
-	return addCommandWithCommandExecutorWithWriters(cmd, stdoutWriter, statusWriter, executor, cfg, mainRepoPath)
+	return addCommandWithCommandExecutor(cmd, stdoutWriter, statusWriter, executor, cfg, mainRepoPath)
 }
 
 // addCommandWithCommandExecutor is the new implementation using CommandExecutor
 func addCommandWithCommandExecutor(
-	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string,
+	cmd *cli.Command,
+	stdoutWriter io.Writer,
+	statusWriter io.Writer,
+	cmdExec command.Executor,
+	cfg *config.Config,
+	mainRepoPath string,
 ) error {
-	return addCommandWithCommandExecutorWithWriters(cmd, w, w, cmdExec, cfg, mainRepoPath)
+	return addCommandWithCommandExecutorWithWriters(cmd, stdoutWriter, statusWriter, cmdExec, cfg, mainRepoPath)
 }
 
 func addCommandWithCommandExecutorWithWriters(
@@ -152,13 +159,13 @@ func addCommandWithCommandExecutorWithWriters(
 	return nil
 }
 
-func resolveAddWriters(cmd *cli.Command) (io.Writer, io.Writer) {
-	stdoutWriter := cmd.Root().Writer
+func resolveAddWriters(cmd *cli.Command) (stdoutWriter, statusWriter io.Writer) {
+	stdoutWriter = cmd.Root().Writer
 	if stdoutWriter == nil {
 		stdoutWriter = os.Stdout
 	}
 
-	statusWriter := stdoutWriter
+	statusWriter = stdoutWriter
 	if cmd.Bool("quiet") {
 		statusWriter = cmd.Root().ErrWriter
 		if statusWriter == nil {

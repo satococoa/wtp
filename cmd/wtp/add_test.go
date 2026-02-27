@@ -374,7 +374,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 				},
 			}
 
-			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -415,7 +415,7 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 			}
 
-			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 			assert.NoError(t, err)
 			assert.Contains(t, buf.String(), tt.expectedOutput)
@@ -548,7 +548,7 @@ func TestAddCommand_ExecutionError(t *testing.T) {
 		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 	}
 
-	err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+	err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 	assert.Error(t, err)
 	assert.Len(t, mockExec.executedCommands, 1)
@@ -570,7 +570,7 @@ func TestAddCommand_ExecFailureKeepsCreationContext(t *testing.T) {
 		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 	}
 
-	err := addCommandWithCommandExecutor(cmd, &buf, exec, cfg, "/test/repo")
+	err := addCommandWithCommandExecutor(cmd, &buf, &buf, exec, cfg, "/test/repo")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "worktree was created")
@@ -611,7 +611,7 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 			}
 
-			err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+			err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 			assert.NoError(t, err)
 			assert.Len(t, mockExec.executedCommands, 1)
@@ -678,7 +678,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		}
 
 		// When: running add command with existing branch (mock mode - skip repo check)
-		err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 		// Then: should create worktree successfully (in mock mode, branch tracking will fail but command should work)
 		// Note: This test will fail with "not in git repository" because resolveBranchTracking calls git.NewRepository
@@ -697,7 +697,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		}
 
 		// When: running add command with -b flag (this should work without git repo)
-		err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 		// Then: should create new branch and worktree
 		assert.NoError(t, err)
@@ -717,7 +717,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		}
 
 		// When: running add command with -b flag and commit
-		err := addCommandWithCommandExecutor(cmd, &buf, mockExec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutor(cmd, &buf, &buf, mockExec, cfg, "/test/repo")
 
 		// Then: should create new branch from commit and worktree
 		assert.NoError(t, err)
