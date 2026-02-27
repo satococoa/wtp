@@ -26,15 +26,18 @@ import (
 // NewAddCommand creates the add command definition
 func NewAddCommand() *cli.Command {
 	return &cli.Command{
-		Name:      "add",
-		Usage:     "Create a new worktree",
-		UsageText: "wtp add <existing-branch>\n       wtp add -b <new-branch> [<commit>]",
+		Name:  "add",
+		Usage: "Create a new worktree",
+		UsageText: "wtp add <existing-branch>\n" +
+			"       wtp add -b <new-branch> [<commit>]\n" +
+			"       wtp add -b <new-branch> --quiet",
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
 			"  wtp add feature/auth                    # Create worktree from existing branch\n" +
 			"  wtp add -b new-feature                  # Create new branch and worktree\n" +
 			"  wtp add -b hotfix/urgent main           # Create new branch from main commit\n" +
+			"  wtp add -b feature/x --quiet            # Output only the created path\n" +
 			"  wtp add -b feature/x --exec \"npm test\" # Execute command in the new worktree",
 		ShellComplete: completeBranches,
 		Flags: []cli.Flag{
@@ -47,19 +50,22 @@ func NewAddCommand() *cli.Command {
 				Name:  "exec",
 				Usage: "Execute command in newly created worktree after hooks",
 			},
+			&cli.BoolFlag{
+				Name:    "quiet",
+				Aliases: []string{"q"},
+				Usage:   "Output only worktree path to stdout",
+			},
 		},
 		Action: addCommand,
 	}
 }
 
 func addCommand(_ context.Context, cmd *cli.Command) error {
-	// Get the writer from cli.Command
-	w := cmd.Root().Writer
-	if w == nil {
-		w = os.Stdout
-	}
-	// Wrap in FlushingWriter to ensure real-time output for all operations
-	fw := wtpio.NewFlushingWriter(w)
+	stdoutWriter, statusWriter := resolveAddWriters(cmd)
+	// Wrap in FlushingWriter to ensure real-time output for all operations.
+	stdoutWriter = wtpio.NewFlushingWriter(stdoutWriter)
+	statusWriter = wtpio.NewFlushingWriter(statusWriter)
+
 	// Validate inputs
 	if err := validateAddInput(cmd); err != nil {
 		return err
@@ -74,12 +80,28 @@ func addCommand(_ context.Context, cmd *cli.Command) error {
 	// Create command executor
 	executor := command.NewRealExecutor()
 
-	return addCommandWithCommandExecutor(cmd, fw, executor, cfg, mainRepoPath)
+	return addCommandWithCommandExecutor(cmd, stdoutWriter, statusWriter, executor, cfg, mainRepoPath)
 }
 
 // addCommandWithCommandExecutor is the new implementation using CommandExecutor
 func addCommandWithCommandExecutor(
-	cmd *cli.Command, w io.Writer, cmdExec command.Executor, cfg *config.Config, mainRepoPath string,
+	cmd *cli.Command,
+	stdoutWriter io.Writer,
+	statusWriter io.Writer,
+	cmdExec command.Executor,
+	cfg *config.Config,
+	mainRepoPath string,
+) error {
+	return addCommandWithCommandExecutorWithWriters(cmd, stdoutWriter, statusWriter, cmdExec, cfg, mainRepoPath)
+}
+
+func addCommandWithCommandExecutorWithWriters(
+	cmd *cli.Command,
+	stdoutWriter io.Writer,
+	statusWriter io.Writer,
+	cmdExec command.Executor,
+	cfg *config.Config,
+	mainRepoPath string,
 ) error {
 	// Resolve worktree path and branch name
 	var firstArg string
@@ -113,21 +135,45 @@ func addCommandWithCommandExecutor(
 		return analyzeGitWorktreeError(workTreePath, branchName, gitError, gitOutput)
 	}
 
-	if err := executePostCreateHooks(w, cfg, mainRepoPath, workTreePath); err != nil {
-		if _, warnErr := fmt.Fprintf(w, "Warning: Hook execution failed: %v\n", err); warnErr != nil {
+	if err := executePostCreateHooks(statusWriter, cfg, mainRepoPath, workTreePath); err != nil {
+		if _, warnErr := fmt.Fprintf(statusWriter, "Warning: Hook execution failed: %v\n", err); warnErr != nil {
 			return warnErr
 		}
 	}
 
-	if err := executePostCreateCommand(w, cmdExec, cmd.String("exec"), workTreePath); err != nil {
+	if err := executePostCreateCommand(statusWriter, cmdExec, cmd.String("exec"), workTreePath); err != nil {
 		return fmt.Errorf("worktree was created at '%s', but --exec command failed: %w", workTreePath, err)
 	}
 
-	if err := displaySuccessMessage(w, branchName, workTreePath, cfg, mainRepoPath); err != nil {
+	if cmd.Bool("quiet") {
+		if _, err := fmt.Fprintln(stdoutWriter, workTreePath); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := displaySuccessMessage(stdoutWriter, branchName, workTreePath, cfg, mainRepoPath); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func resolveAddWriters(cmd *cli.Command) (stdoutWriter, statusWriter io.Writer) {
+	stdoutWriter = cmd.Root().Writer
+	if stdoutWriter == nil {
+		stdoutWriter = os.Stdout
+	}
+
+	statusWriter = stdoutWriter
+	if cmd.Bool("quiet") {
+		statusWriter = cmd.Root().ErrWriter
+		if statusWriter == nil {
+			statusWriter = os.Stderr
+		}
+	}
+
+	return stdoutWriter, statusWriter
 }
 
 // buildWorktreeCommand builds a git worktree command using the new command package
