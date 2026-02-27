@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotNil(t, cmd.ShellComplete)
 
 	// Check simplified flags exist
-	flagNames := []string{"branch", "exec"}
+	flagNames := []string{"branch", "exec", "quiet"}
 	for _, name := range flagNames {
 		found := false
 		for _, flag := range cmd.Flags {
@@ -422,6 +423,96 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 	}
 }
 
+func TestAddCommand_QuietModeOutput(t *testing.T) {
+	t.Run("success should print only path to stdout", func(t *testing.T) {
+		cmd := createTestCLICommand(map[string]any{
+			"branch": "feature/quiet",
+			"quiet":  true,
+		}, []string{})
+		mockExec := &mockCommandExecutor{}
+		cfg := &config.Config{
+			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+		}
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, "/test/repo")
+
+		require.NoError(t, err)
+		assert.Equal(t, "/test/worktrees/feature/quiet", strings.TrimSpace(stdout.String()))
+		assert.Empty(t, stderr.String())
+	})
+
+	t.Run("hook failure should keep path on stdout and warnings on stderr", func(t *testing.T) {
+		cmd := createTestCLICommand(map[string]any{
+			"branch": "feature/hook-fail",
+			"quiet":  true,
+		}, []string{})
+		mockExec := &mockCommandExecutor{}
+		cfg := &config.Config{
+			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Hooks: config.Hooks{
+				PostCreate: []config.Hook{
+					{Type: "command", Command: "nonexistent-command-xyz test"},
+				},
+			},
+		}
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, "/test/repo")
+
+		require.NoError(t, err)
+		assert.Equal(t, "/test/worktrees/feature/hook-fail", strings.TrimSpace(stdout.String()))
+		assert.Contains(t, stderr.String(), "Warning: Hook execution failed")
+	})
+
+	t.Run("exec output should go to stderr and path to stdout", func(t *testing.T) {
+		cmd := createTestCLICommand(map[string]any{
+			"branch": "feature/exec",
+			"quiet":  true,
+			"exec":   "echo hi",
+		}, []string{})
+		exec := &sequencedCommandExecutor{
+			results: []command.Result{
+				{Output: "worktree created"},
+				{Output: "exec output"},
+			},
+		}
+		cfg := &config.Config{
+			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+		}
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, exec, cfg, "/test/repo")
+
+		require.NoError(t, err)
+		assert.Equal(t, "/test/worktrees/feature/exec", strings.TrimSpace(stdout.String()))
+		assert.Contains(t, stderr.String(), "Executing --exec command: echo hi")
+		assert.Contains(t, stderr.String(), "exec output")
+		assert.Contains(t, stderr.String(), "✓ --exec command completed")
+	})
+
+	t.Run("worktree creation failure should not print path", func(t *testing.T) {
+		cmd := createTestCLICommand(map[string]any{
+			"branch": "feature/fail",
+			"quiet":  true,
+		}, []string{})
+		mockExec := &mockCommandExecutor{shouldFail: true}
+		cfg := &config.Config{
+			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+		}
+
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, "/test/repo")
+
+		require.Error(t, err)
+		assert.Empty(t, stdout.String())
+	})
+}
+
 // ===== Error Handling Tests =====
 
 func TestAddCommand_ValidationErrors(t *testing.T) {
@@ -544,6 +635,7 @@ func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
 					&cli.StringFlag{Name: "branch"},
 					&cli.StringFlag{Name: "track"},
 					&cli.StringFlag{Name: "exec"},
+					&cli.BoolFlag{Name: "quiet"},
 					&cli.BoolFlag{Name: "cd"},
 					&cli.BoolFlag{Name: "no-cd"},
 				},

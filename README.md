@@ -151,6 +151,9 @@ wtp add -b hotfix/urgent abc1234
 # → Useful for bootstrap steps (supports interactive commands when TTY is available)
 wtp add -b feature/new-feature --exec "npm test"
 
+# Script-friendly output: print only the created absolute path
+wtp add -b feature/new-feature --quiet
+
 # Create new branch tracking a different remote branch
 # → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
 wtp add -b feature/test origin/main

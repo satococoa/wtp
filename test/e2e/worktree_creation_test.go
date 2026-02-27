@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/satococoa/wtp/v2/test/e2e/framework"
@@ -64,6 +66,35 @@ func TestUserCreatesWorktree_WithNewBranchFlag_ShouldCreateBranchAndWorktree(t *
 
 	// And: Worktree directory should exist
 	framework.AssertWorktreeExists(t, repo, "feature/payment")
+}
+
+func TestUserCreatesWorktree_WithQuietFlag_ShouldOutputPathOnly(t *testing.T) {
+	env := framework.NewTestEnvironment(t)
+	defer env.Cleanup()
+
+	repo := env.CreateTestRepo("user-creates-quiet-worktree")
+
+	output, err := repo.RunWTP("add", "--branch", "feature/quiet", "--quiet")
+
+	framework.AssertNoError(t, err)
+
+	actualPath := strings.TrimSpace(output)
+	expectedPath := filepath.Join(repo.Path(), "..", "worktrees", "feature", "quiet")
+
+	resolvedExpected := expectedPath
+	if path, resolveErr := filepath.EvalSymlinks(expectedPath); resolveErr == nil {
+		resolvedExpected = path
+	}
+
+	resolvedActual := actualPath
+	if path, resolveErr := filepath.EvalSymlinks(actualPath); resolveErr == nil {
+		resolvedActual = path
+	}
+
+	framework.AssertEqual(t, filepath.Clean(resolvedExpected), filepath.Clean(resolvedActual))
+	framework.AssertWorktreeExists(t, repo, resolvedActual)
+	framework.AssertFalse(t, strings.Contains(output, "✅ Worktree created successfully!"),
+		"quiet mode should not include human-friendly success text")
 }
 
 // TestUserCreatesWorktree_WithCustomPath_ShouldCreateAtSpecifiedLocation tests
