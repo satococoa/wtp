@@ -141,7 +141,13 @@ func addCommandWithCommandExecutorWithWriters(
 		}
 	}
 
-	if err := executePostCreateCommand(statusWriter, cmdExec, cmd.String("exec"), workTreePath); err != nil {
+	if err := executePostCreateCommand(
+		statusWriter,
+		cmdExec,
+		cmd.String("exec"),
+		workTreePath,
+		!cmd.Bool("quiet"),
+	); err != nil {
 		return fmt.Errorf("worktree was created at '%s', but --exec command failed: %w", workTreePath, err)
 	}
 
@@ -406,7 +412,13 @@ func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreeP
 	return nil
 }
 
-func executePostCreateCommand(w io.Writer, cmdExec command.Executor, execCommand, workTreePath string) error {
+func executePostCreateCommand(
+	w io.Writer,
+	cmdExec command.Executor,
+	execCommand string,
+	workTreePath string,
+	interactive bool,
+) error {
 	if strings.TrimSpace(execCommand) == "" {
 		return nil
 	}
@@ -417,7 +429,7 @@ func executePostCreateCommand(w io.Writer, cmdExec command.Executor, execCommand
 
 	commandToRun := command.Command{
 		WorkDir:     workTreePath,
-		Interactive: true,
+		Interactive: interactive,
 	}
 	if runtime.GOOS == "windows" {
 		commandToRun.Name = "cmd"

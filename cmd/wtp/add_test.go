@@ -492,6 +492,8 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 		assert.Contains(t, stderr.String(), "Executing --exec command: echo hi")
 		assert.Contains(t, stderr.String(), "exec output")
 		assert.Contains(t, stderr.String(), "✓ --exec command completed")
+		require.Len(t, exec.executedCommands, 2)
+		assert.False(t, exec.executedCommands[1].Interactive)
 	})
 
 	t.Run("worktree creation failure should not print path", func(t *testing.T) {
@@ -865,7 +867,7 @@ func TestExecutePostCreateCommand(t *testing.T) {
 		var buf bytes.Buffer
 		mockExec := &mockCommandExecutor{}
 
-		err := executePostCreateCommand(&buf, mockExec, "", "/test/worktree")
+		err := executePostCreateCommand(&buf, mockExec, "", "/test/worktree", true)
 		require.NoError(t, err)
 		assert.Empty(t, buf.String())
 		assert.Empty(t, mockExec.executedCommands)
@@ -875,7 +877,7 @@ func TestExecutePostCreateCommand(t *testing.T) {
 		var buf bytes.Buffer
 		mockExec := &mockCommandExecutor{}
 
-		err := executePostCreateCommand(&buf, mockExec, "echo hello", "/test/worktree")
+		err := executePostCreateCommand(&buf, mockExec, "echo hello", "/test/worktree", true)
 		require.NoError(t, err)
 		require.Len(t, mockExec.executedCommands, 1)
 		assert.Equal(t, "/test/worktree", mockExec.executedCommands[0].WorkDir)
@@ -888,6 +890,16 @@ func TestExecutePostCreateCommand(t *testing.T) {
 			assert.Equal(t, "sh", mockExec.executedCommands[0].Name)
 			assert.Equal(t, []string{"-c", "echo hello"}, mockExec.executedCommands[0].Args)
 		}
+	})
+
+	t.Run("should execute command as non-interactive when requested", func(t *testing.T) {
+		var buf bytes.Buffer
+		mockExec := &mockCommandExecutor{}
+
+		err := executePostCreateCommand(&buf, mockExec, "echo hello", "/test/worktree", false)
+		require.NoError(t, err)
+		require.Len(t, mockExec.executedCommands, 1)
+		assert.False(t, mockExec.executedCommands[0].Interactive)
 	})
 }
 
