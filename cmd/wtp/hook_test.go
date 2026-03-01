@@ -206,8 +206,9 @@ func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
 				"if [[ \"$arg\" == \"--help\" || \"$arg\" == \"-h\" ]]; then",
 				"if [[ ! -t 1 ]]; then",
 				"target_dir=$(command wtp \"$@\" --quiet)",
+				"local wtp_status=$?",
 				"cd \"$target_dir\" || return $?",
-				"return $status",
+				"return $wtp_status",
 			},
 		},
 		{
@@ -218,8 +219,9 @@ func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
 				"if [[ \"$arg\" == \"--help\" || \"$arg\" == \"-h\" ]]; then",
 				"if [[ ! -t 1 ]]; then",
 				"target_dir=$(command wtp \"$@\" --quiet)",
+				"local wtp_status=$?",
 				"cd \"$target_dir\" || return $?",
-				"return $status",
+				"return $wtp_status",
 			},
 		},
 		{
@@ -227,12 +229,13 @@ func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
 			shell: "fish",
 			contains: []string{
 				"else if test \"$argv[1]\" = \"add\"",
-				"if test \"$arg\" = \"--help\" -o \"$arg\" = \"-h\"",
+				"if test \"$arg\" = \"--help\"; or test \"$arg\" = \"-h\"",
 				"if not isatty stdout",
 				"set -l target_dir (command wtp $argv --quiet)",
+				"set -l wtp_status $status",
 				"cd \"$target_dir\"",
 				"or return $status",
-				"return $status",
+				"return $wtp_status",
 			},
 		},
 	}

@@ -107,11 +107,11 @@ wtp() {
 
         local target_dir
         target_dir=$(command wtp "$@" --quiet)
-        local status=$?
-        if [[ $status -eq 0 && -n "$target_dir" ]]; then
+        local wtp_status=$?
+        if [[ $wtp_status -eq 0 && -n "$target_dir" ]]; then
             cd "$target_dir" || return $?
         fi
-        return $status
+        return $wtp_status
     else
         command wtp "$@"
     fi
@@ -160,11 +160,11 @@ wtp() {
 
         local target_dir
         target_dir=$(command wtp "$@" --quiet)
-        local status=$?
-        if [[ $status -eq 0 && -n "$target_dir" ]]; then
+        local wtp_status=$?
+        if [[ $wtp_status -eq 0 && -n "$target_dir" ]]; then
             cd "$target_dir" || return $?
         fi
-        return $status
+        return $wtp_status
     else
         command wtp "$@"
     fi
@@ -200,7 +200,7 @@ function wtp
         end
     else if test "$argv[1]" = "add"
         for arg in $argv
-            if test "$arg" = "--help" -o "$arg" = "-h"
+            if test "$arg" = "--help"; or test "$arg" = "-h"
                 command wtp $argv
                 return $status
             end
@@ -212,12 +212,12 @@ function wtp
         end
 
         set -l target_dir (command wtp $argv --quiet)
-        set -l status $status
-        if test $status -eq 0 -a -n "$target_dir"
+        set -l wtp_status $status
+        if test $wtp_status -eq 0 -a -n "$target_dir"
             cd "$target_dir"
             or return $status
         end
-        return $status
+        return $wtp_status
     else
         command wtp $argv
     end
