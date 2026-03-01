@@ -109,7 +109,7 @@ wtp() {
         target_dir=$(command wtp "$@" --quiet)
         local status=$?
         if [[ $status -eq 0 && -n "$target_dir" ]]; then
-            cd "$target_dir"
+            cd "$target_dir" || return $?
         fi
         return $status
     else
@@ -162,7 +162,7 @@ wtp() {
         target_dir=$(command wtp "$@" --quiet)
         local status=$?
         if [[ $status -eq 0 && -n "$target_dir" ]]; then
-            cd "$target_dir"
+            cd "$target_dir" || return $?
         fi
         return $status
     else
@@ -215,6 +215,7 @@ function wtp
         set -l status $status
         if test $status -eq 0 -a -n "$target_dir"
             cd "$target_dir"
+            or return $status
         end
         return $status
     else
