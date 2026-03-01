@@ -93,6 +93,13 @@ wtp() {
             fi
         fi
     elif [[ "$1" == "add" ]]; then
+        for arg in "$@"; do
+            if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
+                command wtp "$@"
+                return $?
+            fi
+        done
+
         if [[ ! -t 1 ]]; then
             command wtp "$@"
             return $?
@@ -139,6 +146,13 @@ wtp() {
             fi
         fi
     elif [[ "$1" == "add" ]]; then
+        for arg in "$@"; do
+            if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
+                command wtp "$@"
+                return $?
+            fi
+        done
+
         if [[ ! -t 1 ]]; then
             command wtp "$@"
             return $?
@@ -185,6 +199,13 @@ function wtp
             end
         end
     else if test "$argv[1]" = "add"
+        for arg in $argv
+            if test "$arg" = "--help" -o "$arg" = "-h"
+                command wtp $argv
+                return $status
+            end
+        end
+
         if not isatty stdout
             command wtp $argv
             return $status

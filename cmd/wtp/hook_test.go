@@ -203,6 +203,7 @@ func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
 			shell: "bash",
 			contains: []string{
 				"elif [[ \"$1\" == \"add\" ]]",
+				"if [[ \"$arg\" == \"--help\" || \"$arg\" == \"-h\" ]]; then",
 				"if [[ ! -t 1 ]]; then",
 				"target_dir=$(command wtp \"$@\" --quiet)",
 				"cd \"$target_dir\"",
@@ -214,6 +215,7 @@ func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
 			shell: "zsh",
 			contains: []string{
 				"elif [[ \"$1\" == \"add\" ]]",
+				"if [[ \"$arg\" == \"--help\" || \"$arg\" == \"-h\" ]]; then",
 				"if [[ ! -t 1 ]]; then",
 				"target_dir=$(command wtp \"$@\" --quiet)",
 				"cd \"$target_dir\"",
@@ -225,6 +227,7 @@ func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
 			shell: "fish",
 			contains: []string{
 				"else if test \"$argv[1]\" = \"add\"",
+				"if test \"$arg\" = \"--help\" -o \"$arg\" = \"-h\"",
 				"if not isatty stdout",
 				"set -l target_dir (command wtp $argv --quiet)",
 				"cd \"$target_dir\"",
