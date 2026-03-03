@@ -151,6 +151,9 @@ wtp add -b hotfix/urgent abc1234
 # → Useful for bootstrap steps (supports interactive commands when TTY is available)
 wtp add -b feature/new-feature --exec "npm test"
 
+# Script-friendly output: print only the created absolute path
+wtp add -b feature/new-feature --quiet
+
 # Create new branch tracking a different remote branch
 # → Creates worktree at ../worktrees/feature/test with branch tracking origin/main
 wtp add -b feature/test origin/main
@@ -292,8 +295,9 @@ hooks:
 
 No manual setup required. Homebrew installs a tiny bootstrapper that runs
 `wtp shell-init <shell>` the first time you press `TAB` after typing `wtp`. That
-lazy call gives you both tab completion and the `wtp cd` integration for the
-rest of the session—no rc edits needed.
+lazy call gives you tab completion plus shell navigation hooks (`wtp cd` and
+interactive `wtp add` auto-switch) for the rest of the session—no rc edits
+needed.
 
 Need to refresh inside an existing shell? Just run `wtp shell-init <shell>`
 yourself.
@@ -360,13 +364,19 @@ wtp cd @
 
 # Tab completion works!
 wtp cd <TAB>
+
+# Create a worktree and switch to it automatically (interactive shell only)
+wtp add -b feature/payment
 ```
+
+When stdout is not a TTY (for example command substitution or pipes), `wtp add`
+keeps standard CLI behavior and does not auto-switch directories.
 
 #### Complete Setup (Lazy Loading for Homebrew Users)
 
 Homebrew ships a lightweight bootstrapper. Press `TAB` after typing `wtp` and it
 evaluates `wtp shell-init <shell>` once for your session—tab completion and
-`wtp cd` just work.
+shell navigation hooks (`wtp cd`, interactive `wtp add`) just work.
 
 ## Worktree Structure
 

@@ -191,3 +191,72 @@ func TestHookScripts_HandleEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestHookScripts_AutoCdAfterAdd(t *testing.T) {
+	tests := []struct {
+		name     string
+		shell    string
+		contains []string
+	}{
+		{
+			name:  "bash auto cd after add uses quiet and tty guard",
+			shell: "bash",
+			contains: []string{
+				"elif [[ \"$1\" == \"add\" ]]",
+				"if [[ \"$arg\" == \"--help\" || \"$arg\" == \"-h\" ]]; then",
+				"if [[ ! -t 1 ]]; then",
+				"target_dir=$(command wtp \"$@\" --quiet)",
+				"local wtp_status=$?",
+				"cd \"$target_dir\" || return $?",
+				"return $wtp_status",
+			},
+		},
+		{
+			name:  "zsh auto cd after add uses quiet and tty guard",
+			shell: "zsh",
+			contains: []string{
+				"elif [[ \"$1\" == \"add\" ]]",
+				"if [[ \"$arg\" == \"--help\" || \"$arg\" == \"-h\" ]]; then",
+				"if [[ ! -t 1 ]]; then",
+				"target_dir=$(command wtp \"$@\" --quiet)",
+				"local wtp_status=$?",
+				"cd \"$target_dir\" || return $?",
+				"return $wtp_status",
+			},
+		},
+		{
+			name:  "fish auto cd after add uses quiet and tty guard",
+			shell: "fish",
+			contains: []string{
+				"else if test \"$argv[1]\" = \"add\"",
+				"if test \"$arg\" = \"--help\"; or test \"$arg\" = \"-h\"",
+				"if not isatty stdout",
+				"set -l target_dir (command wtp $argv --quiet)",
+				"set -l wtp_status $status",
+				"cd \"$target_dir\"",
+				"or return $status",
+				"return $wtp_status",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+
+			switch tt.shell {
+			case "bash":
+				require.NoError(t, printBashHook(&buf))
+			case "zsh":
+				require.NoError(t, printZshHook(&buf))
+			case "fish":
+				require.NoError(t, printFishHook(&buf))
+			}
+
+			output := buf.String()
+			for _, expected := range tt.contains {
+				assert.Contains(t, output, expected)
+			}
+		})
+	}
+}
