@@ -37,8 +37,9 @@ func NewShellInitCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "shell-init",
 		Usage: "Initialize shell with completion and cd functionality",
-		Description: "Generate shell initialization script that sets up both tab completion and cd functionality. " +
+		Description: "Generate shell initialization script that sets up tab completion and shell navigation hooks. " +
 			"This is a convenience command that combines 'wtp completion' and 'wtp hook'.\n\n" +
+			"With shell integration enabled, both 'wtp cd' and successful 'wtp add' can switch directories automatically.\n\n" +
 			"To enable full shell integration, add the following to your shell config:\n" +
 			"  Bash (~/.bashrc):         eval \"$(wtp shell-init bash)\"\n" +
 			"  Zsh (~/.zshrc):           eval \"$(wtp shell-init zsh)\"\n" +
@@ -47,19 +48,19 @@ func NewShellInitCommand() *cli.Command {
 			{
 				Name:        "bash",
 				Usage:       "Generate bash initialization script",
-				Description: "Generate bash initialization script with completion and cd functionality",
+				Description: "Generate bash initialization script with completion and navigation hooks",
 				Action:      shellInitBash,
 			},
 			{
 				Name:        "zsh",
 				Usage:       "Generate zsh initialization script",
-				Description: "Generate zsh initialization script with completion and cd functionality",
+				Description: "Generate zsh initialization script with completion and navigation hooks",
 				Action:      shellInitZsh,
 			},
 			{
 				Name:        "fish",
 				Usage:       "Generate fish initialization script",
-				Description: "Generate fish initialization script with completion and cd functionality",
+				Description: "Generate fish initialization script with completion and navigation hooks",
 				Action:      shellInitFish,
 			},
 		},
