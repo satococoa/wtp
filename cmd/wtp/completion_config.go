@@ -9,7 +9,12 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-const completionFlag = "--generate-shell-completion"
+const (
+	completionFlag = "--generate-shell-completion"
+	shellFish      = "fish"
+	shellBash      = "bash"
+	shellZsh       = "zsh"
+)
 
 func configureCompletionCommand(cmd *cli.Command) {
 	originalAction := cmd.Action
@@ -50,11 +55,11 @@ func configureCompletionCommand(cmd *cli.Command) {
 
 func patchCompletionScript(shell, script string) string {
 	switch shell {
-	case "fish":
+	case shellFish:
 		return buildFishCompletionScript()
-	case "bash":
+	case shellBash:
 		return patchBashCompletionScript(script)
-	case "zsh":
+	case shellZsh:
 		return patchZshCompletionScript(script)
 	default:
 		return script
