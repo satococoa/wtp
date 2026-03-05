@@ -21,6 +21,8 @@ tap_dir="${tmpdir}/tap"
 formula_path="${tap_dir}/${FORMULA_FILE}"
 
 git clone --depth=1 "https://x-access-token:${TOKEN}@github.com/${TAP_REPO}.git" "${tap_dir}"
+git -C "${tap_dir}" fetch --depth=1 origin "${TARGET_BRANCH}"
+git -C "${tap_dir}" checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}"
 
 if [[ ! -f "${formula_path}" ]]; then
   echo "formula not found in tap: ${FORMULA_FILE}" >&2

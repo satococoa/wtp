@@ -50,6 +50,7 @@ jobs:
     name: Sync Homebrew Formula Template
     runs-on: ubuntu-latest
     needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4

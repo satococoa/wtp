@@ -20,22 +20,37 @@ Examples:
 EOF
 }
 
+require_option_value() {
+  local option="$1"
+  local value="${2:-}"
+
+  if [[ -z "${value}" || "${value}" == --* ]]; then
+    echo "missing value for ${option}" >&2
+    usage >&2
+    exit 1
+  fi
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --version)
-      VERSION="${2:-}"
+      require_option_value "$1" "${2:-}"
+      VERSION="$2"
       shift 2
       ;;
     --sha256)
-      SHA256="${2:-}"
+      require_option_value "$1" "${2:-}"
+      SHA256="$2"
       shift 2
       ;;
     --template)
-      TEMPLATE_PATH="${2:-}"
+      require_option_value "$1" "${2:-}"
+      TEMPLATE_PATH="$2"
       shift 2
       ;;
     --output)
-      OUTPUT_PATH="${2:-}"
+      require_option_value "$1" "${2:-}"
+      OUTPUT_PATH="$2"
       shift 2
       ;;
     -h|--help)
