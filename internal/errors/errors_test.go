@@ -76,6 +76,7 @@ func TestBranchNameRequired(t *testing.T) {
 	assert.Contains(t, err.Error(), "branch name is required")
 	assert.Contains(t, err.Error(), commandExample)
 	assert.Contains(t, err.Error(), "wtp add feature/auth")
+	assert.Contains(t, err.Error(), "wtp add -b new-feature --quiet")
 	assert.Contains(t, err.Error(), "Examples:")
 }
 
@@ -159,7 +160,8 @@ func TestWorktreeCreationFailed(t *testing.T) {
 			expected: []string{
 				"failed to create worktree at '/path/to/worktree' for branch 'feature/auth'",
 				"already checked out",
-				"--force",
+				"Choose a different branch",
+				"Remove the existing worktree first",
 				"Original error:",
 			},
 		},
@@ -396,7 +398,9 @@ func TestMultipleBranchesFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "branch 'feature' exists in multiple remotes")
 	assert.Contains(t, err.Error(), "origin")
 	assert.Contains(t, err.Error(), "upstream")
-	assert.Contains(t, err.Error(), "Specify the remote explicitly")
+	assert.Contains(t, err.Error(), "Create a local branch that tracks the remote you want")
+	assert.Contains(t, err.Error(), "git switch --track origin/feature")
+	assert.Contains(t, err.Error(), "wtp add feature")
 }
 
 func TestHookExecutionFailed(t *testing.T) {

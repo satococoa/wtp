@@ -23,14 +23,15 @@ import (
 	wtpio "github.com/satococoa/wtp/v2/internal/io"
 )
 
+const addUsageText = "wtp add <existing-branch> [--quiet]\n" +
+	"       wtp add -b <new-branch> [<commit>] [--quiet]"
+
 // NewAddCommand creates the add command definition
 func NewAddCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "add",
-		Usage: "Create a new worktree",
-		UsageText: "wtp add <existing-branch>\n" +
-			"       wtp add -b <new-branch> [<commit>]\n" +
-			"       wtp add -b <new-branch> --quiet",
+		Name:      "add",
+		Usage:     "Create a new worktree",
+		UsageText: addUsageText,
 		Description: "Creates a new worktree for the specified branch. If the branch doesn't exist locally " +
 			"but exists on a remote, it will be automatically tracked.\n\n" +
 			"Examples:\n" +
@@ -190,7 +191,6 @@ func buildWorktreeCommand(
 		Branch: cmd.String("branch"),
 	}
 
-	// Use resolved track if provided
 	if resolvedTrack != "" {
 		opts.Track = resolvedTrack
 	}
@@ -199,11 +199,11 @@ func buildWorktreeCommand(
 
 	// Handle different argument patterns based on flags
 	if resolvedTrack != "" {
-		// When using resolved tracking, the commitish is the remote branch
+		// When tracking, the commitish is the remote branch reference.
 		commitish = resolvedTrack
 		// If there's an argument, it's the local branch name (not used as commitish)
 		if cmd.Args().Len() > 0 && opts.Branch == "" {
-			// The first argument is the branch name when using resolved tracking without -b
+			// The first argument is the local branch name when using tracking without -b.
 			opts.Branch = cmd.Args().Get(0)
 		}
 	} else if cmd.Args().Len() > 0 {
@@ -333,7 +333,6 @@ func (e *WorktreeAlreadyExistsError) Error() string {
 The branch '%s' is already checked out in another worktree.
 
 Solutions:
-  • Use '--force' flag to allow multiple checkouts
   • Choose a different branch
   • Remove the existing worktree first
 
@@ -371,7 +370,6 @@ func (e *PathAlreadyExistsError) Error() string {
 The target directory already exists and is not empty.
 
 Solutions:
-  • Use --force flag to overwrite existing directory
   • Remove the existing directory
   • Use a different branch name
 
@@ -387,11 +385,11 @@ type MultipleBranchesError struct {
 func (e *MultipleBranchesError) Error() string {
 	return fmt.Sprintf(`branch '%s' exists in multiple remotes
 
-Use the --track flag to specify which remote to use:
-  • wtp add --track origin/%s %s
-  • wtp add --track upstream/%s %s
+Please create a local branch first, then run wtp add again:
+  • git switch --track origin/%s
+  • wtp add %s
 
-Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.BranchName, e.GitError)
+Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.GitError)
 }
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
@@ -467,7 +465,7 @@ func executePostCreateCommand(
 
 func validateAddInput(cmd *cli.Command) error {
 	if cmd.Args().Len() == 0 && cmd.String("branch") == "" {
-		return errors.BranchNameRequired("wtp add <existing-branch> | -b <new-branch> [<commit>]")
+		return errors.BranchNameRequired(addUsageText)
 	}
 
 	return nil

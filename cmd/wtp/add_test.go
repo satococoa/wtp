@@ -23,11 +23,12 @@ func TestNewAddCommand(t *testing.T) {
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "add", cmd.Name)
 	assert.Equal(t, "Create a new worktree", cmd.Usage)
+	assert.Equal(t, addUsageText, cmd.UsageText)
 	assert.NotEmpty(t, cmd.Description)
 	assert.NotNil(t, cmd.Action)
 	assert.NotNil(t, cmd.ShellComplete)
 
-	// Check simplified flags exist
+	// Check supported flags exist
 	flagNames := []string{"branch", "exec", "quiet"}
 	for _, name := range flagNames {
 		found := false
@@ -59,7 +60,6 @@ func TestWorkTreeAlreadyExistsError(t *testing.T) {
 		// Then: should contain branch name, solutions, and original error
 		assert.Contains(t, message, "feature/awesome")
 		assert.Contains(t, message, "already checked out in another worktree")
-		assert.Contains(t, message, "--force")
 		assert.Contains(t, message, "Choose a different branch")
 		assert.Contains(t, message, "Remove the existing worktree")
 		assert.Contains(t, message, "branch already checked out")
@@ -133,7 +133,6 @@ func TestPathAlreadyExistsError(t *testing.T) {
 		// Then: should contain path, solutions, and original error
 		assert.Contains(t, message, "/existing/path")
 		assert.Contains(t, message, "already exists and is not empty")
-		assert.Contains(t, message, "--force flag")
 		assert.Contains(t, message, "Remove the existing directory")
 		assert.Contains(t, message, "directory not empty")
 	})
@@ -155,7 +154,7 @@ func TestPathAlreadyExistsError(t *testing.T) {
 }
 
 func TestMultipleBranchesError(t *testing.T) {
-	t.Run("should format error message with branch name and track suggestions", func(t *testing.T) {
+	t.Run("should format error message with branch name and manual resolution guidance", func(t *testing.T) {
 		// Given: a MultipleBranchesError with branch name
 		originalErr := &MockGitError{msg: "multiple remotes found"}
 		err := &MultipleBranchesError{
@@ -166,11 +165,11 @@ func TestMultipleBranchesError(t *testing.T) {
 		// When: getting error message
 		message := err.Error()
 
-		// Then: should contain branch name, track suggestions, and original error
+		// Then: should contain branch name, guidance, and original error
 		assert.Contains(t, message, "feature/shared")
 		assert.Contains(t, message, "exists in multiple remotes")
-		assert.Contains(t, message, "--track origin/feature/shared")
-		assert.Contains(t, message, "--track upstream/feature/shared")
+		assert.Contains(t, message, "git switch --track origin/feature/shared")
+		assert.Contains(t, message, "wtp add feature/shared")
 		assert.Contains(t, message, "multiple remotes found")
 	})
 
@@ -186,8 +185,8 @@ func TestMultipleBranchesError(t *testing.T) {
 
 		// Then: should properly format all instances of branch name
 		assert.Contains(t, message, "feature/fix-bugs-#123")
-		assert.Contains(t, message, "--track origin/feature/fix-bugs-#123")
-		assert.Contains(t, message, "--track upstream/feature/fix-bugs-#123")
+		assert.Contains(t, message, "git switch --track origin/feature/fix-bugs-#123")
+		assert.Contains(t, message, "wtp add feature/fix-bugs-#123")
 	})
 }
 
@@ -276,6 +275,7 @@ func TestValidateAddInput(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "branch name is required")
+				assert.Contains(t, err.Error(), addUsageText)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -632,10 +632,8 @@ func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
 			{
 				Name: "add",
 				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "force"},
 					&cli.BoolFlag{Name: "detach"},
 					&cli.StringFlag{Name: "branch"},
-					&cli.StringFlag{Name: "track"},
 					&cli.StringFlag{Name: "exec"},
 					&cli.BoolFlag{Name: "quiet"},
 					&cli.BoolFlag{Name: "cd"},
@@ -772,10 +770,8 @@ func TestAddCommand_Integration(t *testing.T) {
 					Name: "add",
 					Flags: []cli.Flag{
 						&cli.StringFlag{Name: "path"},
-						&cli.BoolFlag{Name: "force"},
 						&cli.BoolFlag{Name: "detach"},
 						&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
-						&cli.StringFlag{Name: "track", Aliases: []string{"t"}},
 						&cli.StringFlag{Name: "exec"},
 						&cli.BoolFlag{Name: "cd"},
 						&cli.BoolFlag{Name: "no-cd"},
@@ -803,10 +799,8 @@ func TestAddCommand_Integration(t *testing.T) {
 					Name: "add",
 					Flags: []cli.Flag{
 						&cli.StringFlag{Name: "path"},
-						&cli.BoolFlag{Name: "force"},
 						&cli.BoolFlag{Name: "detach"},
 						&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
-						&cli.StringFlag{Name: "track", Aliases: []string{"t"}},
 						&cli.StringFlag{Name: "exec"},
 						&cli.BoolFlag{Name: "cd"},
 						&cli.BoolFlag{Name: "no-cd"},

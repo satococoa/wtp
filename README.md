@@ -166,11 +166,12 @@ wtp add feature/remote-only
 
 # If branch exists in multiple remotes, shows helpful error:
 # Error: branch 'feature/shared' exists in multiple remotes: origin, upstream
-# Please specify the remote explicitly (e.g., --track origin/feature/shared)
+# Create a local branch for the remote you want, then run wtp add again
 wtp add feature/shared
 
-# Explicitly specify which remote to track
-wtp add -b feature/shared upstream/feature/shared
+# Example manual disambiguation:
+git switch --track upstream/feature/shared
+wtp add feature/shared
 ```
 
 ### Management Commands

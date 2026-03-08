@@ -43,7 +43,7 @@ Usage: %s
 Examples:
   • wtp add feature/auth
   • wtp add -b new-feature
-  • wtp add --track origin/main main`, commandExample)
+  • wtp add -b new-feature --quiet`, commandExample)
 	return errors.New(msg)
 }
 
@@ -102,7 +102,9 @@ func WorktreeCreationFailed(path, branch string, gitError error) error {
 		msg += `
 
 Cause: Branch is already checked out in another worktree
-Solution: Use '--force' flag to allow multiple checkouts, or choose a different branch`
+Solutions:
+  • Choose a different branch
+  • Remove the existing worktree first`
 	} else if strings.Contains(gitErrorStr, "not a valid object name") {
 		msg += `
 
@@ -300,17 +302,14 @@ Suggestions:
 	return errors.New(msg)
 }
 
-// MultipleBranchesFound reports that a branch name matches multiple remotes and needs a track specifier.
+// MultipleBranchesFound reports that a branch name matches multiple remotes and needs manual disambiguation.
 func MultipleBranchesFound(branchName string, remotes []string) error {
 	msg := fmt.Sprintf("branch '%s' exists in multiple remotes: %s", branchName, strings.Join(remotes, ", "))
 	msg += fmt.Sprintf(`
 
-Solution: Specify the remote explicitly:
-  • wtp add --track %s/%s %s`, remotes[0], branchName, branchName)
-
-	if len(remotes) > 1 {
-		msg += fmt.Sprintf("\n  • wtp add --track %s/%s %s", remotes[1], branchName, branchName)
-	}
+Solution: Create a local branch that tracks the remote you want, then run wtp add again:
+  • git switch --track %s/%s
+  • wtp add %s`, remotes[0], branchName, branchName)
 
 	return errors.New(msg)
 }
