@@ -2,12 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli/v3"
 
 	"github.com/satococoa/wtp/v2/internal/config"
 )
@@ -65,4 +67,41 @@ func RunNameFromPathTests(
 		name := fn("/completely/different/path", cfg, "/path/to/repo", false)
 		assert.Equal(t, "../../../../completely/different/path", name)
 	})
+}
+
+func createTestSubcommand(
+	commandName string,
+	flags []cli.Flag,
+	flagValues map[string]any,
+	args []string,
+) *cli.Command {
+	app := &cli.Command{
+		Name: "test",
+		Commands: []*cli.Command{
+			{
+				Name:  commandName,
+				Flags: flags,
+				Action: func(_ context.Context, _ *cli.Command) error {
+					return nil
+				},
+			},
+		},
+	}
+
+	cmdArgs := []string{"test", commandName}
+	for key, value := range flagValues {
+		switch v := value.(type) {
+		case bool:
+			if v {
+				cmdArgs = append(cmdArgs, "--"+key)
+			}
+		case string:
+			cmdArgs = append(cmdArgs, "--"+key, v)
+		}
+	}
+	cmdArgs = append(cmdArgs, args...)
+
+	_ = app.Run(context.Background(), cmdArgs)
+
+	return app.Commands[0]
 }

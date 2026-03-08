@@ -153,43 +153,6 @@ func TestPathAlreadyExistsError(t *testing.T) {
 	})
 }
 
-func TestMultipleBranchesError(t *testing.T) {
-	t.Run("should format error message with branch name and manual resolution guidance", func(t *testing.T) {
-		// Given: a MultipleBranchesError with branch name
-		originalErr := &MockGitError{msg: "multiple remotes found"}
-		err := &MultipleBranchesError{
-			BranchName: "feature/shared",
-			GitError:   originalErr,
-		}
-
-		// When: getting error message
-		message := err.Error()
-
-		// Then: should contain branch name, guidance, and original error
-		assert.Contains(t, message, "feature/shared")
-		assert.Contains(t, message, "exists in multiple remotes")
-		assert.Contains(t, message, "git switch --track origin/feature/shared")
-		assert.Contains(t, message, "wtp add feature/shared")
-		assert.Contains(t, message, "multiple remotes found")
-	})
-
-	t.Run("should handle special characters in branch name", func(t *testing.T) {
-		// Given: error with special characters in branch name
-		err := &MultipleBranchesError{
-			BranchName: "feature/fix-bugs-#123",
-			GitError:   &MockGitError{msg: "test error"},
-		}
-
-		// When: getting error message
-		message := err.Error()
-
-		// Then: should properly format all instances of branch name
-		assert.Contains(t, message, "feature/fix-bugs-#123")
-		assert.Contains(t, message, "git switch --track origin/feature/fix-bugs-#123")
-		assert.Contains(t, message, "wtp add feature/fix-bugs-#123")
-	})
-}
-
 // Mock error for testing
 type MockGitError struct {
 	msg string
@@ -626,40 +589,11 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 // ===== Helper Functions =====
 
 func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
-	app := &cli.Command{
-		Name: "test",
-		Commands: []*cli.Command{
-			{
-				Name: "add",
-				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "branch"},
-					&cli.StringFlag{Name: "exec"},
-					&cli.BoolFlag{Name: "quiet"},
-				},
-				Action: func(_ context.Context, _ *cli.Command) error {
-					return nil
-				},
-			},
-		},
-	}
-
-	cmdArgs := []string{"test", "add"}
-	for key, value := range flags {
-		switch v := value.(type) {
-		case bool:
-			if v {
-				cmdArgs = append(cmdArgs, "--"+key)
-			}
-		case string:
-			cmdArgs = append(cmdArgs, "--"+key, v)
-		}
-	}
-	cmdArgs = append(cmdArgs, args...)
-
-	ctx := context.Background()
-	_ = app.Run(ctx, cmdArgs)
-
-	return app.Commands[0]
+	return createTestSubcommand("add", []cli.Flag{
+		&cli.StringFlag{Name: "branch"},
+		&cli.StringFlag{Name: "exec"},
+		&cli.BoolFlag{Name: "quiet"},
+	}, flags, args)
 }
 
 // ===== Integration Tests =====
@@ -1096,8 +1030,8 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 			workTreePath:  "/path/to/worktree",
 			branchName:    "ambiguous-branch",
 			gitOutput:     "fatal: 'ambiguous-branch' matched multiple branches",
-			expectedError: "",
-			expectedType:  &MultipleBranchesError{},
+			expectedError: "matched multiple branches",
+			expectedType:  nil,
 		},
 		{
 			name:          "invalid path error",

@@ -793,40 +793,11 @@ branch refs/heads/test-feature
 // ===== Helper Functions =====
 
 func createRemoveTestCLICommand(flags map[string]any, args []string) *cli.Command {
-	app := &cli.Command{
-		Name: "test",
-		Commands: []*cli.Command{
-			{
-				Name: "remove",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "force"},
-					&cli.BoolFlag{Name: "branch"},
-					&cli.BoolFlag{Name: "force-branch"},
-				},
-				Action: func(_ context.Context, _ *cli.Command) error {
-					return nil
-				},
-			},
-		},
-	}
-
-	cmdArgs := []string{"test", "remove"}
-	for key, value := range flags {
-		switch v := value.(type) {
-		case bool:
-			if v {
-				cmdArgs = append(cmdArgs, "--"+key)
-			}
-		case string:
-			cmdArgs = append(cmdArgs, "--"+key, v)
-		}
-	}
-	cmdArgs = append(cmdArgs, args...)
-
-	ctx := context.Background()
-	_ = app.Run(ctx, cmdArgs)
-
-	return app.Commands[0]
+	return createTestSubcommand("remove", []cli.Flag{
+		&cli.BoolFlag{Name: "force"},
+		&cli.BoolFlag{Name: "branch"},
+		&cli.BoolFlag{Name: "force-branch"},
+	}, flags, args)
 }
 
 // ===== Mock Implementations =====

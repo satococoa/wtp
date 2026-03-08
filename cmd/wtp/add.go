@@ -249,13 +249,6 @@ func analyzeGitWorktreeError(workTreePath, branchName string, gitError error, gi
 		}
 	}
 
-	if isMultipleBranchesError(errorOutput) {
-		return &MultipleBranchesError{
-			BranchName: branchName,
-			GitError:   gitError,
-		}
-	}
-
 	if isInvalidPathError(errorOutput, workTreePath, gitOutput) {
 		return fmt.Errorf(`failed to create worktree at '%s'
 
@@ -305,10 +298,6 @@ func isBranchAlreadyExistsError(errorOutput string) bool {
 
 func isPathAlreadyExistsError(errorOutput string) bool {
 	return strings.Contains(errorOutput, "already exists")
-}
-
-func isMultipleBranchesError(errorOutput string) bool {
-	return strings.Contains(errorOutput, "more than one remote") || strings.Contains(errorOutput, "ambiguous")
 }
 
 func isInvalidPathError(errorOutput, workTreePath, gitOutput string) bool {
@@ -374,22 +363,6 @@ Solutions:
   • Use a different branch name
 
 Original error: %v`, e.Path, e.GitError)
-}
-
-// MultipleBranchesError reports that a branch name resolves to multiple remotes and needs disambiguation.
-type MultipleBranchesError struct {
-	BranchName string
-	GitError   error
-}
-
-func (e *MultipleBranchesError) Error() string {
-	return fmt.Sprintf(`branch '%s' exists in multiple remotes
-
-Please create a local branch first, then run wtp add again:
-  • git switch --track origin/%s
-  • wtp add %s
-
-Original error: %v`, e.BranchName, e.BranchName, e.BranchName, e.GitError)
 }
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
@@ -672,13 +645,6 @@ func resolveBranchTracking(
 	// Check if branch exists locally or in remotes
 	resolvedBranch, isRemote, err := repo.ResolveBranch(branchName)
 	if err != nil {
-		// Check if it's a multiple branches error
-		if strings.Contains(err.Error(), "exists in multiple remotes") {
-			return "", &MultipleBranchesError{
-				BranchName: branchName,
-				GitError:   err,
-			}
-		}
 		return "", err
 	}
 
