@@ -278,7 +278,7 @@ func TestResolveWorktreePath(t *testing.T) {
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: tt.baseDir},
 			}
-			cmd := createTestCLICommand(tt.flags, []string{tt.branchName})
+			cmd := createTestCLICommand(t, tt.flags, []string{tt.branchName})
 
 			path, branch := resolveWorktreePath(cfg, "/test/repo", tt.branchName, cmd)
 			assert.Equal(t, tt.expectedPath, path)
@@ -327,7 +327,7 @@ func TestAddCommand_CommandConstruction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := createTestCLICommand(tt.flags, tt.args)
+			cmd := createTestCLICommand(t, tt.flags, tt.args)
 			var buf bytes.Buffer
 			mockExec := &mockCommandExecutor{}
 
@@ -370,7 +370,7 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := createTestCLICommand(map[string]any{"branch": tt.branchName}, []string{tt.branchName})
+			cmd := createTestCLICommand(t, map[string]any{"branch": tt.branchName}, []string{tt.branchName})
 			var buf bytes.Buffer
 			mockExec := &mockCommandExecutor{}
 
@@ -388,7 +388,7 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 
 func TestAddCommand_QuietModeOutput(t *testing.T) {
 	t.Run("success should print only path to stdout", func(t *testing.T) {
-		cmd := createTestCLICommand(map[string]any{
+		cmd := createTestCLICommand(t, map[string]any{
 			"branch": "feature/quiet",
 			"quiet":  true,
 		}, []string{})
@@ -407,7 +407,7 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 	})
 
 	t.Run("hook failure should keep path on stdout and warnings on stderr", func(t *testing.T) {
-		cmd := createTestCLICommand(map[string]any{
+		cmd := createTestCLICommand(t, map[string]any{
 			"branch": "feature/hook-fail",
 			"quiet":  true,
 		}, []string{})
@@ -431,7 +431,7 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 	})
 
 	t.Run("exec output should go to stderr and path to stdout", func(t *testing.T) {
-		cmd := createTestCLICommand(map[string]any{
+		cmd := createTestCLICommand(t, map[string]any{
 			"branch": "feature/exec",
 			"quiet":  true,
 			"exec":   "echo hi",
@@ -460,7 +460,7 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 	})
 
 	t.Run("worktree creation failure should not print path", func(t *testing.T) {
-		cmd := createTestCLICommand(map[string]any{
+		cmd := createTestCLICommand(t, map[string]any{
 			"branch": "feature/fail",
 			"quiet":  true,
 		}, []string{})
@@ -497,7 +497,7 @@ func TestAddCommand_ValidationErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := createTestCLICommand(tt.flags, tt.args)
+			cmd := createTestCLICommand(t, tt.flags, tt.args)
 			err := validateAddInput(cmd)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedError)
@@ -508,7 +508,7 @@ func TestAddCommand_ValidationErrors(t *testing.T) {
 func TestAddCommand_ExecutionError(t *testing.T) {
 	mockExec := &mockCommandExecutor{shouldFail: true}
 	var buf bytes.Buffer
-	cmd := createTestCLICommand(map[string]any{"branch": "feature/auth"}, []string{"feature/auth"})
+	cmd := createTestCLICommand(t, map[string]any{"branch": "feature/auth"}, []string{"feature/auth"})
 	cfg := &config.Config{
 		Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 	}
@@ -520,7 +520,7 @@ func TestAddCommand_ExecutionError(t *testing.T) {
 }
 
 func TestAddCommand_ExecFailureKeepsCreationContext(t *testing.T) {
-	cmd := createTestCLICommand(map[string]any{
+	cmd := createTestCLICommand(t, map[string]any{
 		"branch": "feature/auth",
 		"exec":   "false",
 	}, []string{})
@@ -571,7 +571,7 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockExec := &mockCommandExecutor{}
 			var buf bytes.Buffer
-			cmd := createTestCLICommand(map[string]any{"branch": tt.branchName}, []string{tt.branchName})
+			cmd := createTestCLICommand(t, map[string]any{"branch": tt.branchName}, []string{tt.branchName})
 			cfg := &config.Config{
 				Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 			}
@@ -588,8 +588,8 @@ func TestAddCommand_InternationalCharacters(t *testing.T) {
 
 // ===== Helper Functions =====
 
-func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
-	return createTestSubcommand("add", []cli.Flag{
+func createTestCLICommand(t *testing.T, flags map[string]any, args []string) *cli.Command {
+	return createTestSubcommand(t, "add", []cli.Flag{
 		&cli.StringFlag{Name: "branch"},
 		&cli.StringFlag{Name: "exec"},
 		&cli.BoolFlag{Name: "quiet"},
@@ -603,7 +603,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		// Given: existing branch in repository
 		mockExec := &mockCommandExecutor{}
 		var buf bytes.Buffer
-		cmd := createTestCLICommand(map[string]any{}, []string{"main"})
+		cmd := createTestCLICommand(t, map[string]any{}, []string{"main"})
 		cfg := &config.Config{
 			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 		}
@@ -622,7 +622,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		// Given: new branch name
 		mockExec := &mockCommandExecutor{}
 		var buf bytes.Buffer
-		cmd := createTestCLICommand(map[string]any{"branch": "feature/new"}, []string{})
+		cmd := createTestCLICommand(t, map[string]any{"branch": "feature/new"}, []string{})
 		cfg := &config.Config{
 			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 		}
@@ -642,7 +642,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		// Given: new branch name and commit
 		mockExec := &mockCommandExecutor{}
 		var buf bytes.Buffer
-		cmd := createTestCLICommand(map[string]any{"branch": "hotfix/urgent"}, []string{"main"})
+		cmd := createTestCLICommand(t, map[string]any{"branch": "hotfix/urgent"}, []string{"main"})
 		cfg := &config.Config{
 			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
 		}
@@ -660,7 +660,7 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 
 	t.Run("should error with no arguments and no -b flag", func(t *testing.T) {
 		// Given: no arguments and no -b flag
-		cmd := createTestCLICommand(map[string]any{}, []string{})
+		cmd := createTestCLICommand(t, map[string]any{}, []string{})
 
 		// When: validating input
 		err := validateAddInput(cmd)
@@ -674,17 +674,17 @@ func TestAddCommand_SimplifiedInterface(t *testing.T) {
 		// Test that validation works for the simplified interface
 
 		// Valid case: existing branch
-		cmd1 := createTestCLICommand(map[string]any{}, []string{"main"})
+		cmd1 := createTestCLICommand(t, map[string]any{}, []string{"main"})
 		err1 := validateAddInput(cmd1)
 		assert.NoError(t, err1)
 
 		// Valid case: new branch with -b
-		cmd2 := createTestCLICommand(map[string]any{"branch": "new-feature"}, []string{})
+		cmd2 := createTestCLICommand(t, map[string]any{"branch": "new-feature"}, []string{})
 		err2 := validateAddInput(cmd2)
 		assert.NoError(t, err2)
 
 		// Invalid case: no args and no -b
-		cmd3 := createTestCLICommand(map[string]any{}, []string{})
+		cmd3 := createTestCLICommand(t, map[string]any{}, []string{})
 		err3 := validateAddInput(cmd3)
 		assert.Error(t, err3)
 		assert.Contains(t, err3.Error(), "branch name is required")
@@ -1030,8 +1030,8 @@ func TestAnalyzeGitWorktreeError(t *testing.T) {
 			workTreePath:  "/path/to/worktree",
 			branchName:    "ambiguous-branch",
 			gitOutput:     "fatal: 'ambiguous-branch' matched multiple branches",
-			expectedError: "matched multiple branches",
-			expectedType:  nil,
+			expectedError: "reference 'ambiguous-branch' is ambiguous",
+			expectedType:  &AmbiguousReferenceError{},
 		},
 		{
 			name:          "invalid path error",

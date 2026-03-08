@@ -170,7 +170,7 @@ wtp add feature/remote-only
 wtp add feature/shared
 
 # Example manual disambiguation:
-git switch --track upstream/feature/shared
+git branch --track feature/shared upstream/feature/shared
 wtp add feature/shared
 ```
 
@@ -410,7 +410,12 @@ wtp provides clear error messages:
 Error: branch 'nonexistent' not found in local or remote branches
 
 # Multiple remotes have same branch
-Error: branch 'feature' exists in multiple remotes: origin, upstream. Please specify remote explicitly
+Error: branch 'feature' exists in multiple remotes: origin, upstream
+
+Solution: Create a local tracking branch for the remote you want without checking it out, then run wtp add again.
+  • git branch --track feature origin/feature
+  • git branch --track feature upstream/feature
+  • wtp add feature
 
 # Worktree already exists
 Error: failed to create worktree: exit status 128

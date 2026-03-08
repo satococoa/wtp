@@ -4,6 +4,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -303,12 +304,23 @@ Suggestions:
 
 // MultipleBranchesFound reports that a branch name matches multiple remotes and needs manual disambiguation.
 func MultipleBranchesFound(branchName string, remotes []string) error {
-	msg := fmt.Sprintf("branch '%s' exists in multiple remotes: %s", branchName, strings.Join(remotes, ", "))
-	msg += fmt.Sprintf(`
+	sortedRemotes := append([]string(nil), remotes...)
+	sort.Strings(sortedRemotes)
 
-Solution: Create a local branch that tracks the remote you want, then run wtp add again:
-  • git switch --track %s/%s
-  • wtp add %s`, remotes[0], branchName, branchName)
+	msg := fmt.Sprintf("branch '%s' exists in multiple remotes", branchName)
+	if len(sortedRemotes) > 0 {
+		msg += fmt.Sprintf(": %s", strings.Join(sortedRemotes, ", "))
+	}
+
+	msg += "\n\nSolution: Create a local tracking branch for the remote you want " +
+		"without checking it out, then run wtp add again."
+	if len(sortedRemotes) > 0 {
+		msg += "\n\nExamples (choose one remote):"
+		for _, remote := range sortedRemotes {
+			msg += fmt.Sprintf("\n  • git branch --track %s %s/%s", branchName, remote, branchName)
+		}
+		msg += fmt.Sprintf("\n  • wtp add %s", branchName)
+	}
 
 	return errors.New(msg)
 }

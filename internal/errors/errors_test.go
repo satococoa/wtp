@@ -393,15 +393,16 @@ func TestBranchNotFound(t *testing.T) {
 
 func TestMultipleBranchesFound(t *testing.T) {
 	branchName := "feature"
-	remotes := []string{"origin", "upstream"}
+	remotes := []string{"upstream", "origin"}
 	err := MultipleBranchesFound(branchName, remotes)
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "branch 'feature' exists in multiple remotes")
+	assert.Contains(t, err.Error(), "branch 'feature' exists in multiple remotes: origin, upstream")
 	assert.Contains(t, err.Error(), "origin")
 	assert.Contains(t, err.Error(), "upstream")
-	assert.Contains(t, err.Error(), "Create a local branch that tracks the remote you want")
-	assert.Contains(t, err.Error(), "git switch --track origin/feature")
+	assert.Contains(t, err.Error(), "Create a local tracking branch for the remote you want without checking it out")
+	assert.Contains(t, err.Error(), "git branch --track feature origin/feature")
+	assert.Contains(t, err.Error(), "git branch --track feature upstream/feature")
 	assert.Contains(t, err.Error(), "wtp add feature")
 }
 

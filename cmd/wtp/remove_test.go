@@ -173,7 +173,7 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 		},
 		{
 			name:         "remove with branch deletion",
-			flags:        map[string]any{"branch": true},
+			flags:        map[string]any{"with-branch": true},
 			worktreeName: "feature-branch",
 			mockWorktreeList: "worktree /path/to/main\nHEAD abc123\nbranch refs/heads/main\n\n" +
 				"worktree /path/to/worktrees/feature-branch\nHEAD def456\nbranch refs/heads/feature-branch\n\n",
@@ -213,11 +213,11 @@ func TestRemoveCommand_CommandConstruction(t *testing.T) {
 				},
 			}
 
-			cmd := createRemoveTestCLICommand(tt.flags, []string{tt.worktreeName})
+			cmd := createRemoveTestCLICommand(t, tt.flags, []string{tt.worktreeName})
 			var buf bytes.Buffer
 
 			forceFlag := tt.flags["force"] == true
-			branchFlag := tt.flags["branch"] == true
+			branchFlag := tt.flags["with-branch"] == true
 			err := removeCommandWithCommandExecutor(
 				cmd, &buf, mockExec, "/test/repo", tt.worktreeName, forceFlag, branchFlag, false,
 			)
@@ -279,10 +279,10 @@ func TestRemoveCommand_SuccessMessage(t *testing.T) {
 
 			flags := map[string]any{}
 			if tt.branchFlag {
-				flags["branch"] = true
+				flags["with-branch"] = true
 			}
 
-			cmd := createRemoveTestCLICommand(flags, []string{tt.worktreeName})
+			cmd := createRemoveTestCLICommand(t, flags, []string{tt.worktreeName})
 			var buf bytes.Buffer
 
 			branchFlag := tt.branchFlag
@@ -360,7 +360,7 @@ func TestRemoveCommand_WorktreeNotFound(t *testing.T) {
 		},
 	}
 
-	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"nonexistent"})
+	cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{"nonexistent"})
 	var buf bytes.Buffer
 
 	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo", "nonexistent", false, false, false)
@@ -380,7 +380,7 @@ func TestRemoveCommand_WorktreeNotFound_ShowsConsistentNames(t *testing.T) {
 		},
 	}
 
-	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"nonexistent"})
+	cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{"nonexistent"})
 	var buf bytes.Buffer
 
 	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/repo", "nonexistent", false, false, false)
@@ -424,7 +424,7 @@ func TestRemoveCommand_FailsWhenRemovingCurrentWorktree(t *testing.T) {
 				},
 			}
 
-			cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature/foo"})
+			cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{"feature/foo"})
 			var buf bytes.Buffer
 
 			err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, tt.cwd, "feature/foo", false, false, false)
@@ -454,7 +454,7 @@ func TestRemoveCommand_ExecutionError(t *testing.T) {
 		errorMsg:   "git command failed",
 	}
 
-	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature-branch"})
+	cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{"feature-branch"})
 	var buf bytes.Buffer
 
 	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo", "feature-branch", false, false, false)
@@ -527,7 +527,7 @@ func TestRemoveCommand_DirtyWorktree(t *testing.T) {
 				flags["force"] = true
 			}
 
-			cmd := createRemoveTestCLICommand(flags, []string{"dirty-feature"})
+			cmd := createRemoveTestCLICommand(t, flags, []string{"dirty-feature"})
 			var buf bytes.Buffer
 
 			err := removeCommandWithCommandExecutor(
@@ -617,13 +617,13 @@ func TestRemoveCommand_BranchRemovalWithUnmergedCommits(t *testing.T) {
 			}
 
 			flags := map[string]any{
-				"branch": true,
+				"with-branch": true,
 			}
 			if tt.forceBranchFlag {
 				flags["force-branch"] = true
 			}
 
-			cmd := createRemoveTestCLICommand(flags, []string{"feature-unmerged"})
+			cmd := createRemoveTestCLICommand(t, flags, []string{"feature-unmerged"})
 			var buf bytes.Buffer
 
 			err := removeCommandWithCommandExecutor(
@@ -692,7 +692,7 @@ func TestRemoveCommand_InternationalCharacters(t *testing.T) {
 
 			// Extract the basename from the path for matching
 			worktreeName := filepath.Base(tt.worktreePath)
-			cmd := createRemoveTestCLICommand(map[string]any{}, []string{worktreeName})
+			cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{worktreeName})
 			var buf bytes.Buffer
 
 			err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo", worktreeName, false, false, false)
@@ -721,7 +721,7 @@ func TestRemoveCommand_PathWithSpaces(t *testing.T) {
 		},
 	}
 
-	cmd := createRemoveTestCLICommand(map[string]any{}, []string{"feature branch"})
+	cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{"feature branch"})
 	var buf bytes.Buffer
 
 	err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/path/to/main", "feature branch", false, false, false)
@@ -777,7 +777,7 @@ branch refs/heads/test-feature
 				},
 			}
 
-			cmd := createRemoveTestCLICommand(map[string]any{}, []string{tt.input})
+			cmd := createRemoveTestCLICommand(t, map[string]any{}, []string{tt.input})
 			var buf bytes.Buffer
 
 			err := removeCommandWithCommandExecutor(cmd, &buf, mockExec, "/test/repo", tt.input, false, false, false)
@@ -792,10 +792,10 @@ branch refs/heads/test-feature
 
 // ===== Helper Functions =====
 
-func createRemoveTestCLICommand(flags map[string]any, args []string) *cli.Command {
-	return createTestSubcommand("remove", []cli.Flag{
+func createRemoveTestCLICommand(t *testing.T, flags map[string]any, args []string) *cli.Command {
+	return createTestSubcommand(t, "remove", []cli.Flag{
 		&cli.BoolFlag{Name: "force"},
-		&cli.BoolFlag{Name: "branch"},
+		&cli.BoolFlag{Name: "with-branch"},
 		&cli.BoolFlag{Name: "force-branch"},
 	}, flags, args)
 }

@@ -70,11 +70,14 @@ func RunNameFromPathTests(
 }
 
 func createTestSubcommand(
+	t *testing.T,
 	commandName string,
 	flags []cli.Flag,
 	flagValues map[string]any,
 	args []string,
 ) *cli.Command {
+	t.Helper()
+
 	app := &cli.Command{
 		Name: "test",
 		Commands: []*cli.Command{
@@ -101,7 +104,9 @@ func createTestSubcommand(
 	}
 	cmdArgs = append(cmdArgs, args...)
 
-	_ = app.Run(context.Background(), cmdArgs)
+	if err := app.Run(context.Background(), cmdArgs); err != nil {
+		t.Fatalf("app.Run failed: %v", err)
+	}
 
 	return app.Commands[0]
 }

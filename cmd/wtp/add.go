@@ -249,6 +249,13 @@ func analyzeGitWorktreeError(workTreePath, branchName string, gitError error, gi
 		}
 	}
 
+	if isAmbiguousReferenceError(errorOutput) {
+		return &AmbiguousReferenceError{
+			Reference: branchName,
+			GitError:  gitError,
+		}
+	}
+
 	if isInvalidPathError(errorOutput, workTreePath, gitOutput) {
 		return fmt.Errorf(`failed to create worktree at '%s'
 
@@ -298,6 +305,12 @@ func isBranchAlreadyExistsError(errorOutput string) bool {
 
 func isPathAlreadyExistsError(errorOutput string) bool {
 	return strings.Contains(errorOutput, "already exists")
+}
+
+func isAmbiguousReferenceError(errorOutput string) bool {
+	return strings.Contains(errorOutput, "matched multiple branches") ||
+		strings.Contains(errorOutput, "ambiguous argument") ||
+		strings.Contains(errorOutput, "is ambiguous")
 }
 
 func isInvalidPathError(errorOutput, workTreePath, gitOutput string) bool {
@@ -363,6 +376,25 @@ Solutions:
   • Use a different branch name
 
 Original error: %v`, e.Path, e.GitError)
+}
+
+// AmbiguousReferenceError indicates that git could not uniquely resolve the requested ref.
+type AmbiguousReferenceError struct {
+	Reference string
+	GitError  error
+}
+
+func (e *AmbiguousReferenceError) Error() string {
+	return fmt.Sprintf(`reference '%s' is ambiguous
+
+The git command matched more than one branch or revision for '%s'.
+
+Suggestions:
+  • Use a specific local branch name
+  • Use an exact commit SHA
+  • If you need a remote branch, create a local tracking branch first with 'git branch --track %s <remote>/%s'
+
+Original error: %v`, e.Reference, e.Reference, e.Reference, e.Reference, e.GitError)
 }
 
 func executePostCreateHooks(w io.Writer, cfg *config.Config, repoPath, workTreePath string) error {
