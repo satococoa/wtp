@@ -308,6 +308,8 @@ func TestConfigAlreadyExists(t *testing.T) {
 	assert.Contains(t, err.Error(), "configuration file already exists")
 	assert.Contains(t, err.Error(), path)
 	assert.Contains(t, err.Error(), "Options:")
+	assert.Contains(t, err.Error(), "Delete it and run 'wtp init' again")
+	assert.NotContains(t, err.Error(), "wtp init --force")
 }
 
 func TestDirectoryAccessFailed(t *testing.T) {

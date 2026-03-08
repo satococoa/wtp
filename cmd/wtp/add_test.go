@@ -632,12 +632,9 @@ func createTestCLICommand(flags map[string]any, args []string) *cli.Command {
 			{
 				Name: "add",
 				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "detach"},
 					&cli.StringFlag{Name: "branch"},
 					&cli.StringFlag{Name: "exec"},
 					&cli.BoolFlag{Name: "quiet"},
-					&cli.BoolFlag{Name: "cd"},
-					&cli.BoolFlag{Name: "no-cd"},
 				},
 				Action: func(_ context.Context, _ *cli.Command) error {
 					return nil
@@ -769,12 +766,9 @@ func TestAddCommand_Integration(t *testing.T) {
 				{
 					Name: "add",
 					Flags: []cli.Flag{
-						&cli.StringFlag{Name: "path"},
-						&cli.BoolFlag{Name: "detach"},
 						&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
 						&cli.StringFlag{Name: "exec"},
-						&cli.BoolFlag{Name: "cd"},
-						&cli.BoolFlag{Name: "no-cd"},
+						&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
 					},
 					Action: addCommand,
 				},
@@ -798,12 +792,9 @@ func TestAddCommand_Integration(t *testing.T) {
 				{
 					Name: "add",
 					Flags: []cli.Flag{
-						&cli.StringFlag{Name: "path"},
-						&cli.BoolFlag{Name: "detach"},
 						&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
 						&cli.StringFlag{Name: "exec"},
-						&cli.BoolFlag{Name: "cd"},
-						&cli.BoolFlag{Name: "no-cd"},
+						&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
 					},
 					Action: addCommand,
 				},

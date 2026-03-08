@@ -231,8 +231,7 @@ func ConfigAlreadyExists(configPath string) error {
 
 Options:
   • Edit the existing file manually
-  • Delete it and run 'wtp init' again
-  • Use 'wtp init --force' to overwrite (if that flag exists)`, configPath)
+  • Delete it and run 'wtp init' again`, configPath)
 	return errors.New(msg)
 }
 
