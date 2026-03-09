@@ -21,6 +21,7 @@ func newApp() *cli.Command {
 			NewAddCommand(),
 			NewListCommand(),
 			NewRemoveCommand(),
+			NewCleanCommand(),
 			NewInitCommand(),
 			NewCdCommand(),
 			NewExecCommand(),
