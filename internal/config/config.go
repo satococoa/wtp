@@ -18,7 +18,10 @@ type Config struct {
 
 // Defaults represents default configuration values
 type Defaults struct {
+	// BaseDir is the default directory for new worktrees.
 	BaseDir string `yaml:"base_dir,omitempty"`
+	// DefaultBranch is the optional base branch for new worktrees created with -b.
+	DefaultBranch string `yaml:"default_branch,omitempty"`
 }
 
 // Hooks represents the post-create hooks configuration
