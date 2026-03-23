@@ -70,7 +70,7 @@ jobs:
     if: ${{ !contains(github.ref_name, '-') }}
     steps:
     - name: Bump Homebrew formula
-      uses: mislav/bump-homebrew-formula-action@v3
+      uses: mislav/bump-homebrew-formula-action@v4
       with:
         homebrew-tap: satococoa/homebrew-tap
         formula-name: wtp
