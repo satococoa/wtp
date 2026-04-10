@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -395,6 +396,14 @@ func TestAddCommand_SuccessMessage(t *testing.T) {
 }
 
 func TestAddCommand_QuietModeOutput(t *testing.T) {
+	// Use platform-appropriate absolute paths for test data.
+	testWorktrees := "/test/worktrees"
+	testRepo := "/test/repo"
+	if runtime.GOOS == "windows" {
+		testWorktrees = `C:\test\worktrees`
+		testRepo = `C:\test\repo`
+	}
+
 	t.Run("success should print only path to stdout", func(t *testing.T) {
 		cmd := createTestCLICommand(t, map[string]any{
 			"branch": "feature/quiet",
@@ -402,15 +411,15 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 		}, []string{})
 		mockExec := &mockCommandExecutor{}
 		cfg := &config.Config{
-			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Defaults: config.Defaults{BaseDir: testWorktrees},
 		}
 
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, testRepo)
 
 		require.NoError(t, err)
-		assert.Equal(t, "/test/worktrees/feature/quiet", strings.TrimSpace(stdout.String()))
+		assert.Equal(t, filepath.Join(testWorktrees, "feature", "quiet"), strings.TrimSpace(stdout.String()))
 		assert.Empty(t, stderr.String())
 	})
 
@@ -421,7 +430,7 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 		}, []string{})
 		mockExec := &mockCommandExecutor{}
 		cfg := &config.Config{
-			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Defaults: config.Defaults{BaseDir: testWorktrees},
 			Hooks: config.Hooks{
 				PostCreate: []config.Hook{
 					{Type: "command", Command: "nonexistent-command-xyz test"},
@@ -431,10 +440,10 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, testRepo)
 
 		require.NoError(t, err)
-		assert.Equal(t, "/test/worktrees/feature/hook-fail", strings.TrimSpace(stdout.String()))
+		assert.Equal(t, filepath.Join(testWorktrees, "feature", "hook-fail"), strings.TrimSpace(stdout.String()))
 		assert.Contains(t, stderr.String(), "Warning: Hook execution failed")
 	})
 
@@ -451,15 +460,15 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 			},
 		}
 		cfg := &config.Config{
-			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Defaults: config.Defaults{BaseDir: testWorktrees},
 		}
 
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, exec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, exec, cfg, testRepo)
 
 		require.NoError(t, err)
-		assert.Equal(t, "/test/worktrees/feature/exec", strings.TrimSpace(stdout.String()))
+		assert.Equal(t, filepath.Join(testWorktrees, "feature", "exec"), strings.TrimSpace(stdout.String()))
 		assert.Contains(t, stderr.String(), "Executing --exec command: echo hi")
 		assert.Contains(t, stderr.String(), "exec output")
 		assert.Contains(t, stderr.String(), "✓ --exec command completed")
@@ -474,12 +483,12 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 		}, []string{})
 		mockExec := &mockCommandExecutor{shouldFail: true}
 		cfg := &config.Config{
-			Defaults: config.Defaults{BaseDir: "/test/worktrees"},
+			Defaults: config.Defaults{BaseDir: testWorktrees},
 		}
 
 		var stdout bytes.Buffer
 		var stderr bytes.Buffer
-		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, "/test/repo")
+		err := addCommandWithCommandExecutorWithWriters(cmd, &stdout, &stderr, mockExec, cfg, testRepo)
 
 		require.Error(t, err)
 		assert.Empty(t, stdout.String())

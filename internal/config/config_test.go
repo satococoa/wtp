@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+func absoluteTestPath() string {
+	if runtime.GOOS == "windows" {
+		return `C:\tmp\source.txt`
+	}
+	return "/tmp/source.txt"
+}
+
 func TestLoadConfig_NonExistentFile(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -327,7 +334,7 @@ func TestHookValidate(t *testing.T) {
 			name: "copy hook missing to with absolute from",
 			hook: Hook{
 				Type: HookTypeCopy,
-				From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+				From: absoluteTestPath(),
 			},
 			expectError: true,
 		},
@@ -469,7 +476,7 @@ func TestConfigValidate_CopyAbsoluteFromRequiresTo(t *testing.T) {
 			PostCreate: []Hook{
 				{
 					Type: HookTypeCopy,
-					From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+					From: absoluteTestPath(),
 				},
 			},
 		},
