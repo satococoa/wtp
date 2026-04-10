@@ -57,9 +57,23 @@ func (e *TestEnvironment) buildWTP() {
 	}
 	wtpBinary := filepath.Join(e.tmpDir, binaryName)
 	if envBinary := os.Getenv("WTP_E2E_BINARY"); envBinary != "" {
-		wtpBinary = envBinary
-		if _, err := os.Stat(wtpBinary); err != nil {
-			e.t.Fatalf("Specified WTP binary not found: %s", wtpBinary)
+		// On Windows, exec.Command requires .exe extension. If the provided
+		// binary doesn't have it, hard-link it next to the source with .exe.
+		if runtime.GOOS == "windows" && filepath.Ext(envBinary) == "" {
+			if _, err := os.Stat(envBinary); err != nil {
+				e.t.Fatalf("Specified WTP binary not found: %s", envBinary)
+			}
+			wtpBinary = envBinary + ".exe"
+			if _, err := os.Stat(wtpBinary); err != nil {
+				if err := os.Link(envBinary, wtpBinary); err != nil {
+					e.t.Fatalf("Failed to link WTP binary as .exe: %v", err)
+				}
+			}
+		} else {
+			wtpBinary = envBinary
+			if _, err := os.Stat(wtpBinary); err != nil {
+				e.t.Fatalf("Specified WTP binary not found: %s", wtpBinary)
+			}
 		}
 	} else {
 		projectRoot := e.findProjectRoot()
