@@ -281,16 +281,39 @@ function wtp {
     }
 
     if ($args[0] -eq "cd") {
-        if (-not $args[1]) {
-            Write-Error "Usage: wtp cd <worktree>"
-            return 1
+        if ($args[1]) {
+            $targetDir = & $__wtpPath cd $args[1] 2>$null
+        } else {
+            $targetDir = & $__wtpPath cd 2>$null
         }
-        $targetDir = & $__wtpPath cd $args[1] 2>$null
         if ($LASTEXITCODE -eq 0 -and $targetDir) {
             Set-Location $targetDir
         } else {
-            & $__wtpPath cd $args[1]
+            if ($args[1]) {
+                & $__wtpPath cd $args[1]
+            } else {
+                & $__wtpPath cd
+            }
         }
+    } elseif ($args[0] -eq "add") {
+        foreach ($arg in $args) {
+            if ($arg -eq "--help" -or $arg -eq "-h") {
+                & $__wtpPath @args
+                return $LASTEXITCODE
+            }
+        }
+
+        if ([Console]::IsOutputRedirected) {
+            & $__wtpPath @args
+            return $LASTEXITCODE
+        }
+
+        $targetDir = & $__wtpPath @args --quiet
+        $wtpStatus = $LASTEXITCODE
+        if ($wtpStatus -eq 0 -and $targetDir) {
+            Set-Location $targetDir
+        }
+        return $wtpStatus
     } else {
         & $__wtpPath @args
     }
