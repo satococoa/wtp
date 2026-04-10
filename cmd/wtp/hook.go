@@ -269,14 +269,15 @@ if (-not $__wtpPath) {
 function wtp {
     if (-not $__wtpPath) {
         Write-Error "wtp executable not found. Please ensure wtp is in your PATH or current directory."
-        return 1
+        $global:LASTEXITCODE = 1
+        return
     }
 
     # Check for completion flag
     foreach ($arg in $args) {
         if ($arg -eq "--generate-shell-completion") {
             & $__wtpPath @args
-            return $LASTEXITCODE
+            return
         }
     }
 
@@ -299,13 +300,13 @@ function wtp {
         foreach ($arg in $args) {
             if ($arg -eq "--help" -or $arg -eq "-h") {
                 & $__wtpPath @args
-                return $LASTEXITCODE
+                return
             }
         }
 
         if ([Console]::IsOutputRedirected) {
             & $__wtpPath @args
-            return $LASTEXITCODE
+            return
         }
 
         $targetDir = & $__wtpPath @args --quiet
@@ -313,7 +314,8 @@ function wtp {
         if ($wtpStatus -eq 0 -and $targetDir) {
             Set-Location $targetDir
         }
-        return $wtpStatus
+        $global:LASTEXITCODE = $wtpStatus
+        return
     } else {
         & $__wtpPath @args
     }
