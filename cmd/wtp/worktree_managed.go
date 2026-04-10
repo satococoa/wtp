@@ -43,10 +43,12 @@ func isWorktreeManagedCommon(worktreePath string, cfg *config.Config, mainRepoPa
 	// Resolve symlinks to handle cases where paths may point to the same location
 	// via different routes (e.g., C:\Users\...\Documents -> D:\Documents on Windows).
 	// If EvalSymlinks fails, fall back to the original absolute path.
-	if resolved, err := filepath.EvalSymlinks(absWorktreePath); err == nil {
+	resolved, resolveErr := filepath.EvalSymlinks(absWorktreePath)
+	if resolveErr == nil {
 		absWorktreePath = resolved
 	}
-	if resolved, err := filepath.EvalSymlinks(absBaseDir); err == nil {
+	resolved, resolveErr = filepath.EvalSymlinks(absBaseDir)
+	if resolveErr == nil {
 		absBaseDir = resolved
 	}
 

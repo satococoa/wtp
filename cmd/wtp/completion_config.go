@@ -257,7 +257,9 @@ func patchPowerShellCompletionScript(script string) string {
 	// Replace the dynamic command name detection with hardcoded "wtp"
 	// The original script tries to get the name from $MyInvocation.MyCommand.Name
 	// which doesn't work when invoked via Invoke-Expression
-	target := "$fn = $($MyInvocation.MyCommand.Name)\n$name = $fn -replace \"(.*)\\.ps1$\", '$1'\nRegister-ArgumentCompleter -Native -CommandName $name -ScriptBlock {"
+	target := "$fn = $($MyInvocation.MyCommand.Name)\n" +
+		"$name = $fn -replace \"(.*)\\.ps1$\", '$1'\n" +
+		"Register-ArgumentCompleter -Native -CommandName $name -ScriptBlock {"
 	replacement := "Register-ArgumentCompleter -Native -CommandName 'wtp' -ScriptBlock {"
 
 	script = strings.Replace(script, target, replacement, 1)
