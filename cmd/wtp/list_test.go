@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -735,7 +736,7 @@ branch refs/heads/feature
 			currentPath: "/Users/satoshi/dev",
 			expectedContains: []string{
 				"@", // Main worktree always shows as @
-				"../../alice/project2",
+				filepath.FromSlash("../../alice/project2"),
 			},
 			description: "Should show relative paths with .. for outside paths",
 		},
@@ -1207,7 +1208,7 @@ branch refs/heads/feature/another
 	output := buf.String()
 
 	// Should contain all three worktree names, one per line
-	expectedOutput := "@\nfeature/test\nfeature/another\n"
+	expectedOutput := "@\n" + filepath.FromSlash("feature/test") + "\n" + filepath.FromSlash("feature/another") + "\n"
 	assert.Equal(t, expectedOutput, output)
 
 	// Should not contain headers or formatting

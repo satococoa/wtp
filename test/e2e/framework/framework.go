@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,11 @@ func NewTestEnvironment(t *testing.T) *TestEnvironment {
 	t.Helper()
 
 	tmpDir := t.TempDir()
+	// Resolve symlinks and short paths (e.g., Windows 8.3 names like RUNNER~1)
+	// so that paths match what git reports.
+	if resolved, err := filepath.EvalSymlinks(tmpDir); err == nil {
+		tmpDir = resolved
+	}
 	env := &TestEnvironment{
 		t:       t,
 		tmpDir:  tmpDir,
@@ -45,11 +51,29 @@ func NewTestEnvironment(t *testing.T) *TestEnvironment {
 func (e *TestEnvironment) buildWTP() {
 	e.t.Helper()
 
-	wtpBinary := filepath.Join(e.tmpDir, "wtp")
-	if runtime := os.Getenv("WTP_E2E_BINARY"); runtime != "" {
-		wtpBinary = runtime
-		if _, err := os.Stat(wtpBinary); err != nil {
-			e.t.Fatalf("Specified WTP binary not found: %s", wtpBinary)
+	binaryName := "wtp"
+	if runtime.GOOS == "windows" {
+		binaryName = "wtp.exe"
+	}
+	wtpBinary := filepath.Join(e.tmpDir, binaryName)
+	if envBinary := os.Getenv("WTP_E2E_BINARY"); envBinary != "" {
+		// On Windows, exec.Command requires .exe extension. If the provided
+		// binary doesn't have it, hard-link it next to the source with .exe.
+		if runtime.GOOS == "windows" && filepath.Ext(envBinary) == "" {
+			if _, err := os.Stat(envBinary); err != nil {
+				e.t.Fatalf("Specified WTP binary not found: %s", envBinary)
+			}
+			wtpBinary = envBinary + ".exe"
+			if _, err := os.Stat(wtpBinary); err != nil {
+				if err := os.Link(envBinary, wtpBinary); err != nil {
+					e.t.Fatalf("Failed to link WTP binary as .exe: %v", err)
+				}
+			}
+		} else {
+			wtpBinary = envBinary
+			if _, err := os.Stat(wtpBinary); err != nil {
+				e.t.Fatalf("Specified WTP binary not found: %s", wtpBinary)
+			}
 		}
 	} else {
 		projectRoot := e.findProjectRoot()

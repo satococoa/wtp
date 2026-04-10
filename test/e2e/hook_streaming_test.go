@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -17,13 +18,17 @@ func TestHookOutputStreaming(t *testing.T) {
 	repo := env.CreateTestRepo("hook-streaming")
 
 	// Create config with a hook that outputs with delays
+	hookCmd := "echo 'Starting hook...'; sleep 0.1; echo 'Processing...'; sleep 0.1; echo 'Completed!'"
+	if runtime.GOOS == "windows" {
+		hookCmd = "echo Starting hook... & echo Processing... & echo Completed!"
+	}
 	config := map[string]any{
 		"version": "1",
 		"hooks": map[string]any{
 			"post_create": []map[string]any{
 				{
 					"type":    "command",
-					"command": "echo 'Starting hook...'; sleep 0.1; echo 'Processing...'; sleep 0.1; echo 'Completed!'",
+					"command": hookCmd,
 				},
 			},
 		},

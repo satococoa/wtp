@@ -2,6 +2,7 @@
 package framework
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -124,8 +125,12 @@ func AssertWorktreeExists(t *testing.T, repo *TestRepo, path string) {
 	t.Helper()
 	worktrees := repo.ListWorktrees()
 	found := false
+	// Normalize path separators for cross-platform comparison.
+	// Git returns paths with forward slashes on Windows, while
+	// filepath.Join uses backslashes.
+	normalizedPath := filepath.ToSlash(path)
 	for _, wt := range worktrees {
-		if strings.Contains(wt, path) {
+		if strings.Contains(filepath.ToSlash(wt), normalizedPath) {
 			found = true
 			break
 		}
@@ -139,8 +144,9 @@ func AssertWorktreeExists(t *testing.T, repo *TestRepo, path string) {
 func AssertWorktreeNotExists(t *testing.T, repo *TestRepo, path string) {
 	t.Helper()
 	worktrees := repo.ListWorktrees()
+	normalizedPath := filepath.ToSlash(path)
 	for _, wt := range worktrees {
-		if strings.Contains(wt, path) {
+		if strings.Contains(filepath.ToSlash(wt), normalizedPath) {
 			t.Errorf("Expected worktree at path '%s' not to exist, but it does", path)
 		}
 	}
