@@ -222,7 +222,7 @@ func TestRepository_GetRepositoryName(t *testing.T) {
 		{
 			name:     "root directory",
 			path:     "/",
-			expected: "/",
+			expected: filepath.Base("/"),
 		},
 		{
 			name:     "current directory",

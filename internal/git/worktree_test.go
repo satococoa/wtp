@@ -1,6 +1,9 @@
 package git
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestWorktreeName(t *testing.T) {
 	tests := []struct {
@@ -27,7 +30,7 @@ func TestWorktreeName(t *testing.T) {
 			worktree: Worktree{
 				Path: "/",
 			},
-			expected: "/",
+			expected: filepath.Base("/"),
 		},
 		{
 			name: "trailing slash",
