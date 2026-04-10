@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -678,10 +678,6 @@ func (e *mockError) Error() string {
 }
 
 func TestListCommand_RelativePathDisplay(t *testing.T) {
-	if runtime.GOOS == osWindows {
-		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
-	}
-
 	tests := []struct {
 		name             string
 		mockOutput       string
@@ -740,7 +736,7 @@ branch refs/heads/feature
 			currentPath: "/Users/satoshi/dev",
 			expectedContains: []string{
 				"@", // Main worktree always shows as @
-				"../../alice/project2",
+				filepath.FromSlash("../../alice/project2"),
 			},
 			description: "Should show relative paths with .. for outside paths",
 		},
@@ -1172,10 +1168,6 @@ func TestListCommand_QuietMode_SingleWorktree(t *testing.T) {
 }
 
 func TestListCommand_QuietMode_MultipleWorktrees(t *testing.T) {
-	if runtime.GOOS == osWindows {
-		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
-	}
-
 	mockOutput := `worktree /test/repo
 HEAD abc123
 branch refs/heads/main
@@ -1216,7 +1208,7 @@ branch refs/heads/feature/another
 	output := buf.String()
 
 	// Should contain all three worktree names, one per line
-	expectedOutput := "@\nfeature/test\nfeature/another\n"
+	expectedOutput := "@\n" + filepath.FromSlash("feature/test") + "\n" + filepath.FromSlash("feature/another") + "\n"
 	assert.Equal(t, expectedOutput, output)
 
 	// Should not contain headers or formatting

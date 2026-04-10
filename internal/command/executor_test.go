@@ -2,6 +2,8 @@ package command
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -320,18 +322,26 @@ func TestRealShellExecutor(t *testing.T) {
 	t.Run("should handle command with working directory", func(t *testing.T) {
 		// Given: a real shell executor
 		shell := NewRealShellExecutor()
-
-		// Use a temp directory that exists on all platforms.
-		// "go env GOPATH" is a cross-platform command that produces output
-		// and lets us verify the working directory is set (no chdir error).
 		tmpDir := os.TempDir()
+		// Resolve symlinks/short paths so assertion matches actual output
+		if resolved, err := filepath.EvalSymlinks(tmpDir); err == nil {
+			tmpDir = resolved
+		}
 
-		// When: executing a command in the temp directory
-		output, err := shell.Execute("go", []string{"env", "GOPATH"}, tmpDir, false)
+		// Use a platform-specific command that prints the working directory
+		cmd := "pwd"
+		var args []string
+		if runtime.GOOS == "windows" {
+			cmd = "cmd"
+			args = []string{"/C", "cd"}
+		}
 
-		// Then: should succeed and produce output
+		// When: executing the command in the temp directory
+		output, err := shell.Execute(cmd, args, tmpDir, false)
+
+		// Then: should return the working directory
 		assert.NoError(t, err)
-		assert.NotEmpty(t, output)
+		assert.Contains(t, filepath.Clean(output), filepath.Clean(tmpDir))
 	})
 
 	t.Run("should handle command failure", func(t *testing.T) {

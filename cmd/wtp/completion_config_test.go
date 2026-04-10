@@ -129,6 +129,25 @@ func TestCompletionCommandMatchesGolden(t *testing.T) {
 	}
 }
 
+func TestPatchCompletionScriptPwshHardcodesCommandName(t *testing.T) {
+	const (
+		original = "$fn = $($MyInvocation.MyCommand.Name)\n" +
+			"$name = $fn -replace \"(.*)\\.ps1$\", '$1'\n" +
+			"Register-ArgumentCompleter -Native -CommandName $name -ScriptBlock {"
+		replacement = "Register-ArgumentCompleter -Native -CommandName 'wtp' -ScriptBlock {"
+	)
+
+	patched := patchCompletionScript("pwsh", original)
+
+	if strings.Contains(patched, "$MyInvocation.MyCommand.Name") {
+		t.Fatalf("expected dynamic command name to be replaced, got:\n%s", patched)
+	}
+
+	if !strings.Contains(patched, replacement) {
+		t.Fatalf("expected hardcoded 'wtp' command name, got:\n%s", patched)
+	}
+}
+
 func TestPatchCompletionScriptZshInjectsCompletionEnv(t *testing.T) {
 	const (
 		currentLine = `opts=("${(@f)$(${words[@]:0:#words[@]-1} ${current} --generate-shell-completion)}")`
