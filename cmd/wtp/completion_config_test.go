@@ -232,5 +232,6 @@ func writeCompletionTestdata(t *testing.T, name, content string) {
 }
 
 func canonicalizeScript(script string) string {
+	script = strings.ReplaceAll(script, "\r\n", "\n")
 	return strings.TrimRight(script, "\n") + "\n"
 }

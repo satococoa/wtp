@@ -32,6 +32,11 @@ func NewTestEnvironment(t *testing.T) *TestEnvironment {
 	t.Helper()
 
 	tmpDir := t.TempDir()
+	// Resolve symlinks and short paths (e.g., Windows 8.3 names like RUNNER~1)
+	// so that paths match what git reports.
+	if resolved, err := filepath.EvalSymlinks(tmpDir); err == nil {
+		tmpDir = resolved
+	}
 	env := &TestEnvironment{
 		t:       t,
 		tmpDir:  tmpDir,

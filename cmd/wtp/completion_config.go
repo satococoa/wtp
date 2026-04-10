@@ -54,6 +54,9 @@ func configureCompletionCommand(cmd *cli.Command) {
 }
 
 func patchCompletionScript(shell, script string) string {
+	// Normalize CRLF to LF so that string replacements in patch functions
+	// work on Windows where urfave/cli may generate scripts with \r\n.
+	script = strings.ReplaceAll(script, "\r\n", "\n")
 	switch shell {
 	case shellFish:
 		return buildFishCompletionScript()
