@@ -678,7 +678,7 @@ func (e *mockError) Error() string {
 }
 
 func TestListCommand_RelativePathDisplay(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 
@@ -1172,7 +1172,7 @@ func TestListCommand_QuietMode_SingleWorktree(t *testing.T) {
 }
 
 func TestListCommand_QuietMode_MultipleWorktrees(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 

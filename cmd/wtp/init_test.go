@@ -129,7 +129,7 @@ func TestInitCommand_Success(t *testing.T) {
 	assert.False(t, info.IsDir())
 
 	// Check file permissions (skip on Windows where Unix permission bits are not supported)
-	if runtime.GOOS != "windows" {
+	if runtime.GOOS != osWindows {
 		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
 	}
 

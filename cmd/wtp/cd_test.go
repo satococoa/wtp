@@ -16,7 +16,7 @@ import (
 
 // This is the most important test - the core value proposition
 func TestCdCommand_AlwaysOutputsAbsolutePath(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 

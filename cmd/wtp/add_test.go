@@ -248,7 +248,7 @@ func TestValidateAddInput(t *testing.T) {
 }
 
 func TestResolveWorktreePath(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 
@@ -297,7 +297,7 @@ func TestResolveWorktreePath(t *testing.T) {
 // ===== Command Execution Tests =====
 
 func TestAddCommand_CommandConstruction(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 
@@ -399,7 +399,7 @@ func TestAddCommand_QuietModeOutput(t *testing.T) {
 	// Use platform-appropriate absolute paths for test data.
 	testWorktrees := "/test/worktrees"
 	testRepo := "/test/repo"
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		testWorktrees = `C:\test\worktrees`
 		testRepo = `C:\test\repo`
 	}
@@ -562,7 +562,7 @@ func TestAddCommand_ExecFailureKeepsCreationContext(t *testing.T) {
 // ===== Edge Cases Tests =====
 
 func TestAddCommand_InternationalCharacters(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 
@@ -620,7 +620,7 @@ func createTestCLICommand(t *testing.T, flags map[string]any, args []string) *cl
 // ===== Integration Tests =====
 
 func TestAddCommand_SimplifiedInterface(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 
@@ -827,7 +827,7 @@ func TestExecutePostCreateCommand(t *testing.T) {
 		assert.Equal(t, "/test/worktree", mockExec.executedCommands[0].WorkDir)
 		assert.True(t, mockExec.executedCommands[0].Interactive)
 
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == osWindows {
 			assert.Equal(t, "cmd", mockExec.executedCommands[0].Name)
 			assert.Equal(t, []string{"/c", "echo hello"}, mockExec.executedCommands[0].Args)
 		} else {
@@ -848,7 +848,7 @@ func TestExecutePostCreateCommand(t *testing.T) {
 }
 
 func TestDisplaySuccessMessage_Integration(t *testing.T) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		t.Skip("TODO: Fix for Windows - test uses Unix-specific paths")
 	}
 
