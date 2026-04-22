@@ -148,8 +148,10 @@ func removeCommandWithCommandExecutor(
 		return err
 	}
 
-	// Clean up empty parent directories between the worktree and base_dir
-	cleanupEmptyParentDirs(absTargetPath, worktrees)
+	// Clean up empty parent directories between the worktree and base_dir.
+	// Deferred so it runs after any subsequent git operations (e.g. branch
+	// deletion) which might need a valid working directory.
+	defer cleanupEmptyParentDirs(absTargetPath, worktrees)
 
 	// Remove branch if requested
 	if withBranch && targetWorktree.Branch != "" {
