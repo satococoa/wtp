@@ -148,6 +148,11 @@ func removeCommandWithCommandExecutor(
 		return err
 	}
 
+	// Clean up empty parent directories between the worktree and base_dir.
+	// Deferred so it runs after any subsequent git operations (e.g. branch
+	// deletion) which might need a valid working directory.
+	defer cleanupEmptyParentDirs(absTargetPath, worktrees)
+
 	// Remove branch if requested
 	if withBranch && targetWorktree.Branch != "" {
 		if err := removeBranchWithCommandExecutor(w, executor, targetWorktree.Branch, forceBranch); err != nil {
@@ -273,6 +278,67 @@ func findTargetWorktreeFromList(worktrees []git.Worktree, worktreeName string) (
 		return nil, errors.WorktreeNotFound(worktreeName, availableWorktrees)
 	}
 	return targetWorktree, nil
+}
+
+// cleanupEmptyParentDirs removes empty directories between the removed worktree
+// and the resolved base_dir. This keeps the worktree base directory clean when
+// branches use prefixed names like "feat/my-feature" or "fix/bug-123".
+// Cleanup is best-effort; errors are silently ignored.
+func cleanupEmptyParentDirs(worktreePath string, worktrees []git.Worktree) {
+	var mainWorktreePath string
+	for _, wt := range worktrees {
+		if wt.IsMain {
+			mainWorktreePath = wt.Path
+			break
+		}
+	}
+	if mainWorktreePath == "" {
+		return
+	}
+
+	cfg, err := config.LoadConfig(mainWorktreePath)
+	if err != nil {
+		return
+	}
+
+	baseDir := cfg.Defaults.BaseDir
+	if !filepath.IsAbs(baseDir) {
+		baseDir = filepath.Join(mainWorktreePath, baseDir)
+	}
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return
+	}
+
+	removeEmptyParentsUpTo(worktreePath, absBaseDir)
+}
+
+// removeEmptyParentsUpTo walks from the parent of dir up to (but not including)
+// stopAt, removing each directory only if it is empty. It stops at the first
+// non-empty directory or when it reaches stopAt.
+func removeEmptyParentsUpTo(dir, stopAt string) {
+	current := filepath.Dir(dir)
+	for {
+		absCurrent, err := filepath.Abs(current)
+		if err != nil {
+			return
+		}
+
+		if absCurrent == stopAt || !isPathWithin(stopAt, absCurrent) {
+			return
+		}
+
+		entries, err := os.ReadDir(absCurrent)
+		if err != nil || len(entries) > 0 {
+			return
+		}
+
+		if err := os.Remove(absCurrent); err != nil {
+			return
+		}
+
+		current = filepath.Dir(absCurrent)
+	}
 }
 
 // getWorktreeNameFromPath calculates the worktree name from its path

@@ -12,6 +12,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/satococoa/wtp/v2/internal/command"
+	"github.com/satococoa/wtp/v2/internal/git"
 )
 
 // ===== Command Structure Tests =====
@@ -846,6 +847,130 @@ type mockRemoveError struct {
 
 func (e *mockRemoveError) Error() string {
 	return e.message
+}
+
+// ===== Empty Parent Directory Cleanup Tests =====
+
+func TestRemoveEmptyParentsUpTo(t *testing.T) {
+	t.Run("removes single empty parent", func(t *testing.T) {
+		// base/feat/my-feature -> after removing my-feature, feat/ should be cleaned
+		base := t.TempDir()
+		feat := filepath.Join(base, "feat")
+		worktree := filepath.Join(feat, "my-feature")
+		assert.NoError(t, os.MkdirAll(worktree, 0o755))
+
+		// Simulate git having already removed the worktree directory
+		assert.NoError(t, os.Remove(worktree))
+
+		removeEmptyParentsUpTo(worktree, base)
+
+		_, err := os.Stat(feat)
+		assert.True(t, os.IsNotExist(err), "empty feat/ dir should be removed")
+	})
+
+	t.Run("removes multiple nested empty parents", func(t *testing.T) {
+		// base/a/b/c -> after removing c, both b/ and a/ should be cleaned
+		base := t.TempDir()
+		deepDir := filepath.Join(base, "a", "b", "c")
+		assert.NoError(t, os.MkdirAll(deepDir, 0o755))
+
+		assert.NoError(t, os.Remove(deepDir))
+
+		removeEmptyParentsUpTo(deepDir, base)
+
+		_, err := os.Stat(filepath.Join(base, "a"))
+		assert.True(t, os.IsNotExist(err), "empty a/ dir should be removed")
+	})
+
+	t.Run("stops at non-empty directory", func(t *testing.T) {
+		// base/feat/branch-a and base/feat/branch-b
+		// removing branch-a should leave feat/ because branch-b exists
+		base := t.TempDir()
+		feat := filepath.Join(base, "feat")
+		branchA := filepath.Join(feat, "branch-a")
+		branchB := filepath.Join(feat, "branch-b")
+		assert.NoError(t, os.MkdirAll(branchA, 0o755))
+		assert.NoError(t, os.MkdirAll(branchB, 0o755))
+
+		assert.NoError(t, os.Remove(branchA))
+
+		removeEmptyParentsUpTo(branchA, base)
+
+		_, err := os.Stat(feat)
+		assert.NoError(t, err, "feat/ should still exist because branch-b is in it")
+	})
+
+	t.Run("does not remove base_dir itself", func(t *testing.T) {
+		base := t.TempDir()
+		worktree := filepath.Join(base, "my-feature")
+		assert.NoError(t, os.MkdirAll(worktree, 0o755))
+
+		assert.NoError(t, os.Remove(worktree))
+
+		removeEmptyParentsUpTo(worktree, base)
+
+		_, err := os.Stat(base)
+		assert.NoError(t, err, "base_dir itself should not be removed")
+	})
+
+	t.Run("handles already-cleaned directories gracefully", func(t *testing.T) {
+		base := t.TempDir()
+		worktree := filepath.Join(base, "feat", "gone")
+
+		// Nothing exists on disk; the walk should bail out on ReadDir and
+		// leave base/ untouched.
+		removeEmptyParentsUpTo(worktree, base)
+
+		_, err := os.Stat(base)
+		assert.NoError(t, err, "base should still exist")
+	})
+}
+
+func TestCleanupEmptyParentDirs(t *testing.T) {
+	t.Run("cleans prefix dir using configured base_dir", func(t *testing.T) {
+		// Lay out: mainRepo/ (with .wtp.yml) and mainRepo/../wts/feat/my-feature.
+		tmp := t.TempDir()
+		mainRepo := filepath.Join(tmp, "repo")
+		baseDir := filepath.Join(tmp, "wts")
+		assert.NoError(t, os.MkdirAll(mainRepo, 0o755))
+		assert.NoError(t, os.WriteFile(
+			filepath.Join(mainRepo, ".wtp.yml"),
+			[]byte("version: \"1.0\"\ndefaults:\n  base_dir: ../wts\n"),
+			0o600,
+		))
+
+		featDir := filepath.Join(baseDir, "feat")
+		worktreePath := filepath.Join(featDir, "my-feature")
+		assert.NoError(t, os.MkdirAll(worktreePath, 0o755))
+
+		// Simulate git having already removed the worktree directory itself.
+		assert.NoError(t, os.Remove(worktreePath))
+
+		worktrees := []git.Worktree{
+			{Path: mainRepo, IsMain: true},
+			{Path: worktreePath},
+		}
+		cleanupEmptyParentDirs(worktreePath, worktrees)
+
+		_, err := os.Stat(featDir)
+		assert.True(t, os.IsNotExist(err), "feat/ prefix dir should be removed")
+		_, err = os.Stat(baseDir)
+		assert.NoError(t, err, "base_dir itself should remain")
+	})
+
+	t.Run("no-op when main worktree is missing from list", func(t *testing.T) {
+		// Without a main worktree we can't resolve base_dir, so nothing
+		// should be removed even if the parent is empty.
+		tmp := t.TempDir()
+		featDir := filepath.Join(tmp, "feat")
+		worktreePath := filepath.Join(featDir, "my-feature")
+		assert.NoError(t, os.MkdirAll(featDir, 0o755))
+
+		cleanupEmptyParentDirs(worktreePath, []git.Worktree{{Path: "/some/other/wt"}})
+
+		_, err := os.Stat(featDir)
+		assert.NoError(t, err, "feat/ should be untouched when main is unknown")
+	})
 }
 
 // ===== Worktree Completion Tests =====
