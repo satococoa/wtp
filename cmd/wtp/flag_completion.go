@@ -130,8 +130,19 @@ func maybeCompleteFlagSuggestions(cmd *cli.Command, current string, previous []s
 	}
 
 	if candidate, ok := flagCandidateFromOSArgs(); ok {
-		if candidate != "" && candidate != currentNormalized && tryFlagCompletion(cmd, candidate) {
-			return true
+		if candidate != "" && candidate != currentNormalized {
+			// When the shell drops the current word (because it does not
+			// start with "-"), cmd.Args() is empty and the OS-args candidate
+			// is the previous argument. If that argument is a fully-typed
+			// flag, the shell is completing the flag's value or the next
+			// positional — not the flag name — so skip flag completion and
+			// let the command's own completion handler run.
+			if currentNormalized == "" && isCompleteFlagName(cmd, candidate) {
+				return false
+			}
+			if tryFlagCompletion(cmd, candidate) {
+				return true
+			}
 		}
 	}
 
@@ -158,4 +169,41 @@ func flagCandidateFromOSArgs() (string, bool) {
 	}
 
 	return candidate, candidate != ""
+}
+
+// isCompleteFlagName reports whether candidate is an exact match for a flag
+// name or alias defined on cmd or any of its ancestors. Dash conventions are
+// respected: a double-dash candidate ("--name") only matches multi-character
+// flag names (not single-character aliases), while a single-dash candidate
+// ("-x") matches both single-character aliases and full names.
+func isCompleteFlagName(cmd *cli.Command, candidate string) bool {
+	if !strings.HasPrefix(candidate, "-") || candidate == "-" || candidate == "--" {
+		return false
+	}
+
+	doubleDash := strings.HasPrefix(candidate, "--")
+	name := strings.TrimLeft(candidate, "-")
+
+	if idx := strings.Index(name, "="); idx != -1 {
+		name = name[:idx]
+	}
+
+	if name == "" {
+		return false
+	}
+
+	for _, pCmd := range cmd.Lineage() {
+		for _, flag := range pCmd.Flags {
+			for _, n := range flag.Names() {
+				if doubleDash && utf8.RuneCountInString(n) == 1 {
+					continue
+				}
+				if n == name {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
 }
