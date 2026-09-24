@@ -2,6 +2,7 @@
 package framework
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -150,6 +151,16 @@ func AssertWorktreeNotExists(t *testing.T, repo *TestRepo, path string) {
 func AssertEqual(t *testing.T, expected, actual any) {
 	t.Helper()
 	assert.Equal(t, expected, actual)
+}
+
+// AssertSamePath compares two paths after resolving symlinks, such as /var and /private/var on macOS.
+func AssertSamePath(t *testing.T, expected, actual string) {
+	t.Helper()
+	resolvedExpected, err := filepath.EvalSymlinks(expected)
+	assert.NoError(t, err)
+	resolvedActual, err := filepath.EvalSymlinks(actual)
+	assert.NoError(t, err)
+	assert.Equal(t, resolvedExpected, resolvedActual)
 }
 
 // AssertNotEqual compares two values and fails if they are equal.

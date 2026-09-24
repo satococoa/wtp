@@ -146,3 +146,78 @@ func TestGetMainWorktreePath_GitCommandFailure(t *testing.T) {
 	_, err = repo.GetMainWorktreePath()
 	assert.Error(t, err)
 }
+
+// setupSubmoduleRepo creates a parent repository with a submodule at "sub" and
+// returns the submodule checkout path.
+func setupSubmoduleRepo(t *testing.T) string {
+	t.Helper()
+
+	childDir := setupTestRepo(t)
+	parentDir := setupTestRepo(t)
+	runCmd(t, parentDir, "git", "-c", "protocol.file.allow=always", "submodule", "add", childDir, "sub")
+
+	return filepath.Join(parentDir, "sub")
+}
+
+func assertSamePath(t *testing.T, expected, actual string) {
+	t.Helper()
+
+	expectedPath, err := filepath.EvalSymlinks(expected)
+	assert.NoError(t, err)
+	actualPath, err := filepath.EvalSymlinks(actual)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedPath, actualPath)
+}
+
+func TestGetMainWorktreePath_Submodule(t *testing.T) {
+	submoduleDir := setupSubmoduleRepo(t)
+
+	repo, err := NewRepository(submoduleDir)
+	assert.NoError(t, err)
+
+	mainPath, err := repo.GetMainWorktreePath()
+	assert.NoError(t, err)
+	assertSamePath(t, submoduleDir, mainPath)
+}
+
+func TestGetWorktrees_SubmoduleLinkedWorktree(t *testing.T) {
+	submoduleDir := setupSubmoduleRepo(t)
+	linkedDir := filepath.Join(t.TempDir(), "feature")
+	runCmd(t, submoduleDir, "git", "worktree", "add", "-b", "feature", linkedDir)
+
+	repo, err := NewRepository(linkedDir)
+	assert.NoError(t, err)
+
+	worktrees, err := repo.GetWorktrees()
+	assert.NoError(t, err)
+	assert.Len(t, worktrees, 2)
+	assert.True(t, worktrees[0].IsMain)
+	assertSamePath(t, submoduleDir, worktrees[0].Path)
+
+	mainPath, err := repo.GetMainWorktreePath()
+	assert.NoError(t, err)
+	assertSamePath(t, submoduleDir, mainPath)
+}
+
+func TestResolveMainWorktreePath_BareRepositoryUnchanged(t *testing.T) {
+	bareDir := filepath.Join(t.TempDir(), "bare.git")
+	runCmd(t, filepath.Dir(bareDir), "git", "init", "--bare", bareDir)
+
+	assert.Equal(t, bareDir, ResolveMainWorktreePath(bareDir))
+}
+
+func TestResolveMainWorktreePath_RegularRepositoryUnchanged(t *testing.T) {
+	repoDir := setupTestRepo(t)
+
+	assert.Equal(t, repoDir, ResolveMainWorktreePath(repoDir))
+}
+
+func TestResolveMainWorktreePath_IgnoresInheritedGitEnv(t *testing.T) {
+	submoduleDir := setupSubmoduleRepo(t)
+	otherRepoDir := setupTestRepo(t)
+	t.Setenv("GIT_DIR", filepath.Join(otherRepoDir, ".git"))
+	t.Setenv("GIT_WORK_TREE", otherRepoDir)
+
+	gitDir := filepath.Join(filepath.Dir(submoduleDir), ".git", "modules", "sub")
+	assertSamePath(t, submoduleDir, ResolveMainWorktreePath(gitDir))
+}

@@ -29,6 +29,27 @@ func TestShellIntegration(t *testing.T) {
 		)
 	})
 
+	t.Run("CDCommandInSubmoduleOutputsSubmoduleCheckout", func(t *testing.T) {
+		child := env.CreateTestRepo("shell-cd-submodule-child")
+		parent := env.CreateTestRepo("shell-cd-submodule-parent")
+		submodule := parent.AddSubmodule(child, "child")
+		submodule.CreateBranch("feature/sub")
+		_, err := submodule.RunWTP("add", "feature/sub")
+		framework.AssertNoError(t, err)
+
+		output, err := submodule.RunWTP("cd", "@")
+		framework.AssertNoError(t, err)
+		framework.AssertSamePath(t, submodule.Path(), strings.TrimSpace(output))
+
+		output, err = submodule.RunWTP("cd", "feature/sub")
+		framework.AssertNoError(t, err)
+		linked := env.OpenRepo(strings.TrimSpace(output))
+
+		output, err = linked.RunWTP("cd", "@")
+		framework.AssertNoError(t, err)
+		framework.AssertSamePath(t, submodule.Path(), strings.TrimSpace(output))
+	})
+
 	t.Run("CDCommandOutputsPath", func(t *testing.T) {
 		repo := env.CreateTestRepo("shell-cd-path")
 		repo.CreateBranch("test-branch")
