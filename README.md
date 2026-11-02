@@ -103,22 +103,20 @@ go install github.com/satococoa/wtp/v2/cmd/wtp@latest
 
 ### Download Binary
 
-Download the latest binary from
-[GitHub Releases](https://github.com/satococoa/wtp/releases):
+Download the archive for your platform from the
+[latest GitHub release](https://github.com/satococoa/wtp/releases/latest):
 
-```bash
-# macOS (Apple Silicon)
-curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Darwin_arm64.tar.gz | tar xz
-sudo mv wtp /usr/local/bin/
+| Platform | Archive name (`VERSION` is the release version without `v`) |
+| --- | --- |
+| macOS (Apple Silicon) | `wtp_VERSION_Darwin_arm64.tar.gz` |
+| Linux (x86_64) | `wtp_VERSION_Linux_x86_64.tar.gz` |
+| Linux (ARM64) | `wtp_VERSION_Linux_arm64.tar.gz` |
 
-# Linux (x86_64)
-curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Linux_x86_64.tar.gz | tar xz
-sudo mv wtp /usr/local/bin/
+Extract the downloaded archive, then move the `wtp` binary to a directory on
+your `PATH`, such as `/usr/local/bin/`.
 
-# Linux (ARM64)
-curl -L https://github.com/satococoa/wtp/releases/latest/download/wtp_Linux_arm64.tar.gz | tar xz
-sudo mv wtp /usr/local/bin/
-```
+Archive names include the release version; versionless download URLs are not
+available.
 
 ### From Source
 
