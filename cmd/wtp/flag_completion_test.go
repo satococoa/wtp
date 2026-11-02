@@ -121,3 +121,188 @@ func TestMaybeCompleteFlagSuggestions_UsesOSArgsWhenCurrentEmpty(t *testing.T) {
 	require.True(t, maybeCompleteFlagSuggestions(cmd, "", nil))
 	require.Contains(t, buf.String(), "--with-branch")
 }
+
+func TestIsCompleteFlagName_ShortAlias(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+			&cli.StringFlag{Name: "exec"},
+		},
+	}
+
+	require.True(t, isCompleteFlagName(cmd, "-b"))
+	require.True(t, isCompleteFlagName(cmd, "-q"))
+}
+
+func TestIsCompleteFlagName_LongName(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+			&cli.StringFlag{Name: "exec"},
+		},
+	}
+
+	require.True(t, isCompleteFlagName(cmd, "--branch"))
+	require.True(t, isCompleteFlagName(cmd, "--quiet"))
+	require.True(t, isCompleteFlagName(cmd, "--exec"))
+}
+
+func TestIsCompleteFlagName_DoubleDashSkipsSingleCharAlias(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+		},
+	}
+
+	require.False(t, isCompleteFlagName(cmd, "--b"))
+	require.False(t, isCompleteFlagName(cmd, "--q"))
+}
+
+func TestIsCompleteFlagName_PartialName(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			&cli.BoolFlag{Name: "force", Aliases: []string{"f"}},
+		},
+	}
+
+	require.False(t, isCompleteFlagName(cmd, "--br"))
+	require.False(t, isCompleteFlagName(cmd, "--fo"))
+	require.False(t, isCompleteFlagName(cmd, "-fo"))
+}
+
+func TestIsCompleteFlagName_NonFlagOrEdgeCases(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+		},
+	}
+
+	require.False(t, isCompleteFlagName(cmd, "foo"))
+	require.False(t, isCompleteFlagName(cmd, "-"))
+	require.False(t, isCompleteFlagName(cmd, "--"))
+	require.False(t, isCompleteFlagName(cmd, ""))
+	require.False(t, isCompleteFlagName(cmd, "--unknown"))
+}
+
+func TestIsCompleteFlagName_EqualsFormat(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+		},
+	}
+
+	require.True(t, isCompleteFlagName(cmd, "--branch=value"))
+	require.True(t, isCompleteFlagName(cmd, "-b=value"))
+}
+
+func TestIsCompleteFlagName_SingleDashFullName(t *testing.T) {
+	cmd := &cli.Command{
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+		},
+	}
+
+	require.True(t, isCompleteFlagName(cmd, "-branch"))
+}
+
+func TestMaybeCompleteFlagSuggestions_SkipsCompleteShortFlag(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "add", "-b", "--generate-shell-completion"}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{
+		Writer: &buf,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+			&cli.StringFlag{Name: "exec"},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.False(t, maybeCompleteFlagSuggestions(cmd, "", nil))
+	require.Empty(t, buf.String())
+}
+
+func TestMaybeCompleteFlagSuggestions_SkipsCompleteLongFlag(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "add", "--branch", "--generate-shell-completion"}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{
+		Writer: &buf,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.False(t, maybeCompleteFlagSuggestions(cmd, "", nil))
+	require.Empty(t, buf.String())
+}
+
+func TestMaybeCompleteFlagSuggestions_SkipsCompleteBoolFlag(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "add", "-q", "--generate-shell-completion"}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{
+		Writer: &buf,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			&cli.BoolFlag{Name: "quiet", Aliases: []string{"q"}},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.False(t, maybeCompleteFlagSuggestions(cmd, "", nil))
+	require.Empty(t, buf.String())
+}
+
+func TestMaybeCompleteFlagSuggestions_PartialFlagStillCompletes(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "add", "--b", "--generate-shell-completion"}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{
+		Writer: &buf,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.True(t, maybeCompleteFlagSuggestions(cmd, "", nil))
+	require.Contains(t, buf.String(), "--branch")
+}
+
+func TestMaybeCompleteFlagSuggestions_CompleteFlagWithCurrentNotEmpty(t *testing.T) {
+	original := os.Args
+	t.Cleanup(func() { os.Args = original })
+
+	os.Args = []string{"wtp", "add", "foo", "-b", "--generate-shell-completion"}
+
+	var buf bytes.Buffer
+	cmd := &cli.Command{
+		Writer: &buf,
+		Flags: []cli.Flag{
+			&cli.StringFlag{Name: "branch", Aliases: []string{"b"}},
+			cli.GenerateShellCompletionFlag,
+		},
+	}
+
+	require.True(t, maybeCompleteFlagSuggestions(cmd, "foo", nil))
+	require.Contains(t, buf.String(), "--branch")
+}
