@@ -498,8 +498,8 @@ github.com/ultraware/funlen v0.2.0 h1:gCHmCn+d2/1SemTdYMiKLAHFYxTYz7z9VIDRaTGyLk
 github.com/ultraware/funlen v0.2.0/go.mod h1:ZE0q4TsJ8T1SQcjmkhN/w+MceuatI6pBFSxxyteHIJA=
 github.com/ultraware/whitespace v0.2.0 h1:TYowo2m9Nfj1baEQBjuHzvMRbp19i+RCcRYrSWoFa+g=
 github.com/ultraware/whitespace v0.2.0/go.mod h1:XcP1RLD81eV4BW8UhQlpaR+SDc2givTvyI8a586WjW8=
-github.com/urfave/cli/v3 v3.7.0 h1:AGSnbUyjtLiM+WJUb4dzXKldl/gL+F8OwmRDtVr6g2U=
-github.com/urfave/cli/v3 v3.7.0/go.mod h1:ysVLtOEmg2tOy6PknnYVhDoouyC/6N42TMeoMzskhso=
+github.com/urfave/cli/v3 v3.8.0 h1:XqKPrm0q4P0q5JpoclYoCAv0/MIvH/jZ2umzuf8pNTI=
+github.com/urfave/cli/v3 v3.8.0/go.mod h1:ysVLtOEmg2tOy6PknnYVhDoouyC/6N42TMeoMzskhso=
 github.com/uudashr/gocognit v1.2.0 h1:3BU9aMr1xbhPlvJLSydKwdLN3tEUUrzPSSM8S4hDYRA=
 github.com/uudashr/gocognit v1.2.0/go.mod h1:k/DdKPI6XBZO1q7HgoV2juESI2/Ofj9AcHPZhBBdrTU=
 github.com/uudashr/iface v1.4.1 h1:J16Xl1wyNX9ofhpHmQ9h9gk5rnv2A6lX/2+APLTo0zU=

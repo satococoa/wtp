@@ -47,6 +47,16 @@ func TestWorktreeCreation(t *testing.T) {
 		framework.AssertWorktreeExists(t, repo, "new-feature")
 	})
 
+	t.Run("EmptyExecValue", func(t *testing.T) {
+		repo := env.CreateTestRepo("worktree-empty-exec")
+
+		output, err := repo.RunWTP("add", "--branch=empty-exec", "--exec=", "--quiet")
+		framework.AssertNoError(t, err)
+		framework.AssertEqual(t, 2, len(repo.ListWorktrees()))
+		framework.AssertWorktreeExists(t, repo, "empty-exec")
+		framework.AssertTrue(t, strings.TrimSpace(output) != "", "Quiet mode should return the worktree path")
+	})
+
 	t.Run("NewBranchFromCommit", func(t *testing.T) {
 		repo := env.CreateTestRepo("worktree-new-commit")
 		repo.CreateBranch("develop")
