@@ -193,6 +193,14 @@ func (e *TestEnvironment) CreateNonRepoDir(name string) *TestRepo {
 	}
 }
 
+// OpenRepo wraps an existing repository or worktree directory.
+func (e *TestEnvironment) OpenRepo(path string) *TestRepo {
+	return &TestRepo{
+		env:  e,
+		path: path,
+	}
+}
+
 // WriteFile writes file contents relative to the test environment root.
 func (e *TestEnvironment) WriteFile(path, content string) {
 	e.writeFile(path, content)
@@ -238,6 +246,22 @@ func (r *TestRepo) RunWTP(args ...string) (string, error) {
 
 	output, err := cmd.CombinedOutput()
 	return string(output), err
+}
+
+// AddSubmodule adds source as a submodule at name and returns the submodule checkout.
+func (r *TestRepo) AddSubmodule(source *TestRepo, name string) *TestRepo {
+	r.env.t.Helper()
+
+	r.env.runInDir(r.path, "git", "-c", "protocol.file.allow=always", "submodule", "add", source.path, name)
+	submoduleDir := filepath.Join(r.path, name)
+	testutil.ConfigureTestRepo(r.env.t, submoduleDir, func(dir string, args ...string) {
+		r.env.runInDir(dir, "git", args...)
+	})
+
+	return &TestRepo{
+		env:  r.env,
+		path: submoduleDir,
+	}
 }
 
 // CreateBranch creates a new branch in the repository.

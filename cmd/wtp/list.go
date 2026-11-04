@@ -219,6 +219,10 @@ func parseWorktreesFromOutput(output string) []git.Worktree {
 		worktrees = append(worktrees, currentWorktree)
 	}
 
+	if len(worktrees) > 0 {
+		worktrees[0].Path = git.ResolveMainWorktreePath(worktrees[0].Path)
+	}
+
 	return worktrees
 }
 

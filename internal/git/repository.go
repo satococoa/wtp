@@ -4,6 +4,7 @@ package git
 import (
 	stdErrors "errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -62,16 +63,50 @@ func (r *Repository) GetMainWorktreePath() (string, error) {
 		return parent, nil
 	}
 
-	// If commonDir doesn't end with .git, it's likely already the worktree path
+	// If commonDir doesn't end with .git, it is a bare repository or a submodule's
+	// git directory (.git/modules/<name>)
 	if !filepath.IsAbs(commonDir) {
 		absPath, absErr := filepath.Abs(filepath.Join(r.path, commonDir))
 		if absErr != nil {
 			return "", fmt.Errorf("failed to get absolute path: %w", absErr)
 		}
-		return absPath, nil
+		commonDir = absPath
 	}
 
-	return commonDir, nil
+	return ResolveMainWorktreePath(commonDir), nil
+}
+
+// ResolveMainWorktreePath returns the working tree of a git directory that sets
+// core.worktree, such as a submodule's .git/modules/<name>. git worktree list
+// reports that git directory as the main worktree path. Other paths, including
+// bare repositories, are returned unchanged.
+func ResolveMainWorktreePath(path string) string {
+	if _, err := os.Stat(filepath.Join(path, ".git")); err == nil {
+		return path
+	}
+	if _, err := os.Stat(filepath.Join(path, "HEAD")); err != nil {
+		return path
+	}
+
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	cmd.Dir = path
+	// An inherited GIT_DIR or GIT_WORK_TREE would make git ignore cmd.Dir
+	env := os.Environ()
+	cmd.Env = make([]string, 0, len(env))
+	for _, e := range env {
+		if !strings.HasPrefix(e, "GIT_DIR=") && !strings.HasPrefix(e, "GIT_WORK_TREE=") {
+			cmd.Env = append(cmd.Env, e)
+		}
+	}
+	output, err := cmd.Output()
+	if err != nil {
+		return path
+	}
+
+	if topLevel := strings.TrimSpace(string(output)); topLevel != "" {
+		return topLevel
+	}
+	return path
 }
 
 // GetWorktrees lists the worktrees associated with the repository.
@@ -88,6 +123,7 @@ func (r *Repository) GetWorktrees() ([]Worktree, error) {
 	// The first worktree in the list is always the main worktree
 	if len(worktrees) > 0 {
 		worktrees[0].IsMain = true
+		worktrees[0].Path = ResolveMainWorktreePath(worktrees[0].Path)
 	}
 
 	return worktrees, nil
