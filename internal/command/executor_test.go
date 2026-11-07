@@ -1,6 +1,9 @@
 package command
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -319,13 +322,26 @@ func TestRealShellExecutor(t *testing.T) {
 	t.Run("should handle command with working directory", func(t *testing.T) {
 		// Given: a real shell executor
 		shell := NewRealShellExecutor()
+		tmpDir := os.TempDir()
+		// Resolve symlinks/short paths so assertion matches actual output
+		if resolved, err := filepath.EvalSymlinks(tmpDir); err == nil {
+			tmpDir = resolved
+		}
 
-		// When: executing pwd command in /tmp directory
-		output, err := shell.Execute("pwd", []string{}, "/tmp", false)
+		// Use a platform-specific command that prints the working directory
+		cmd := "pwd"
+		var args []string
+		if runtime.GOOS == "windows" {
+			cmd = "cmd"
+			args = []string{"/C", "cd"}
+		}
 
-		// Then: should return /tmp as output
+		// When: executing the command in the temp directory
+		output, err := shell.Execute(cmd, args, tmpDir, false)
+
+		// Then: should return the working directory
 		assert.NoError(t, err)
-		assert.Contains(t, output, "tmp")
+		assert.Contains(t, filepath.Clean(output), filepath.Clean(tmpDir))
 	})
 
 	t.Run("should handle command failure", func(t *testing.T) {

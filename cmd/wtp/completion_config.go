@@ -54,6 +54,9 @@ func configureCompletionCommand(cmd *cli.Command) {
 }
 
 func patchCompletionScript(shell, script string) string {
+	// Normalize CRLF to LF so that string replacements in patch functions
+	// work on Windows where urfave/cli may generate scripts with \r\n.
+	script = strings.ReplaceAll(script, "\r\n", "\n")
 	switch shell {
 	case shellFish:
 		return buildFishCompletionScript()
@@ -61,6 +64,8 @@ func patchCompletionScript(shell, script string) string {
 		return patchBashCompletionScript(script)
 	case shellZsh:
 		return patchZshCompletionScript(script)
+	case "pwsh":
+		return patchPowerShellCompletionScript(script)
 	default:
 		return script
 	}
@@ -249,4 +254,18 @@ func inShellCompletionContext() bool {
 		return true
 	}
 	return false
+}
+
+func patchPowerShellCompletionScript(script string) string {
+	// Replace the dynamic command name detection with hardcoded "wtp"
+	// The original script tries to get the name from $MyInvocation.MyCommand.Name
+	// which doesn't work when invoked via Invoke-Expression
+	target := "$fn = $($MyInvocation.MyCommand.Name)\n" +
+		"$name = $fn -replace \"(.*)\\.ps1$\", '$1'\n" +
+		"Register-ArgumentCompleter -Native -CommandName $name -ScriptBlock {"
+	replacement := "Register-ArgumentCompleter -Native -CommandName 'wtp' -ScriptBlock {"
+
+	script = strings.Replace(script, target, replacement, 1)
+
+	return script
 }

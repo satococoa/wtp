@@ -3,8 +3,16 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+func absoluteTestPath() string {
+	if runtime.GOOS == "windows" {
+		return `C:\tmp\source.txt`
+	}
+	return "/tmp/source.txt"
+}
 
 func TestLoadConfig_NonExistentFile(t *testing.T) {
 	tempDir := t.TempDir()
@@ -326,7 +334,7 @@ func TestHookValidate(t *testing.T) {
 			name: "copy hook missing to with absolute from",
 			hook: Hook{
 				Type: HookTypeCopy,
-				From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+				From: absoluteTestPath(),
 			},
 			expectError: true,
 		},
@@ -468,7 +476,7 @@ func TestConfigValidate_CopyAbsoluteFromRequiresTo(t *testing.T) {
 			PostCreate: []Hook{
 				{
 					Type: HookTypeCopy,
-					From: filepath.Join(string(os.PathSeparator), "tmp", "source.txt"),
+					From: absoluteTestPath(),
 				},
 			},
 		},
@@ -482,6 +490,18 @@ func TestConfigValidate_CopyAbsoluteFromRequiresTo(t *testing.T) {
 }
 
 func TestResolveWorktreePath(t *testing.T) {
+	// Use platform-appropriate paths so filepath.Join produces the expected result.
+	var repoRoot, absBaseDir, parentDir string
+	if runtime.GOOS == "windows" {
+		repoRoot = `C:\Users\user\project`
+		absBaseDir = `C:\tmp\worktrees`
+		parentDir = `C:\Users\user`
+	} else {
+		repoRoot = "/home/user/project"
+		absBaseDir = "/tmp/worktrees"
+		parentDir = "/home/user"
+	}
+
 	tests := []struct {
 		name         string
 		config       *Config
@@ -496,20 +516,20 @@ func TestResolveWorktreePath(t *testing.T) {
 					BaseDir: "../worktrees",
 				},
 			},
-			repoRoot:     "/home/user/project",
+			repoRoot:     repoRoot,
 			worktreeName: "feature/auth",
-			expected:     "/home/user/worktrees/feature/auth",
+			expected:     filepath.Join(parentDir, "worktrees", "feature", "auth"),
 		},
 		{
 			name: "absolute base_dir",
 			config: &Config{
 				Defaults: Defaults{
-					BaseDir: "/tmp/worktrees",
+					BaseDir: absBaseDir,
 				},
 			},
-			repoRoot:     "/home/user/project",
+			repoRoot:     repoRoot,
 			worktreeName: "feature/auth",
-			expected:     "/tmp/worktrees/feature/auth",
+			expected:     filepath.Join(absBaseDir, "feature", "auth"),
 		},
 		{
 			name: "simple worktree name",
@@ -518,9 +538,9 @@ func TestResolveWorktreePath(t *testing.T) {
 					BaseDir: "../worktrees",
 				},
 			},
-			repoRoot:     "/home/user/project",
+			repoRoot:     repoRoot,
 			worktreeName: "main",
-			expected:     "/home/user/worktrees/main",
+			expected:     filepath.Join(parentDir, "worktrees", "main"),
 		},
 	}
 

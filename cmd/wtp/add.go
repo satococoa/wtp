@@ -23,6 +23,8 @@ import (
 	wtpio "github.com/satococoa/wtp/v2/internal/io"
 )
 
+const osWindows = "windows"
+
 const addUsageText = "wtp add <existing-branch> [--quiet]\n" +
 	"       wtp add -b <new-branch> [<commit>] [--quiet]"
 
@@ -434,7 +436,7 @@ func executePostCreateCommand(
 		WorkDir:     workTreePath,
 		Interactive: interactive,
 	}
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		commandToRun.Name = "cmd"
 		commandToRun.Args = []string{"/c", execCommand}
 	} else {

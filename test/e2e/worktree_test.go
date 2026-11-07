@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -271,7 +273,7 @@ defaults:
 		// Check if worktree was created in custom base_dir
 		customPath := repo.Path() + "/custom-worktrees/feature/custom-dir"
 		framework.AssertTrue(t, env.FileExists(customPath+"/.git"), "Worktree .git should exist")
-		framework.AssertOutputContains(t, output, "custom-worktrees/feature/custom-dir")
+		framework.AssertOutputContains(t, output, filepath.Join("custom-worktrees", "feature", "custom-dir"))
 	})
 
 	t.Run("PostCreateHook", func(t *testing.T) {
@@ -281,6 +283,10 @@ defaults:
 		env.WriteFile(repo.Path()+"/template.txt", "template content")
 
 		// Create config with hooks
+		touchCmd := "touch hook-executed.txt"
+		if runtime.GOOS == "windows" {
+			touchCmd = "type nul > hook-executed.txt"
+		}
 		configContent := `version: "1.0"
 defaults:
   base_dir: ../worktrees
@@ -290,7 +296,7 @@ hooks:
       from: template.txt
       to: copied.txt
     - type: command
-      command: touch hook-executed.txt`
+      command: ` + touchCmd
 		env.WriteFile(repo.Path()+"/.wtp.yml", configContent)
 
 		// Create worktree with hooks

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -127,8 +128,10 @@ func TestInitCommand_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, info.IsDir())
 
-	// Check file permissions
-	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	// Check file permissions (skip on Windows where Unix permission bits are not supported)
+	if runtime.GOOS != osWindows {
+		assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	}
 
 	// Verify content
 	content, err := os.ReadFile(configPath)
