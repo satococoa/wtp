@@ -34,6 +34,9 @@ type Hook struct {
 	Command string            `yaml:"command,omitempty"`
 	Env     map[string]string `yaml:"env,omitempty"`
 	WorkDir string            `yaml:"work_dir,omitempty"`
+	// Optional makes a copy or symlink hook a no-op when its source is
+	// missing, instead of failing the hook and the ones after it.
+	Optional bool `yaml:"optional,omitempty"`
 }
 
 const (
@@ -177,6 +180,9 @@ func (h *Hook) Validate() error {
 		}
 		if h.From != "" || h.To != "" {
 			return fmt.Errorf("command hook should not have 'from' or 'to' fields")
+		}
+		if h.Optional {
+			return fmt.Errorf("command hook should not have 'optional' field")
 		}
 	case HookTypeSymlink:
 		if h.From == "" || h.To == "" {

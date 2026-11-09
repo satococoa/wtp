@@ -46,6 +46,11 @@ hooks:
       from: ".bin"
       to: ".bin"
 
+    # Copy or symlink a file only if it exists, instead of failing the hook
+    - type: copy
+      from: ".env.local"
+      optional: true
+
     # Prefer explicit, single-step setup commands
     - type: command
       command: "npm ci" # Example for Node.js (replace with your build/deps tool)

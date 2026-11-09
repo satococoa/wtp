@@ -77,6 +77,43 @@ hooks:
 	}
 }
 
+func TestLoadConfig_OptionalHook(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, ConfigFileName)
+
+	configContent := `version: "1.0"
+hooks:
+  post_create:
+    - type: copy
+      from: ".env.local"
+      optional: true
+    - type: symlink
+      from: ".bin"
+      to: ".bin"
+`
+
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, err := LoadConfig(tempDir)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(cfg.Hooks.PostCreate) != 2 {
+		t.Fatalf("Expected 2 hooks, got %d", len(cfg.Hooks.PostCreate))
+	}
+
+	if !cfg.Hooks.PostCreate[0].Optional {
+		t.Errorf("Expected the copy hook to be optional")
+	}
+
+	if cfg.Hooks.PostCreate[1].Optional {
+		t.Errorf("Expected the symlink hook not to be optional")
+	}
+}
+
 func TestLoadConfig_CopyHookDefaultsToFrom(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, ConfigFileName)
@@ -337,6 +374,24 @@ func TestHookValidate(t *testing.T) {
 				From:    ".env.example",
 				To:      ".env",
 				Command: "echo", // Should not have command
+			},
+			expectError: true,
+		},
+		{
+			name: "optional copy hook",
+			hook: Hook{
+				Type:     HookTypeCopy,
+				From:     ".env",
+				Optional: true,
+			},
+			expectError: false,
+		},
+		{
+			name: "command hook with optional field",
+			hook: Hook{
+				Type:     HookTypeCommand,
+				Command:  "npm ci",
+				Optional: true,
 			},
 			expectError: true,
 		},
