@@ -538,6 +538,68 @@ func TestExecutePostCreateHooks_CommandFailure(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to execute hook")
 }
 
+func TestExecutePostCreateHooks_OptionalCopySkipsMissingSource(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	require.NoError(t, os.MkdirAll(repoRoot, directoryPermissions))
+	require.NoError(t, os.MkdirAll(worktreeDir, directoryPermissions))
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:     config.HookTypeCopy,
+					From:     "nonexistent.env",
+					To:       ".env",
+					Optional: true,
+				},
+				{
+					Type:    config.HookTypeCommand,
+					Command: "touch after-optional",
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "Skipping: nonexistent.env (not found)")
+	assert.FileExists(t, filepath.Join(worktreeDir, "after-optional"))
+}
+
+func TestExecutePostCreateHooks_OptionalSymlinkSkipsMissingSource(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	worktreeDir := filepath.Join(tempDir, "worktree")
+
+	require.NoError(t, os.MkdirAll(repoRoot, directoryPermissions))
+	require.NoError(t, os.MkdirAll(worktreeDir, directoryPermissions))
+
+	cfg := &config.Config{
+		Hooks: config.Hooks{
+			PostCreate: []config.Hook{
+				{
+					Type:     config.HookTypeSymlink,
+					From:     ".bin",
+					To:       ".bin",
+					Optional: true,
+				},
+			},
+		},
+	}
+
+	executor := NewExecutor(cfg, repoRoot)
+	var buf bytes.Buffer
+	err := executor.ExecutePostCreateHooks(&buf, worktreeDir)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "Skipping: .bin (not found)")
+	assert.NoFileExists(t, filepath.Join(worktreeDir, ".bin"))
+}
+
 func TestExecutePostCreateHooks_CopyNonExistentFile(t *testing.T) {
 	// Create temp directories
 	tempDir := t.TempDir()
