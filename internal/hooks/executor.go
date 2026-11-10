@@ -73,6 +73,32 @@ func (e *Executor) executeHookWithWriter(w io.Writer, hook *config.Hook, worktre
 	}
 }
 
+// statHookSource stats a hook's source, reporting "skipped" instead of an
+// error when an optional hook has nothing to copy or link.
+func (e *Executor) statHookSource(
+	w io.Writer, hook *config.Hook, srcPath string,
+) (info os.FileInfo, found bool, err error) {
+	info, statErr := os.Stat(srcPath)
+	if statErr == nil {
+		return info, true, nil
+	}
+	if !hook.Optional || !os.IsNotExist(statErr) {
+		if os.IsNotExist(statErr) {
+			return nil, false, fmt.Errorf("source path does not exist: %s: %w", srcPath, statErr)
+		}
+		return nil, false, fmt.Errorf("failed to stat source path %s: %w", srcPath, statErr)
+	}
+
+	relSrc, relErr := filepath.Rel(e.repoRoot, srcPath)
+	if relErr != nil {
+		relSrc = srcPath
+	}
+	if _, err := fmt.Fprintf(w, "  Skipping: %s (not found)\n", relSrc); err != nil {
+		return nil, false, err
+	}
+	return nil, false, nil
+}
+
 // executeCopyHookWithWriter executes a copy hook with output directed to writer
 func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, worktreePath string) error {
 	// Resolve source path (relative to repo root)
@@ -100,9 +126,12 @@ func (e *Executor) executeCopyHookWithWriter(w io.Writer, hook *config.Hook, wor
 	}
 
 	// Check if source exists
-	srcInfo, err := os.Stat(srcPath)
+	srcInfo, found, err := e.statHookSource(w, hook, srcPath)
 	if err != nil {
-		return fmt.Errorf("source path does not exist: %s", srcPath)
+		return err
+	}
+	if !found {
+		return nil
 	}
 	if err := ensureDistinctPaths(srcPath, dstPath, srcInfo); err != nil {
 		return err
@@ -154,9 +183,12 @@ func (e *Executor) executeSymlinkHookWithWriter(w io.Writer, hook *config.Hook, 
 	}
 
 	// Check if source exists
-	srcInfo, err := os.Stat(srcPath)
+	srcInfo, found, err := e.statHookSource(w, hook, srcPath)
 	if err != nil {
-		return fmt.Errorf("source path does not exist: %s", srcPath)
+		return err
+	}
+	if !found {
+		return nil
 	}
 	if err := ensureDistinctPaths(srcPath, dstPath, srcInfo); err != nil {
 		return err
