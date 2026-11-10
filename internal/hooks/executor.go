@@ -83,7 +83,10 @@ func (e *Executor) statHookSource(
 		return info, true, nil
 	}
 	if !hook.Optional || !os.IsNotExist(statErr) {
-		return nil, false, fmt.Errorf("source path does not exist: %s", srcPath)
+		if os.IsNotExist(statErr) {
+			return nil, false, fmt.Errorf("source path does not exist: %s: %w", srcPath, statErr)
+		}
+		return nil, false, fmt.Errorf("failed to stat source path %s: %w", srcPath, statErr)
 	}
 
 	relSrc, relErr := filepath.Rel(e.repoRoot, srcPath)
